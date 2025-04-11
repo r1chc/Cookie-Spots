@@ -12,25 +12,26 @@ const Header = () => {
         <div className="flex justify-between items-center">
           {/* Logo */}
           <Link to="/" className="flex items-center">
-            <img src="/images/cookie-spots-logo.svg" alt="Cookie Spots Logo" className="h-10 w-10 mr-2" />
+            {/* Fallback for missing logo */}
+            <span className="text-primary h-10 w-10 mr-2 flex items-center justify-center text-xl font-bold">🍪</span>
             <span className="cookie-spots-logo">CookieSpots</span>
           </Link>
 
           {/* Navigation - Desktop */}
           <nav className="hidden md:flex items-center space-x-6">
-            <Link to="/explore" className="text-gray-700 hover:text-primary-600">Explore</Link>
-            <Link to="/map" className="text-gray-700 hover:text-primary-600">Map</Link>
-            <Link to="/blog" className="text-gray-700 hover:text-primary-600">Blog</Link>
-            <Link to="/app" className="text-gray-700 hover:text-primary-600">The App</Link>
-            <Link to="/shop" className="text-gray-700 hover:text-primary-600">Shop</Link>
+            <Link to="/explore" className="text-gray-700 hover:text-primary">Explore</Link>
+            <Link to="/map" className="text-gray-700 hover:text-primary">Map</Link>
+            <Link to="/blog" className="text-gray-700 hover:text-primary">Blog</Link>
+            <Link to="/app" className="text-gray-700 hover:text-primary">The App</Link>
+            <Link to="/shop" className="text-gray-700 hover:text-primary">Shop</Link>
             
             <div className="relative">
               <button 
-                className="text-gray-700 hover:text-primary-600"
+                className="text-gray-700 hover:text-primary flex items-center"
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
               >
                 More
-                <svg className="w-4 h-4 ml-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
                 </svg>
               </button>
@@ -53,7 +54,7 @@ const Header = () => {
               </svg>
             </button>
             
-            <Link to="/add-cookie-spot" className="hidden md:block bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+            <Link to="/add-cookie-spot" className="hidden md:block bg-primary text-white px-4 py-2 rounded-md text-sm font-medium">
               Add Listing
             </Link>
             
