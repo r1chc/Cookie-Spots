@@ -2,7 +2,7 @@ require('dotenv').config();
 
 module.exports = {
   // MongoDB Atlas connection string
-  mongoURI: process.env.MONGO_URI || 'mongodb+srv://cookiespots:cookiespots123@cookiespots.mongodb.net/cookie-spots?retryWrites=true&w=majority',
+  mongoURI: process.env.MONGO_URI || 'mongodb+srv://C00kieUs3r:MVGeUvnwrpiuS90e@cookiespots.5b0b1zp.mongodb.net/?retryWrites=true&w=majority&appName=CookieSpots',
   
   // JWT secret for authentication
   jwtSecret: process.env.JWT_SECRET || 'cookiespotsecret',

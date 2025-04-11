@@ -26,7 +26,7 @@ app.use(express.urlencoded({ extended: false }));
 const connectDB = async () => {
   try {
     // Use MongoDB Atlas connection string from environment variable or config
-    const mongoURI = process.env.MONGO_URI || 'mongodb+srv://cookiespots:cookiespots123@cookiespots.mongodb.net/cookie-spots?retryWrites=true&w=majority';
+    const mongoURI = process.env.MONGO_URI || 'mongodb+srv://C00kieUs3r:MVGeUvnwrpiuS90e@cookiespots.5b0b1zp.mongodb.net/?retryWrites=true&w=majority&appName=CookieSpots';
     
     await mongoose.connect(mongoURI, {
       useNewUrlParser: true,
@@ -79,7 +79,7 @@ app.use((err, req, res, next) => {
   res.status(500).send({ message: 'Server error', error: err.message });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
