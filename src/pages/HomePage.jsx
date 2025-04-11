@@ -84,16 +84,27 @@ const HomePage = ({ onSearch }) => {
         <div className="container mx-auto px-4">
           <h2 className="text-2xl font-bold mb-8">Popular Cookie Types</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {['Chocolate Chip', 'Sugar Cookie', 'Oatmeal Raisin', 'Peanut Butter', 'Snickerdoodle', 'Macaron'].map((type, index) => (
+            {[
+              { name: 'Chocolate Chip', image: '/images/cookie-types/chocolate-chip.webp' },
+              { name: 'Sugar Cookie', image: '/images/cookie-types/sugar-cookie.webp' },
+              { name: 'Oatmeal Raisin', image: '/images/cookie-types/oatmeal-raisin.webp' },
+              { name: 'Peanut Butter', image: '/images/cookie-types/peanut-butter.webp' },
+              { name: 'Snickerdoodle', image: '/images/cookie-types/snickerdoodle.webp' },
+              { name: 'Macaron', image: '/images/cookie-types/macaron.webp' }
+            ].map((cookie, index) => (
               <Link 
                 key={index} 
-                to={`/search?type=${type}`}
+                to={`/search?type=${cookie.name}`}
                 className="bg-white rounded-lg shadow-md p-4 text-center hover:shadow-lg transition-shadow"
               >
-                <div className="w-16 h-16 mx-auto mb-3 bg-gray-200 rounded-full flex items-center justify-center">
-                  <span className="text-2xl">🍪</span>
+                <div className="w-16 h-16 mx-auto mb-3 overflow-hidden rounded-full">
+                  <img 
+                    src={cookie.image} 
+                    alt={cookie.name} 
+                    className="w-full h-full object-cover"
+                  />
                 </div>
-                <h3 className="font-medium">{type}</h3>
+                <h3 className="font-medium">{cookie.name}</h3>
               </Link>
             ))}
           </div>
