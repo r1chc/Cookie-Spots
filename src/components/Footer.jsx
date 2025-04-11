@@ -44,7 +44,7 @@ const Footer = () => {
           {/* Column 4: App */}
           <div>
             <h3 className="text-lg font-semibold mb-4">CookieSpots App</h3>
-            <p className="text-gray-300 text-sm mb-4">Download our app to find cookie spots on the go!</p>
+            <p className="text-gray-300 text-sm mb-4">App Coming Soon!</p>
             <div className="flex space-x-2">
               <a href="#" className="block">
                 <img src="/images/app-store-badge.svg" alt="Download on the App Store" className="h-10" />
