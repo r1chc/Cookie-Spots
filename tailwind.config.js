@@ -1,4 +1,5 @@
-module.exports = {
+/** @type {import('tailwindcss').Config} */
+export default {
     content: [
       "./index.html",
       "./src/**/*.{js,jsx,ts,tsx}",
@@ -9,11 +10,15 @@ module.exports = {
           primary: {
             DEFAULT: 'var(--primary-color)',
             600: 'var(--primary-color)',
-            700: '#7c4dd0',
+            700: '#7B98C0', /* Slightly darker shade for hover states */
           },
-          // other color extensions
+          secondary: 'var(--secondary-color)',
+          accent: 'var(--accent-color)',
+          background: 'var(--background-color)',
+          text: 'var(--text-color)',
         },
       },
     },
     plugins: [],
-  }  
+  }
+  
