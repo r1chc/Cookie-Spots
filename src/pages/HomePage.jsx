@@ -116,8 +116,8 @@ const HomePage = ({ onSearch }) => {
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="md:w-1/2 mb-8 md:mb-0">
-              <h2 className="text-3xl font-bold mb-4">Get the CookieSpots App</h2>
-              <p className="text-lg mb-6">Find cookie spots on the go with our mobile app. Available for iOS and Android.</p>
+              <h2 className="text-3xl font-bold mb-4">The CookieSpots App Coming Soon!</h2>
+              <p className="text-lg mb-6">Find cookie spots on the go with our mobile app. Available for iOS and Android Soon!</p>
               <div className="flex space-x-4">
                 <a href="#" className="block">
                   <img src="/images/app-store-badge.svg" alt="Download on the App Store" className="h-12" />
