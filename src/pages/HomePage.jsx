@@ -1,52 +1,59 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import SearchBar from '../components/SearchBar'
 import CookieSpotCard from '../components/CookieSpotCard'
 import FilterButtons from '../components/FilterButtons'
+import { getCurrentLocation, reverseGeocode, getDefaultLocation } from '../utils/geolocation'
+import { fetchCookieSpotsByLocation } from '../utils/cookieSpotService'
 
 const HomePage = ({ onSearch }) => {
-  const [featuredSpots, setFeaturedSpots] = useState([
-    {
-      id: 1,
-      name: "Crumbl Cookie",
-      image: "/images/cookie-spot-1.jpg",
-      rating: 4.8,
-      reviewCount: 324,
-      location: "New York, NY",
-      description: "Specialty cookies with rotating weekly flavors",
-      cookieTypes: ["Chocolate Chip", "Sugar Cookie", "Specialty"]
-    },
-    {
-      id: 2,
-      name: "Levain Bakery",
-      image: "/images/cookie-spot-2.jpg",
-      rating: 4.9,
-      reviewCount: 512,
-      location: "New York, NY",
-      description: "Famous for giant gooey cookies with crisp edges",
-      cookieTypes: ["Chocolate Chip", "Double Chocolate", "Oatmeal Raisin"]
-    },
-    {
-      id: 3,
-      name: "Insomnia Cookies",
-      image: "/images/cookie-spot-3.jpg",
-      rating: 4.6,
-      reviewCount: 287,
-      location: "Boston, MA",
-      description: "Late-night cookie delivery service",
-      cookieTypes: ["Chocolate Chip", "Snickerdoodle", "White Chocolate Macadamia"]
-    },
-    {
-      id: 4,
-      name: "Cookie Dough & Co",
-      image: "/images/cookie-spot-4.jpg",
-      rating: 4.7,
-      reviewCount: 198,
-      location: "Chicago, IL",
-      description: "Edible cookie dough and freshly baked cookies",
-      cookieTypes: ["Cookie Dough", "Chocolate Chip", "Peanut Butter"]
-    }
-  ]);
+  const [featuredSpots, setFeaturedSpots] = useState([]);
+  const [userLocation, setUserLocation] = useState(null);
+  const [locationError, setLocationError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Function to get user location and fetch nearby cookie spots
+    const getUserLocationAndSpots = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Try to get the user's current location
+        const coords = await getCurrentLocation();
+        
+        // Reverse geocode to get city and state
+        const locationData = await reverseGeocode(coords);
+        
+        // Set the user's location
+        setUserLocation({
+          ...locationData,
+          latitude: coords.latitude,
+          longitude: coords.longitude
+        });
+        
+        // Fetch cookie spots based on the user's location
+        const spots = await fetchCookieSpotsByLocation(locationData);
+        setFeaturedSpots(spots);
+        
+      } catch (error) {
+        console.error('Error getting location or spots:', error);
+        setLocationError(error.message);
+        
+        // Use default location as fallback
+        const defaultLocation = getDefaultLocation();
+        setUserLocation(defaultLocation);
+        
+        // Fetch default cookie spots
+        const defaultSpots = await fetchCookieSpotsByLocation(defaultLocation);
+        setFeaturedSpots(defaultSpots);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Call the function to get location and spots
+    getUserLocationAndSpots();
+  }, []);
 
   return (
     <div>
@@ -63,7 +70,10 @@ const HomePage = ({ onSearch }) => {
       <section className="py-12 bg-white">
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center mb-8">
-            <h2 className="text-2xl font-bold">Cookie Spots Near Me</h2>
+            <h2 className="text-2xl font-bold">
+              {userLocation ? `Cookie Spots Near ${userLocation.city}` : 'Cookie Spots Near Me'}
+              {locationError && <span className="text-sm text-gray-500 ml-2">(Using default locations)</span>}
+            </h2>
             <Link to="/search" className="text-primary-600 hover:text-primary-700">
               View all
             </Link>
@@ -71,11 +81,17 @@ const HomePage = ({ onSearch }) => {
 
           <FilterButtons />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
-            {featuredSpots.map(spot => (
-              <CookieSpotCard key={spot.id} spot={spot} />
-            ))}
-          </div>
+          {isLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
+              {featuredSpots.map(spot => (
+                <CookieSpotCard key={spot.id} spot={spot} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -116,8 +132,8 @@ const HomePage = ({ onSearch }) => {
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="md:w-1/2 mb-8 md:mb-0">
-              <h2 className="text-3xl font-bold mb-4">The CookieSpots App Coming Soon!</h2>
-              <p className="text-lg mb-6">Find cookie spots on the go with our mobile app. Available for iOS and Android Soon!</p>
+              <h2 className="text-3xl font-bold mb-4">Get the CookieSpots App</h2>
+              <p className="text-lg mb-6">Find cookie spots on the go with our mobile app. Available for iOS and Android.</p>
               <div className="flex space-x-4">
                 <a href="#" className="block">
                   <img src="/images/app-store-badge.svg" alt="Download on the App Store" className="h-12" />
