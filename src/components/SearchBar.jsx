@@ -158,11 +158,24 @@ const SearchBar = ({ onSearch }) => {
                 longitude: place.geometry.location.lng()
               }
               onSearch(suggestion.description, locationData)
+            } else {
+              // If no onSearch handler, redirect to search page with query params
+              const params = new URLSearchParams()
+              params.set('location', suggestion.description)
+              
+              if (place.geometry && place.geometry.location) {
+                params.set('lat', place.geometry.location.lat())
+                params.set('lng', place.geometry.location.lng())
+              }
+              
+              window.location.href = `/search?${params.toString()}`
             }
           } else {
             console.log("Fallback to basic search - place details not available")
             if (onSearch) {
               onSearch(suggestion.description)
+            } else {
+              window.location.href = `/search?location=${encodeURIComponent(suggestion.description)}`
             }
           }
         })
@@ -173,6 +186,8 @@ const SearchBar = ({ onSearch }) => {
         console.error("Error getting place details:", error)
         if (onSearch) {
           onSearch(suggestion.description)
+        } else {
+          window.location.href = `/search?location=${encodeURIComponent(suggestion.description)}`
         }
       }
     } else {
@@ -180,6 +195,8 @@ const SearchBar = ({ onSearch }) => {
       console.log("Fallback to basic search - API not loaded")
       if (onSearch) {
         onSearch(suggestion.description)
+      } else {
+        window.location.href = `/search?location=${encodeURIComponent(suggestion.description)}`
       }
     }
   }

@@ -15,10 +15,21 @@ import './styles/index.css';
 
 function App() {
   // Function to handle search
-  const handleSearch = (location) => {
-    console.log('Searching for:', location);
-    // In a real app, this would navigate to search results with the location
-    window.location.href = `/search?location=${encodeURIComponent(location)}`;
+  const handleSearch = (location, locationData) => {
+    console.log('Searching for:', location, locationData);
+    
+    // Build URL params
+    const params = new URLSearchParams();
+    params.set('location', location);
+    
+    // Add coordinates if available
+    if (locationData && locationData.latitude && locationData.longitude) {
+      params.set('lat', locationData.latitude);
+      params.set('lng', locationData.longitude);
+    }
+    
+    // Navigate to search results page
+    window.location.href = `/search?${params.toString()}`;
   };
 
   return (

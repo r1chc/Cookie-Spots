@@ -4,7 +4,7 @@ import SearchBar from '../components/SearchBar'
 import CookieSpotCard from '../components/CookieSpotCard'
 import FilterButtons from '../components/FilterButtons'
 import { getCurrentLocation, reverseGeocode, getDefaultLocation } from '../utils/geolocation'
-import { fetchCookieSpotsByLocation } from '../utils/cookieSpotService'
+import { fetchCookieSpotsByLocation, fetchAllSourceCookieSpots } from '../utils/cookieSpotService'
 
 const HomePage = ({ onSearch }) => {
   const [featuredSpots, setFeaturedSpots] = useState([]);
@@ -55,6 +55,21 @@ const HomePage = ({ onSearch }) => {
     getUserLocationAndSpots();
   }, []);
 
+  const handleSearch = (searchText, locationData) => {
+    // Build URL params
+    const params = new URLSearchParams();
+    params.set('location', searchText);
+    
+    // Add coordinates if available
+    if (locationData && locationData.latitude && locationData.longitude) {
+      params.set('lat', locationData.latitude);
+      params.set('lng', locationData.longitude);
+    }
+    
+    // Navigate to search results page
+    window.location.href = `/search?${params.toString()}`;
+  };
+
   return (
     <div>
       {/* Hero Section */}
@@ -62,7 +77,7 @@ const HomePage = ({ onSearch }) => {
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Find Cookie Spots Nearby</h1>
           <p className="text-xl mb-8">Discover the best cookies in your area</p>
-          <SearchBar onSearch={onSearch} />
+          <SearchBar onSearch={handleSearch} />
         </div>
       </section>
 
