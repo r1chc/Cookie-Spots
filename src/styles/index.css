@@ -121,12 +121,17 @@ img {
 }
 
 .search-button {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
+  /* Updated to remove conflicting positioning */
   background: none;
   border: none;
   cursor: pointer;
   color: var(--primary-color);
+}
+
+/* Add these to prevent blue background on search page */
+body.search-page, 
+body.search-page #root, 
+body.search-page main, 
+body.search-page [class*="bg-primary"] {
+  background-color: white !important;
 }
