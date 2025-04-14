@@ -44,19 +44,43 @@ const externalApiController = {
       }
       
       // Define search parameters
-      let searchParams = {};
+      let searchParams;
       if (lat && lng) {
         searchParams = { lat, lng };
       } else if (location) {
         searchParams = { location };
       }
       
+      console.log('Fetching cookie spots with params:', searchParams);
+      
       // Parallel fetch from all three APIs
-      const [googleSpots, yelpSpots, facebookSpots] = await Promise.all([
+      // Use Promise.allSettled to handle partial failures
+      const results = await Promise.allSettled([
         fetchFromGoogle(searchParams),
         fetchFromYelp(searchParams),
         fetchFromFacebook(searchParams)
       ]);
+      
+      // Process results, handling any rejected promises
+      let googleSpots = [], yelpSpots = [], facebookSpots = [];
+      
+      if (results[0].status === 'fulfilled') {
+        googleSpots = results[0].value;
+      } else {
+        console.error('Google API error:', results[0].reason);
+      }
+      
+      if (results[1].status === 'fulfilled') {
+        yelpSpots = results[1].value;
+      } else {
+        console.error('Yelp API error:', results[1].reason);
+      }
+      
+      if (results[2].status === 'fulfilled') {
+        facebookSpots = results[2].value;
+      } else {
+        console.error('Facebook API error:', results[2].reason);
+      }
       
       console.log(`Found: Google (${googleSpots.length}), Yelp (${yelpSpots.length}), Facebook (${facebookSpots.length})`);
       
@@ -96,7 +120,6 @@ async function fetchFromGoogle(params) {
     }
     
     // Get either location or coordinates
-    let location;
     let coordinates;
     
     if (params.lat && params.lng) {
@@ -108,8 +131,8 @@ async function fetchFromGoogle(params) {
       
       if (geocodeResponse.data.results && geocodeResponse.data.results.length > 0) {
         coordinates = geocodeResponse.data.results[0].geometry.location;
-        location = params.location;
       } else {
+        console.error('No geocoding results for:', params.location);
         return [];
       }
     } else {
@@ -120,72 +143,80 @@ async function fetchFromGoogle(params) {
     const placesUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${coordinates.lat},${coordinates.lng}&radius=5000&type=bakery&keyword=cookie&key=${googleApiKey}`;
     const placesResponse = await axios.get(placesUrl);
     
-    if (!placesResponse.data.results) {
-      console.error('No results from Google Places API');
+    if (!placesResponse.data.results || placesResponse.data.results.length === 0) {
+      console.log('No results from Google Places API');
       return [];
     }
     
+    console.log(`Found ${placesResponse.data.results.length} cookie spots from Google`);
+    
     // Map Google results to our schema
-    const spots = await Promise.all(placesResponse.data.results.map(async (place) => {
-      // Get place details for more information
-      const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=name,formatted_address,formatted_phone_number,website,opening_hours,price_level,address_components&key=${googleApiKey}`;
-      const detailsResponse = await axios.get(detailsUrl);
-      const details = detailsResponse.data.result || {};
-      
-      // Extract address components
-      const addressComponents = details.address_components || [];
-      const streetNumber = addressComponents.find(comp => comp.types.includes('street_number'))?.long_name || '';
-      const street = addressComponents.find(comp => comp.types.includes('route'))?.long_name || '';
-      const city = addressComponents.find(comp => comp.types.includes('locality'))?.long_name || '';
-      const state = addressComponents.find(comp => comp.types.includes('administrative_area_level_1'))?.short_name || '';
-      const postalCode = addressComponents.find(comp => comp.types.includes('postal_code'))?.long_name || '';
-      const country = addressComponents.find(comp => comp.types.includes('country'))?.short_name || 'USA';
-      
-      // Format hours of operation
-      const hours = {};
-      if (details.opening_hours && details.opening_hours.weekday_text) {
-        const daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-        details.opening_hours.weekday_text.forEach((dayHours, index) => {
-          const day = daysOfWeek[index];
-          hours[day] = dayHours.split(': ')[1] || 'Closed';
+    const spots = [];
+    
+    for (const place of placesResponse.data.results) {
+      try {
+        // Get place details for more information
+        const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=name,formatted_address,formatted_phone_number,website,opening_hours,price_level,address_components&key=${googleApiKey}`;
+        const detailsResponse = await axios.get(detailsUrl);
+        const details = detailsResponse.data.result || {};
+        
+        // Extract address components
+        const addressComponents = details.address_components || [];
+        const streetNumber = addressComponents.find(comp => comp.types.includes('street_number'))?.long_name || '';
+        const street = addressComponents.find(comp => comp.types.includes('route'))?.long_name || '';
+        const city = addressComponents.find(comp => comp.types.includes('locality'))?.long_name || '';
+        const state = addressComponents.find(comp => comp.types.includes('administrative_area_level_1'))?.short_name || '';
+        const postalCode = addressComponents.find(comp => comp.types.includes('postal_code'))?.long_name || '';
+        const country = addressComponents.find(comp => comp.types.includes('country'))?.short_name || 'USA';
+        
+        // Format hours of operation
+        const hours = {};
+        if (details.opening_hours && details.opening_hours.weekday_text) {
+          const daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+          details.opening_hours.weekday_text.forEach((dayHours, index) => {
+            const day = daysOfWeek[index];
+            hours[day] = dayHours.split(': ')[1] || 'Closed';
+          });
+        }
+        
+        spots.push({
+          name: place.name,
+          description: place.vicinity || '',
+          address: `${streetNumber} ${street}`.trim(),
+          city,
+          state_province: state,
+          country,
+          postal_code: postalCode,
+          location: {
+            type: 'Point',
+            coordinates: [place.geometry.location.lng, place.geometry.location.lat]
+          },
+          phone: details.formatted_phone_number || '',
+          website: details.website || '',
+          hours_of_operation: hours,
+          price_range: place.price_level ? '$'.repeat(place.price_level) : '$$',
+          status: 'active',
+          has_dine_in: true,
+          has_takeout: true,
+          has_delivery: false,
+          is_wheelchair_accessible: false,
+          accepts_credit_cards: true,
+          cookie_types: [{ name: 'Cookies' }],
+          dietary_options: [],
+          features: ['Google Verified'],
+          average_rating: place.rating || 0,
+          review_count: place.user_ratings_total || 0,
+          source: 'google',
+          source_id: place.place_id
         });
+      } catch (err) {
+        console.error(`Error processing Google place ${place.place_id}:`, err.message);
       }
-      
-      return {
-        name: place.name,
-        description: place.vicinity || '',
-        address: `${streetNumber} ${street}`.trim(),
-        city,
-        state_province: state,
-        country,
-        postal_code: postalCode,
-        location: {
-          type: 'Point',
-          coordinates: [place.geometry.location.lng, place.geometry.location.lat]
-        },
-        phone: details.formatted_phone_number || '',
-        website: details.website || '',
-        hours_of_operation: hours,
-        price_range: place.price_level ? '$'.repeat(place.price_level) : '$$',
-        status: 'active',
-        has_dine_in: true,
-        has_takeout: true,
-        has_delivery: false,
-        is_wheelchair_accessible: false,
-        accepts_credit_cards: true,
-        cookie_types: [{ name: 'Cookies' }],
-        dietary_options: [],
-        features: ['Google Verified'],
-        average_rating: place.rating || 0,
-        review_count: place.user_ratings_total || 0,
-        source: 'google',
-        source_id: place.place_id
-      };
-    }));
+    }
     
     return spots;
   } catch (error) {
-    console.error('Error fetching from Google Places API:', error);
+    console.error('Error fetching from Google Places API:', error.message);
     return [];
   }
 }
@@ -203,51 +234,34 @@ async function fetchFromYelp(params) {
       return [];
     }
     
-    // Build the search term
-    let location;
+    // Build the search query
+    let yelpUrl;
     
     if (params.lat && params.lng) {
       // Use coordinates for Yelp search
-      location = `${params.lat},${params.lng}`;
+      yelpUrl = `https://api.yelp.com/v3/businesses/search?term=cookies&latitude=${params.lat}&longitude=${params.lng}&categories=bakeries&limit=50`;
     } else if (params.location) {
-      location = params.location;
+      yelpUrl = `https://api.yelp.com/v3/businesses/search?term=cookies&location=${encodeURIComponent(params.location)}&categories=bakeries&limit=50`;
     } else {
       return [];
     }
     
     // Search for cookie businesses
-    const yelpUrl = `https://api.yelp.com/v3/businesses/search?term=cookies&location=${encodeURIComponent(location)}&categories=bakeries&limit=50`;
     const response = await axios.get(yelpUrl, {
       headers: {
         Authorization: `Bearer ${yelpApiKey}`
       }
     });
     
-    if (!response.data.businesses) {
-      console.error('No results from Yelp API');
+    if (!response.data.businesses || response.data.businesses.length === 0) {
+      console.log('No results from Yelp API');
       return [];
     }
     
+    console.log(`Found ${response.data.businesses.length} cookie spots from Yelp`);
+    
     // Map Yelp results to our schema
-    const spots = await Promise.all(response.data.businesses.map(async (business) => {
-      // Get business details if needed
-      let details = business;
-      
-      // If you need more details, uncomment this block
-      /* 
-      try {
-        const detailsUrl = `https://api.yelp.com/v3/businesses/${business.id}`;
-        const detailsResponse = await axios.get(detailsUrl, {
-          headers: {
-            Authorization: `Bearer ${yelpApiKey}`
-          }
-        });
-        details = detailsResponse.data;
-      } catch (err) {
-        console.error(`Error fetching details for ${business.id}:`, err);
-      }
-      */
-      
+    const spots = response.data.businesses.map(business => {
       return {
         name: business.name,
         description: business.categories?.map(cat => cat.title).join(', ') || '',
@@ -277,11 +291,11 @@ async function fetchFromYelp(params) {
         source: 'yelp',
         source_id: business.id
       };
-    }));
+    });
     
     return spots;
   } catch (error) {
-    console.error('Error fetching from Yelp API:', error);
+    console.error('Error fetching from Yelp API:', error.message);
     return [];
   }
 }
@@ -299,29 +313,29 @@ async function fetchFromFacebook(params) {
       return [];
     }
     
-    // Build the search term
-    let location;
+    // Build the search params
+    let searchTerm = "cookie bakery";
     let center;
     
     if (params.lat && params.lng) {
       center = `${params.lat},${params.lng}`;
     } else if (params.location) {
-      location = params.location;
-      // For Facebook, we might need to geocode the location
-      // For simplicity, we'll skip that here
-      center = location;
+      // For Facebook, we might need the location as center
+      center = params.location;
     } else {
       return [];
     }
     
     // Search for places near this location
-    const searchUrl = `https://graph.facebook.com/v17.0/search?type=place&q=cookie bakery&center=${encodeURIComponent(center)}&distance=10000&fields=name,location,overall_star_rating,price_range,phone,website,hours,category_list&access_token=${fbAccessToken}`;
+    const searchUrl = `https://graph.facebook.com/v17.0/search?type=place&q=${encodeURIComponent(searchTerm)}&center=${encodeURIComponent(center)}&distance=10000&fields=name,location,overall_star_rating,price_range,phone,website,hours,category_list&access_token=${fbAccessToken}`;
     const response = await axios.get(searchUrl);
     
-    if (!response.data.data) {
-      console.error('No results from Facebook Graph API');
+    if (!response.data.data || response.data.data.length === 0) {
+      console.log('No results from Facebook Graph API');
       return [];
     }
+    
+    console.log(`Found ${response.data.data.length} cookie spots from Facebook`);
     
     // Map Facebook results to our schema
     const spots = response.data.data.map(place => {
@@ -369,7 +383,7 @@ async function fetchFromFacebook(params) {
     
     return spots;
   } catch (error) {
-    console.error('Error fetching from Facebook Graph API:', error);
+    console.error('Error fetching from Facebook Graph API:', error.message);
     return [];
   }
 }
@@ -386,8 +400,9 @@ function removeDuplicates(spots) {
   for (const spot of spots) {
     // Create a unique key based on name and address
     const nameNormalized = spot.name.toLowerCase().trim();
-    const addressNormalized = spot.address.toLowerCase().trim();
-    const key = `${nameNormalized}|${addressNormalized}|${spot.city ? spot.city.toLowerCase() : ''}`;
+    const addressNormalized = (spot.address || '').toLowerCase().trim();
+    const cityNormalized = (spot.city || '').toLowerCase().trim();
+    const key = `${nameNormalized}|${addressNormalized}|${cityNormalized}`;
     
     // If we haven't seen this business before, add it
     if (!seenBusinesses.has(key)) {

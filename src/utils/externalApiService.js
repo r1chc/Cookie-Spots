@@ -27,8 +27,10 @@ export const fetchFromAllSources = async (params = {}) => {
       throw new Error('Either location or coordinates required');
     }
     
+    console.log('Fetching from all sources with params:', params);
+    
     // Call our backend endpoint that integrates all three sources
-    const response = await api.post('/cookie-spots/all-sources', params);
+    const response = await api.post('/external/all-sources', params);
     
     if (response.data && response.data.cookieSpots) {
       console.log(`Fetched ${response.data.cookieSpots.length} cookie spots from all sources`);
@@ -136,6 +138,8 @@ export const getAllSourceCookieSpots = async (location) => {
       }
       params = { location: locationString };
     }
+    
+    console.log('Getting cookie spots from all sources with params:', params);
     
     // Fetch raw data from external APIs
     const rawCookieSpots = await fetchFromAllSources(params);

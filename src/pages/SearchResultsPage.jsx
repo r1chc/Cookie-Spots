@@ -6,6 +6,7 @@ import FilterButtons from '../components/FilterButtons';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { fetchAllSourceCookieSpots } from '../utils/cookieSpotService';
 
 // Fix for default marker icon in Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -34,6 +35,11 @@ const SearchResultsPage = () => {
   const [mapCenter, setMapCenter] = useState([40.7128, -74.0060]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [bounds, setBounds] = useState(null);
+  
+  // Add state for external API results
+  const [externalResults, setExternalResults] = useState([]);
+  const [isLoadingExternal, setIsLoadingExternal] = useState(false);
+  const [combinedResults, setCombinedResults] = useState([]);
   
   // Force white background
   useEffect(() => {
@@ -89,11 +95,84 @@ const SearchResultsPage = () => {
     setIsInitialLoad(false);
   }, [location.search]);
 
+  // Effect to load external results after internal database results
+  useEffect(() => {
+    const loadExternalResults = async () => {
+      try {
+        setIsLoadingExternal(true);
+        
+        // Get search parameters from URL
+        const searchParams = new URLSearchParams(location.search);
+        const locationQuery = searchParams.get('location') || searchParams.get('search');
+        const lat = searchParams.get('lat');
+        const lng = searchParams.get('lng');
+        
+        if (!locationQuery && (!lat || !lng)) {
+          setIsLoadingExternal(false);
+          return;
+        }
+        
+        // Prepare search parameters
+        let searchLocation;
+        if (lat && lng) {
+          searchLocation = { latitude: parseFloat(lat), longitude: parseFloat(lng) };
+        } else {
+          searchLocation = locationQuery;
+        }
+        
+        console.log('Fetching external results for:', searchLocation);
+        
+        // Fetch from external APIs
+        const externalSpots = await fetchAllSourceCookieSpots(searchLocation);
+        setExternalResults(externalSpots);
+        
+        // Combine with database results (cookieSpots from context)
+        const combined = [...cookieSpots];
+        const seenIds = new Set(cookieSpots.map(spot => spot._id));
+        const seenNames = new Map();
+        
+        // Create a map of existing names/addresses for deduplication
+        cookieSpots.forEach(spot => {
+          const key = `${(spot.name || '').toLowerCase()}|${(spot.address || '').toLowerCase()}`;
+          seenNames.set(key, true);
+        });
+        
+        // Add external results that aren't duplicates
+        externalSpots.forEach(spot => {
+          if (spot._id && seenIds.has(spot._id)) return;
+          
+          const key = `${(spot.name || '').toLowerCase()}|${(spot.address || '').toLowerCase()}`;
+          if (seenNames.has(key)) return;
+          
+          combined.push(spot);
+          seenNames.set(key, true);
+        });
+        
+        console.log(`Combined ${cookieSpots.length} database results with ${externalSpots.length} external results for a total of ${combined.length} unique spots`);
+        
+        // Update state with combined results
+        setCombinedResults(combined);
+      } catch (error) {
+        console.error('Error loading external results:', error);
+      } finally {
+        setIsLoadingExternal(false);
+      }
+    };
+    
+    // Only run this effect after internal database results are loaded
+    if (!loading && !isInitialLoad) {
+      loadExternalResults();
+    }
+  }, [location.search, cookieSpots, loading, isInitialLoad]);
+
   // Calculate map bounds based on all spots
   useEffect(() => {
-    if (cookieSpots && cookieSpots.length > 0) {
+    // Use combined results if available, otherwise fall back to cookieSpots
+    const spotsToUse = combinedResults.length > 0 ? combinedResults : cookieSpots;
+    
+    if (spotsToUse && spotsToUse.length > 0) {
       // Find valid coordinates
-      const validSpots = cookieSpots.filter(
+      const validSpots = spotsToUse.filter(
         spot => spot && spot.location && spot.location.coordinates && 
         spot.location.coordinates.length === 2
       );
@@ -124,7 +203,7 @@ const SearchResultsPage = () => {
         }
       }
     }
-  }, [cookieSpots]);
+  }, [combinedResults, cookieSpots]);
   
   // Memoize the URL update function
   const updateURL = useCallback((currentFilters) => {
@@ -207,6 +286,9 @@ const SearchResultsPage = () => {
   const handleCardUnhover = () => {
     setHoveredSpot(null);
   };
+
+  // Get all spots to display (combined results or just cookieSpots)
+  const spotsToDisplay = combinedResults.length > 0 ? combinedResults : cookieSpots;
   
   return (
     <div className="min-h-screen bg-white" style={{ backgroundColor: 'white !important' }}>
@@ -307,7 +389,8 @@ const SearchResultsPage = () => {
           {/* Results - Middle Column */}
           <div className="lg:w-2/5 px-3">
             <div className="bg-white rounded-lg shadow-md">
-              {loading ? (
+              {/* Show loading state when either internal or external results are loading */}
+              {(loading || isLoadingExternal) ? (
                 <div className="flex justify-center items-center h-64">
                   <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
                 </div>
@@ -316,7 +399,7 @@ const SearchResultsPage = () => {
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Error loading results</h3>
                   <p className="text-gray-600">{error}</p>
                 </div>
-              ) : !cookieSpots || cookieSpots.length === 0 ? (
+              ) : spotsToDisplay.length === 0 ? (
                 <div className="p-6 text-center">
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No cookie spots found</h3>
                   <p className="text-gray-600 mb-4">Try adjusting your search or filters to find what you're looking for.</p>
@@ -330,7 +413,8 @@ const SearchResultsPage = () => {
               ) : (
                 <div className="p-4">
                   <div className="grid grid-cols-1 gap-4">
-                    {cookieSpots.map((cookieSpot, index) => (
+                    {/* Display combined results */}
+                    {spotsToDisplay.map((cookieSpot, index) => (
                       cookieSpot ? (
                         <div 
                           key={cookieSpot._id || `spot-${index}`}
@@ -343,7 +427,7 @@ const SearchResultsPage = () => {
                     ))}
                   </div>
                   
-                  {/* Pagination */}
+                  {/* Pagination - only show for database results */}
                   {pagination && pagination.totalPages > 1 && (
                     <div className="flex justify-center mt-8">
                       <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
@@ -389,6 +473,13 @@ const SearchResultsPage = () => {
                       </nav>
                     </div>
                   )}
+                  
+                  {/* Source information */}
+                  {externalResults.length > 0 && (
+                    <div className="mt-4 text-center text-sm text-gray-500">
+                      <p>Results include data from our database and external sources</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -398,7 +489,7 @@ const SearchResultsPage = () => {
           <div className="lg:w-2/5 lg:pl-6 mt-6 lg:mt-0">
             <div className="bg-white rounded-lg shadow-md overflow-hidden sticky top-4">
               <div className="h-[calc(100vh-2rem)] min-h-[600px]">
-                {cookieSpots && cookieSpots.length > 0 && (
+                {spotsToDisplay && spotsToDisplay.length > 0 && (
                   <MapContainer 
                     center={mapCenter} 
                     zoom={13}
@@ -409,7 +500,7 @@ const SearchResultsPage = () => {
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     />
-                    {cookieSpots.map((cookieSpot, index) => (
+                    {spotsToDisplay.map((cookieSpot, index) => (
                       cookieSpot && cookieSpot.location && cookieSpot.location.coordinates && (
                         <Marker 
                           key={cookieSpot._id || `marker-${index}`} 

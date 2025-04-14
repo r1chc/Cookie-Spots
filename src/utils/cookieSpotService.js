@@ -4,6 +4,7 @@
 
 import { getDefaultLocation } from './geolocation';
 import { cookieSpotApi } from './api';
+import { getAllSourceCookieSpots } from './externalApiService';
 
 /**
  * Fetch cookie spots based on user location
@@ -14,6 +15,7 @@ export const fetchCookieSpotsByLocation = async (location = null) => {
   try {
     // If no location is provided, use default
     const userLocation = location || getDefaultLocation();
+    console.log('Fetching cookie spots for location:', userLocation);
     
     // Use coordinates to fetch from API if available
     if (userLocation.latitude && userLocation.longitude) {
@@ -24,7 +26,7 @@ export const fetchCookieSpotsByLocation = async (location = null) => {
         50    // Up to 50 results
       );
       
-      console.log('API response:', response);
+      console.log('API response from internal database:', response);
       
       if (response && response.data && response.data.length > 0) {
         return response.data;
@@ -61,7 +63,7 @@ export const searchCookieSpots = async (locationQuery) => {
       limit: 50
     });
     
-    console.log('Search API response:', response);
+    console.log('Search API response from internal database:', response);
     
     // Return the results
     return response.data.cookieSpots || [];
@@ -79,48 +81,72 @@ export const searchCookieSpots = async (locationQuery) => {
  */
 export const fetchAllSourceCookieSpots = async (location) => {
   try {
-    let searchParam = {};
+    console.log('Fetching cookie spots from all external sources for location:', location);
     
-    // Handle different location input formats
-    if (typeof location === 'string') {
-      searchParam = { location: location };
-    } else if (location && location.latitude && location.longitude) {
-      searchParam = { 
-        lat: location.latitude, 
-        lng: location.longitude 
-      };
-    } else if (location && location.city) {
-      searchParam = { location: location.city };
-      if (location.state) {
-        searchParam.location += `, ${location.state}`;
-      }
-    }
+    // Use our externalApiService to get results from all sources
+    const cookieSpots = await getAllSourceCookieSpots(location);
     
-    // Call our backend API that integrates all three sources
-    const response = await fetch('/api/cookie-spots/all-sources', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(searchParam)
-    });
+    console.log(`Found ${cookieSpots.length} cookie spots from external sources`);
     
-    if (!response.ok) {
-      throw new Error('Failed to fetch from external APIs');
-    }
-    
-    const data = await response.json();
-    console.log('All sources data:', data);
-    
-    return data.cookieSpots || [];
+    return cookieSpots;
   } catch (error) {
     console.error('Error fetching from all sources:', error);
+    
     // Fallback to standard search
     if (typeof location === 'string') {
       return await searchCookieSpots(location);
     } else if (location && (location.latitude || location.city)) {
       return await fetchCookieSpotsByLocation(location);
     }
+    
+    return [];
+  }
+};
+
+/**
+ * Comprehensive search combining both database and external API results
+ * @param {string|Object} location - Location string or object with coordinates
+ * @returns {Array} Combined array of cookie spots from database and external APIs
+ */
+export const comprehensiveSearch = async (location) => {
+  try {
+    console.log('Performing comprehensive search for:', location);
+    
+    // Get results from both sources in parallel
+    const [databaseResults, externalResults] = await Promise.all([
+      typeof location === 'string' 
+        ? searchCookieSpots(location) 
+        : fetchCookieSpotsByLocation(location),
+      fetchAllSourceCookieSpots(location)
+    ]);
+    
+    console.log(`Found ${databaseResults.length} results from database and ${externalResults.length} from external APIs`);
+    
+    // Combine results, avoiding duplicates by checking ID/name/address
+    const allResults = [...databaseResults];
+    const seenIds = new Set(databaseResults.map(spot => spot._id));
+    const seenNames = new Map();
+    
+    // Create a map of existing names/addresses for deduplication
+    databaseResults.forEach(spot => {
+      const key = `${spot.name.toLowerCase()}|${(spot.address || '').toLowerCase()}`;
+      seenNames.set(key, true);
+    });
+    
+    // Add external results that aren't duplicates
+    externalResults.forEach(spot => {
+      if (seenIds.has(spot._id)) return;
+      
+      const key = `${spot.name.toLowerCase()}|${(spot.address || '').toLowerCase()}`;
+      if (seenNames.has(key)) return;
+      
+      allResults.push(spot);
+      seenNames.set(key, true);
+    });
+    
+    return allResults;
+  } catch (error) {
+    console.error('Error in comprehensive search:', error);
     return [];
   }
 };
