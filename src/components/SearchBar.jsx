@@ -27,7 +27,9 @@ const SearchBar = ({ onSearch }) => {
     borderRadius: '9999px',
     border: 'none',
     boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-    fontSize: '1rem'
+    fontSize: '1rem',
+    color: '#1F2F16', // Set text color to your text-color variable
+    backgroundColor: 'white' // Ensure background is white
   };
 
   const buttonStyle = {
