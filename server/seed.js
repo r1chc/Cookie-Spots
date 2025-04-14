@@ -1,16 +1,21 @@
 const mongoose = require('mongoose');
-const CookieType = require('../models/CookieType');
-const DietaryOption = require('../models/DietaryOption');
-const CookieSpot = require('../models/CookieSpot');
-const User = require('../models/User');
+const CookieType = require('./models/CookieType');
+const DietaryOption = require('./models/DietaryOption');
+const CookieSpot = require('./models/CookieSpot');
+const User = require('./models/User');
 const bcrypt = require('bcryptjs');
+const axios = require('axios');
+const NodeCache = require('node-cache');
 require('dotenv').config();
+
+// Create a cache with TTL of 24 hours (in seconds)
+const cookieSpotCache = new NodeCache({ stdTTL: 86400 });
 
 // Connect to MongoDB Atlas
 const connectDB = async () => {
   try {
     // Use MongoDB Atlas connection string from environment variable or config
-    const mongoURI = process.env.MONGO_URI || 'mongodb+srv://cookiespots:cookiespots123@cookiespots.mongodb.net/cookie-spots?retryWrites=true&w=majority';
+    const mongoURI = process.env.MONGO_URI || 'mongodb+srv://C00kieUs3r:MVGeUvnwrpiuS90e@cookiespots.5b0b1zp.mongodb.net/?retryWrites=true&w=majority&appName=CookieSpots';
     
     await mongoose.connect(mongoURI, {
       useNewUrlParser: true,
@@ -232,343 +237,339 @@ const createAdminUser = async () => {
   }
 };
 
-// Seed cookie spots
-const seedCookieSpots = async (cookieTypes, dietaryOptions, adminUser) => {
+// Fetch cookie spots from Google Places API
+const fetchCookieSpotsFromGoogle = async (zipCode) => {
   try {
-    // Clear existing data
-    await CookieSpot.deleteMany({});
+    const cachedData = cookieSpotCache.get(`google-${zipCode}`);
+    if (cachedData) {
+      console.log(`Using cached Google data for ${zipCode}`);
+      return cachedData;
+    }
 
-    // Get IDs for cookie types
-    const chocolateChipId = cookieTypes.find(type => type.name === 'Chocolate Chip')._id;
-    const sugarCookieId = cookieTypes.find(type => type.name === 'Sugar Cookie')._id;
-    const oatmealRaisinId = cookieTypes.find(type => type.name === 'Oatmeal Raisin')._id;
-    const peanutButterId = cookieTypes.find(type => type.name === 'Peanut Butter')._id;
-    const doubleChocolateId = cookieTypes.find(type => type.name === 'Double Chocolate')._id;
-    const whiteChocMacId = cookieTypes.find(type => type.name === 'White Chocolate Macadamia')._id;
-    const specialtyId = cookieTypes.find(type => type.name === 'Specialty/Seasonal')._id;
-    const snickerdoodleId = cookieTypes.find(type => type.name === 'Snickerdoodle')._id;
+    const googleApiKey = process.env.GOOGLE_PLACES_API_KEY;
+    if (!googleApiKey) {
+      console.error('Google Places API key not found');
+      return [];
+    }
 
-    // Get IDs for dietary options
-    const veganId = dietaryOptions.find(option => option.name === 'Vegan')._id;
-    const glutenFreeId = dietaryOptions.find(option => option.name === 'Gluten-Free')._id;
-    const nutFreeId = dietaryOptions.find(option => option.name === 'Nut-Free')._id;
-    const dairyFreeId = dietaryOptions.find(option => option.name === 'Dairy-Free')._id;
-    const organicId = dietaryOptions.find(option => option.name === 'Organic')._id;
-
-    const cookieSpots = [
-      {
-        name: 'Crumbl Cookie',
-        description: 'Specialty cookies with rotating weekly flavors. Known for their large, fresh cookies in a signature pink box.',
-        address: '1225 Broadway',
-        city: 'New York',
-        state_province: 'NY',
-        country: 'USA',
-        postal_code: '10001',
-        location: {
-          type: 'Point',
-          coordinates: [-73.9888, 40.7429]
-        },
-        phone: '(212) 555-1234',
-        website: 'https://crumblcookies.com',
-        email: 'info@crumblcookies.com',
-        hours_of_operation: {
-          monday: '8:00 AM - 10:00 PM',
-          tuesday: '8:00 AM - 10:00 PM',
-          wednesday: '8:00 AM - 10:00 PM',
-          thursday: '8:00 AM - 10:00 PM',
-          friday: '8:00 AM - 12:00 AM',
-          saturday: '8:00 AM - 12:00 AM',
-          sunday: '8:00 AM - 10:00 PM'
-        },
-        price_range: '$$',
-        has_dine_in: true,
-        has_takeout: true,
-        has_delivery: true,
-        is_wheelchair_accessible: true,
-        accepts_credit_cards: true,
-        cookie_types: [chocolateChipId, sugarCookieId, specialtyId],
-        dietary_options: [glutenFreeId],
-        features: ['Rotating Menu', 'Online Ordering', 'Gift Cards Available'],
-        added_by: adminUser._id,
-        status: 'active',
-        average_rating: 4.8,
-        review_count: 324
-      },
-      {
-        name: 'Levain Bakery',
-        description: 'Famous for giant gooey cookies with crisp edges. Their chocolate chip walnut cookie is legendary in NYC.',
-        address: '167 W 74th St',
-        city: 'New York',
-        state_province: 'NY',
-        country: 'USA',
-        postal_code: '10023',
-        location: {
-          type: 'Point',
-          coordinates: [-73.9807, 40.7799]
-        },
-        phone: '(212) 555-2345',
-        website: 'https://levainbakery.com',
-        email: 'info@levainbakery.com',
-        hours_of_operation: {
-          monday: '8:00 AM - 8:00 PM',
-          tuesday: '8:00 AM - 8:00 PM',
-          wednesday: '8:00 AM - 8:00 PM',
-          thursday: '8:00 AM - 8:00 PM',
-          friday: '8:00 AM - 8:00 PM',
-          saturday: '8:00 AM - 8:00 PM',
-          sunday: '8:00 AM - 8:00 PM'
-        },
-        price_range: '$$$',
-        has_dine_in: false,
-        has_takeout: true,
-        has_delivery: true,
-        is_wheelchair_accessible: false,
-        accepts_credit_cards: true,
-        cookie_types: [chocolateChipId, doubleChocolateId, oatmealRaisinId],
-        dietary_options: [],
-        features: ['Signature Cookies', 'Bakery Items', 'Coffee'],
-        added_by: adminUser._id,
-        status: 'active',
-        average_rating: 4.9,
-        review_count: 512
-      },
-      {
-        name: 'Insomnia Cookies',
-        description: 'Late-night cookie delivery service perfect for satisfying midnight cravings. Known for warm, fresh cookies delivered until 3 AM.',
-        address: '76 Pearl St',
-        city: 'New York',
-        state_province: 'NY',
-        country: 'USA',
-        postal_code: '10004',
-        location: {
-          type: 'Point',
-          coordinates: [-73.9942, 40.7282]
-        },
-        phone: '(212) 555-3456',
-        website: 'https://insomniacookies.com',
-        email: 'info@insomniacookies.com',
-        hours_of_operation: {
-          monday: '11:00 AM - 3:00 AM',
-          tuesday: '11:00 AM - 3:00 AM',
-          wednesday: '11:00 AM - 3:00 AM',
-          thursday: '11:00 AM - 3:00 AM',
-          friday: '11:00 AM - 3:00 AM',
-          saturday: '11:00 AM - 3:00 AM',
-          sunday: '11:00 AM - 3:00 AM'
-        },
-        price_range: '$$',
-        has_dine_in: true,
-        has_takeout: true,
-        has_delivery: true,
-        is_wheelchair_accessible: true,
-        accepts_credit_cards: true,
-        cookie_types: [chocolateChipId, doubleChocolateId, snickerdoodleId, whiteChocMacId],
-        dietary_options: [veganId],
-        features: ['Late Night Delivery', 'Ice Cream', 'Cookie Cakes'],
-        added_by: adminUser._id,
-        status: 'active',
-        average_rating: 4.6,
-        review_count: 287
-      },
-      {
-        name: 'Chip City',
-        description: 'Gourmet cookies with rotating flavors. Known for their thick, gooey center and perfectly crisp exterior.',
-        address: '353 Bleecker St',
-        city: 'New York',
-        state_province: 'NY',
-        country: 'USA',
-        postal_code: '10014',
-        location: {
-          type: 'Point',
-          coordinates: [-73.9649, 40.7112]
-        },
-        phone: '(212) 555-4567',
-        website: 'https://chipcitycookies.com',
-        email: 'info@chipcitycookies.com',
-        hours_of_operation: {
-          monday: '11:00 AM - 9:00 PM',
-          tuesday: '11:00 AM - 9:00 PM',
-          wednesday: '11:00 AM - 9:00 PM',
-          thursday: '11:00 AM - 9:00 PM',
-          friday: '11:00 AM - 10:00 PM',
-          saturday: '11:00 AM - 10:00 PM',
-          sunday: '11:00 AM - 9:00 PM'
-        },
-        price_range: '$$',
-        has_dine_in: true,
-        has_takeout: true,
-        has_delivery: true,
-        is_wheelchair_accessible: true,
-        accepts_credit_cards: true,
-        cookie_types: [chocolateChipId, peanutButterId, specialtyId],
-        dietary_options: [glutenFreeId],
-        features: ['Rotating Menu', 'Coffee', 'Online Ordering'],
-        added_by: adminUser._id,
-        status: 'active',
-        average_rating: 4.7,
-        review_count: 198
-      },
-      {
-        name: 'Schmackary\'s',
-        description: 'Broadway\'s favorite cookie shop with unique flavors. Known for creative recipes like maple bacon and funfetti.',
-        address: '362 W 45th St',
-        city: 'New York',
-        state_province: 'NY',
-        country: 'USA',
-        postal_code: '10036',
-        location: {
-          type: 'Point',
-          coordinates: [-73.9877, 40.7630]
-        },
-        phone: '(212) 555-5678',
-        website: 'https://schmackarys.com',
-        email: 'info@schmackarys.com',
-        hours_of_operation: {
-          monday: '8:00 AM - 10:00 PM',
-          tuesday: '8:00 AM - 10:00 PM',
-          wednesday: '8:00 AM - 10:00 PM',
-          thursday: '8:00 AM - 10:00 PM',
-          friday: '8:00 AM - 11:00 PM',
-          saturday: '8:00 AM - 11:00 PM',
-          sunday: '8:00 AM - 10:00 PM'
-        },
-        price_range: '$$',
-        has_dine_in: true,
-        has_takeout: true,
-        has_delivery: true,
-        is_wheelchair_accessible: true,
-        accepts_credit_cards: true,
-        cookie_types: [specialtyId, sugarCookieId],
-        dietary_options: [veganId, glutenFreeId],
-        features: ['Theater District', 'Unique Flavors', 'Coffee'],
-        added_by: adminUser._id,
-        status: 'active',
-        average_rating: 4.5,
-        review_count: 203
-      },
-      {
-        name: 'Maman',
-        description: 'French bakery known for their nutty chocolate chip cookies. Featured in Oprah\'s Favorite Things list.',
-        address: '239 Centre St',
-        city: 'New York',
-        state_province: 'NY',
-        country: 'USA',
-        postal_code: '10013',
-        location: {
-          type: 'Point',
-          coordinates: [-74.0068, 40.7197]
-        },
-        phone: '(212) 555-6789',
-        website: 'https://mamannyc.com',
-        email: 'info@mamannyc.com',
-        hours_of_operation: {
-          monday: '7:30 AM - 6:00 PM',
-          tuesday: '7:30 AM - 6:00 PM',
-          wednesday: '7:30 AM - 6:00 PM',
-          thursday: '7:30 AM - 6:00 PM',
-          friday: '7:30 AM - 6:00 PM',
-          saturday: '8:00 AM - 6:00 PM',
-          sunday: '8:00 AM - 6:00 PM'
-        },
-        price_range: '$$$',
-        has_dine_in: true,
-        has_takeout: true,
-        has_delivery: false,
-        is_wheelchair_accessible: true,
-        accepts_credit_cards: true,
-        cookie_types: [chocolateChipId, specialtyId],
-        dietary_options: [organicId],
-        features: ['French Bakery', 'Coffee', 'Brunch'],
-        added_by: adminUser._id,
-        status: 'active',
-        average_rating: 4.4,
-        review_count: 167
-      },
-      {
-        name: 'Milk & Cookies Bakery',
-        description: 'Homestyle cookies baked fresh daily. Offers custom cookie creations and ice cream sandwiches.',
-        address: '19 Commerce St',
-        city: 'New York',
-        state_province: 'NY',
-        country: 'USA',
-        postal_code: '10014',
-        location: {
-          type: 'Point',
-          coordinates: [-74.0041, 40.7359]
-        },
-        phone: '(212) 555-7890',
-        website: 'https://milkandcookiesbakery.com',
-        email: 'info@milkandcookiesbakery.com',
-        hours_of_operation: {
-          monday: '10:00 AM - 9:00 PM',
-          tuesday: '10:00 AM - 9:00 PM',
-          wednesday: '10:00 AM - 9:00 PM',
-          thursday: '10:00 AM - 9:00 PM',
-          friday: '10:00 AM - 10:00 PM',
-          saturday: '10:00 AM - 10:00 PM',
-          sunday: '10:00 AM - 9:00 PM'
-        },
-        price_range: '$$',
-        has_dine_in: true,
-        has_takeout: true,
-        has_delivery: true,
-        is_wheelchair_accessible: false,
-        accepts_credit_cards: true,
-        cookie_types: [chocolateChipId, oatmealRaisinId, peanutButterId],
-        dietary_options: [nutFreeId, dairyFreeId],
-        features: ['Custom Orders', 'Ice Cream Sandwiches', 'Gift Boxes'],
-        added_by: adminUser._id,
-        status: 'active',
-        average_rating: 4.3,
-        review_count: 142
-      },
-      {
-        name: 'Culture Espresso',
-        description: 'Coffee shop famous for their chocolate chip cookies. Small batch cookies baked throughout the day.',
-        address: '72 W 38th St',
-        city: 'New York',
-        state_province: 'NY',
-        country: 'USA',
-        postal_code: '10018',
-        location: {
-          type: 'Point',
-          coordinates: [-73.9841, 40.7513]
-        },
-        phone: '(212) 555-8901',
-        website: 'https://cultureespresso.com',
-        email: 'info@cultureespresso.com',
-        hours_of_operation: {
-          monday: '7:00 AM - 7:00 PM',
-          tuesday: '7:00 AM - 7:00 PM',
-          wednesday: '7:00 AM - 7:00 PM',
-          thursday: '7:00 AM - 7:00 PM',
-          friday: '7:00 AM - 7:00 PM',
-          saturday: '8:00 AM - 7:00 PM',
-          sunday: '8:00 AM - 7:00 PM'
-        },
-        price_range: '$$',
-        has_dine_in: true,
-        has_takeout: true,
-        has_delivery: false,
-        is_wheelchair_accessible: true,
-        accepts_credit_cards: true,
-        cookie_types: [chocolateChipId],
-        dietary_options: [],
-        features: ['Coffee Shop', 'Fresh Baked', 'Specialty Coffee'],
-        added_by: adminUser._id,
-        status: 'active',
-        average_rating: 4.6,
-        review_count: 178
+    // First get coordinates for the zip code
+    const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${zipCode}&key=${googleApiKey}`;
+    const geocodeResponse = await axios.get(geocodeUrl);
+    
+    if (!geocodeResponse.data.results || geocodeResponse.data.results.length === 0) {
+      console.error(`No location found for zip code ${zipCode}`);
+      return [];
+    }
+    
+    const location = geocodeResponse.data.results[0].geometry.location;
+    
+    // Search for cookie shops near this location
+    const placesUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${location.lat},${location.lng}&radius=5000&type=bakery&keyword=cookie&key=${googleApiKey}`;
+    const placesResponse = await axios.get(placesUrl);
+    
+    if (!placesResponse.data.results) {
+      console.error('No results from Google Places API');
+      return [];
+    }
+    
+    // Map Google results to our schema
+    const spots = await Promise.all(placesResponse.data.results.map(async (place) => {
+      // Get place details for more information
+      const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=name,formatted_address,formatted_phone_number,website,opening_hours,price_level,address_components&key=${googleApiKey}`;
+      const detailsResponse = await axios.get(detailsUrl);
+      const details = detailsResponse.data.result || {};
+      
+      // Extract address components
+      const addressComponents = details.address_components || [];
+      const streetNumber = addressComponents.find(comp => comp.types.includes('street_number'))?.long_name || '';
+      const street = addressComponents.find(comp => comp.types.includes('route'))?.long_name || '';
+      const city = addressComponents.find(comp => comp.types.includes('locality'))?.long_name || '';
+      const state = addressComponents.find(comp => comp.types.includes('administrative_area_level_1'))?.short_name || '';
+      const postalCode = addressComponents.find(comp => comp.types.includes('postal_code'))?.long_name || zipCode;
+      const country = addressComponents.find(comp => comp.types.includes('country'))?.short_name || 'USA';
+      
+      // Format hours of operation
+      const hours = {};
+      if (details.opening_hours && details.opening_hours.weekday_text) {
+        const daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        details.opening_hours.weekday_text.forEach((dayHours, index) => {
+          const day = daysOfWeek[index];
+          hours[day] = dayHours.split(': ')[1] || 'Closed';
+        });
       }
-    ];
-
-    const createdCookieSpots = await CookieSpot.insertMany(cookieSpots);
-    console.log(`${createdCookieSpots.length} cookie spots seeded successfully`);
-    return createdCookieSpots;
+      
+      return {
+        name: place.name,
+        description: place.vicinity || '',
+        address: `${streetNumber} ${street}`,
+        city,
+        state_province: state,
+        country,
+        postal_code: postalCode,
+        location: {
+          type: 'Point',
+          coordinates: [place.geometry.location.lng, place.geometry.location.lat]
+        },
+        phone: details.formatted_phone_number || '',
+        website: details.website || '',
+        hours_of_operation: hours,
+        price_range: place.price_level ? '$'.repeat(place.price_level) : '$$',
+        status: 'active',
+        // Default values for fields we can't get from Google
+        has_dine_in: true,
+        has_takeout: true,
+        has_delivery: false,
+        is_wheelchair_accessible: false,
+        accepts_credit_cards: true,
+        // These would need to be set manually or via another process
+        cookie_types: [],
+        dietary_options: [],
+        features: ['Google Verified'],
+        source: 'google',
+        source_id: place.place_id
+      };
+    }));
+    
+    // Cache the results
+    cookieSpotCache.set(`google-${zipCode}`, spots);
+    return spots;
   } catch (error) {
-    console.error('Error seeding cookie spots:', error);
-    process.exit(1);
+    console.error('Error fetching from Google Places API:', error);
+    return [];
   }
+};
+
+// Fetch cookie spots from Yelp API
+const fetchCookieSpotsFromYelp = async (zipCode) => {
+  try {
+    const cachedData = cookieSpotCache.get(`yelp-${zipCode}`);
+    if (cachedData) {
+      console.log(`Using cached Yelp data for ${zipCode}`);
+      return cachedData;
+    }
+
+    const yelpApiKey = process.env.YELP_API_KEY;
+    if (!yelpApiKey) {
+      console.error('Yelp API key not found');
+      return [];
+    }
+    
+    const yelpUrl = `https://api.yelp.com/v3/businesses/search?term=cookies&location=${zipCode}&categories=bakeries&limit=50`;
+    const response = await axios.get(yelpUrl, {
+      headers: {
+        Authorization: `Bearer ${yelpApiKey}`
+      }
+    });
+    
+    if (!response.data.businesses) {
+      console.error('No results from Yelp API');
+      return [];
+    }
+    
+    // Map Yelp results to our schema
+    const spots = await Promise.all(response.data.businesses.map(async (business) => {
+      // Get business details for more information
+      const detailsUrl = `https://api.yelp.com/v3/businesses/${business.id}`;
+      const detailsResponse = await axios.get(detailsUrl, {
+        headers: {
+          Authorization: `Bearer ${yelpApiKey}`
+        }
+      });
+      const details = detailsResponse.data || {};
+      
+      // Format hours of operation
+      const hours = {};
+      if (details.hours && details.hours.length > 0) {
+        const daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        details.hours[0].open.forEach(openPeriod => {
+          const day = daysOfWeek[openPeriod.day];
+          const start = openPeriod.start.replace(/(\d{2})(\d{2})/, '$1:$2');
+          const end = openPeriod.end.replace(/(\d{2})(\d{2})/, '$1:$2');
+          hours[day] = `${start} - ${end}`;
+        });
+      }
+      
+      return {
+        name: business.name,
+        description: details.categories?.map(cat => cat.title).join(', ') || '',
+        address: business.location.address1,
+        city: business.location.city,
+        state_province: business.location.state,
+        country: business.location.country || 'USA',
+        postal_code: business.location.zip_code,
+        location: {
+          type: 'Point',
+          coordinates: [business.coordinates.longitude, business.coordinates.latitude]
+        },
+        phone: business.phone || '',
+        website: business.url || '',
+        hours_of_operation: hours,
+        price_range: business.price || '$$',
+        has_dine_in: true,
+        has_takeout: business.transactions?.includes('pickup') || false,
+        has_delivery: business.transactions?.includes('delivery') || false,
+        is_wheelchair_accessible: false,
+        accepts_credit_cards: true,
+        cookie_types: [],
+        dietary_options: [],
+        features: ['Yelp Verified'],
+        average_rating: business.rating || 0,
+        review_count: business.review_count || 0,
+        source: 'yelp',
+        source_id: business.id
+      };
+    }));
+    
+    // Cache the results
+    cookieSpotCache.set(`yelp-${zipCode}`, spots);
+    return spots;
+  } catch (error) {
+    console.error('Error fetching from Yelp API:', error);
+    return [];
+  }
+};
+
+// Fetch cookie spots from Facebook Graph API
+const fetchCookieSpotsFromFacebook = async (zipCode) => {
+  try {
+    const cachedData = cookieSpotCache.get(`facebook-${zipCode}`);
+    if (cachedData) {
+      console.log(`Using cached Facebook data for ${zipCode}`);
+      return cachedData;
+    }
+
+    const fbAccessToken = process.env.FACEBOOK_ACCESS_TOKEN;
+    if (!fbAccessToken) {
+      console.error('Facebook access token not found');
+      return [];
+    }
+    
+    // Search for places near this location
+    const searchUrl = `https://graph.facebook.com/v17.0/search?type=place&q=cookie bakery&center=${zipCode}&distance=10000&fields=name,location,overall_star_rating,price_range,phone,website,hours,category_list&access_token=${fbAccessToken}`;
+    const response = await axios.get(searchUrl);
+    
+    if (!response.data.data) {
+      console.error('No results from Facebook Graph API');
+      return [];
+    }
+    
+    // Map Facebook results to our schema
+    const spots = response.data.data.map(place => {
+      // Format hours of operation
+      const hours = {};
+      if (place.hours) {
+        const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        days.forEach(day => {
+          hours[day] = place.hours[day + '_1_open'] && place.hours[day + '_1_close'] 
+            ? `${place.hours[day + '_1_open']} - ${place.hours[day + '_1_close']}` 
+            : 'Closed';
+        });
+      }
+      
+      return {
+        name: place.name,
+        description: place.category_list?.map(cat => cat.name).join(', ') || '',
+        address: place.location?.street || '',
+        city: place.location?.city || '',
+        state_province: place.location?.state || '',
+        country: place.location?.country || 'USA',
+        postal_code: place.location?.zip || zipCode,
+        location: {
+          type: 'Point',
+          coordinates: [place.location?.longitude || 0, place.location?.latitude || 0]
+        },
+        phone: place.phone || '',
+        website: place.website || '',
+        hours_of_operation: hours,
+        price_range: place.price_range?.length ? '$'.repeat(place.price_range.length) : '$$',
+        has_dine_in: true,
+        has_takeout: true,
+        has_delivery: false,
+        is_wheelchair_accessible: false,
+        accepts_credit_cards: true,
+        cookie_types: [],
+        dietary_options: [],
+        features: ['Facebook Verified'],
+        average_rating: place.overall_star_rating || 0,
+        source: 'facebook',
+        source_id: place.id
+      };
+    });
+    
+    // Cache the results
+    cookieSpotCache.set(`facebook-${zipCode}`, spots);
+    return spots;
+  } catch (error) {
+    console.error('Error fetching from Facebook Graph API:', error);
+    return [];
+  }
+};
+
+// Fetch and combine cookie spots from all APIs
+const fetchCookieSpots = async (zipCodes = ['10001', '10023', '10014', '10013', '10036', '10018']) => {
+  try {
+    let allSpots = [];
+    
+    for (const zipCode of zipCodes) {
+      console.log(`Fetching cookie spots for ZIP: ${zipCode}`);
+      
+      // Fetch from all APIs in parallel
+      const [googleSpots, yelpSpots, facebookSpots] = await Promise.all([
+        fetchCookieSpotsFromGoogle(zipCode),
+        fetchCookieSpotsFromYelp(zipCode),
+        fetchCookieSpotsFromFacebook(zipCode)
+      ]);
+      
+      console.log(`Found: Google (${googleSpots.length}), Yelp (${yelpSpots.length}), Facebook (${facebookSpots.length})`);
+      
+      // Combine results, avoiding duplicates by checking name and address
+      const spots = [...googleSpots, ...yelpSpots, ...facebookSpots];
+      const uniqueSpots = [];
+      const seenBusinesses = new Set();
+      
+      for (const spot of spots) {
+        const key = `${spot.name}|${spot.address}|${spot.city}`.toLowerCase();
+        if (!seenBusinesses.has(key)) {
+          seenBusinesses.add(key);
+          uniqueSpots.push(spot);
+        }
+      }
+      
+      allSpots = [...allSpots, ...uniqueSpots];
+    }
+    
+    return allSpots;
+  } catch (error) {
+    console.error('Error fetching cookie spots:', error);
+    return [];
+  }
+};
+
+// Save fetched cookie spots to database
+const saveCookieSpots = async (cookieSpots, adminUserId) => {
+  try {
+    console.log(`Saving ${cookieSpots.length} cookie spots to database`);
+    
+    // Add admin user as the creator of these spots
+    const spotsWithAdmin = cookieSpots.map(spot => ({
+      ...spot,
+      added_by: adminUserId,
+      status: 'active' // Automatically approve spots from APIs
+    }));
+    
+    // Save to database
+    await CookieSpot.insertMany(spotsWithAdmin);
+    console.log('Cookie spots saved successfully');
+  } catch (error) {
+    console.error('Error saving cookie spots:', error);
+    throw error;
+  }
+};
+
+// Clear cache
+const clearCache = () => {
+  cookieSpotCache.flushAll();
+  console.log('Cache cleared');
 };
 
 // Run the seed function
@@ -578,7 +579,14 @@ const seedDatabase = async () => {
     const cookieTypes = await seedCookieTypes();
     const dietaryOptions = await seedDietaryOptions();
     const adminUser = await createAdminUser();
-    await seedCookieSpots(cookieTypes, dietaryOptions, adminUser);
+    
+    // Clear existing cookie spots
+    await CookieSpot.deleteMany({});
+    
+    // Fetch and save cookie spots from APIs
+    const zipCodes = ['10001', '10023', '10014', '10013', '10036', '10018']; // NYC zipcodes
+    const cookieSpots = await fetchCookieSpots(zipCodes);
+    await saveCookieSpots(cookieSpots, adminUser._id);
     
     console.log('Database seeded successfully');
     process.exit(0);
@@ -588,4 +596,18 @@ const seedDatabase = async () => {
   }
 };
 
-seedDatabase();
+// Export functions for use in other files
+module.exports = {
+  connectDB,
+  fetchCookieSpots,
+  fetchCookieSpotsFromGoogle,
+  fetchCookieSpotsFromYelp,
+  fetchCookieSpotsFromFacebook,
+  clearCache,
+  seedDatabase
+};
+
+// Run the seed function if this file is executed directly
+if (require.main === module) {
+  seedDatabase();
+}
