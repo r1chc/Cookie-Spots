@@ -64,18 +64,27 @@ export const CookieSpotProvider = ({ children }) => {
       
       const res = await cookieSpotApi.getAllCookieSpots(params);
       
-      setCookieSpots(res.data.cookieSpots);
-      setPagination({
-        currentPage: res.data.currentPage,
-        totalPages: res.data.totalPages,
-        total: res.data.total
-      });
-      
-      setLoading(false);
+      if (res && res.data) {
+        setCookieSpots(res.data.cookieSpots || []);
+        setPagination({
+          currentPage: res.data.currentPage || 1,
+          totalPages: res.data.totalPages || 1,
+          total: res.data.total || 0
+        });
+      } else {
+        setCookieSpots([]);
+        setPagination({
+          currentPage: 1,
+          totalPages: 1,
+          total: 0
+        });
+      }
     } catch (err) {
-      setLoading(false);
       console.error('Error loading cookie spots:', err);
       setError('Failed to load cookie spots. Please try again.');
+      setCookieSpots([]);
+    } finally {
+      setLoading(false);
     }
   };
 

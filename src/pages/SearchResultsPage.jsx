@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useCookieSpots } from '../utils/CookieSpotContext';
 import CookieSpotCard from '../components/CookieSpotCard';
@@ -30,8 +30,9 @@ const SearchResultsPage = () => {
     updateFilters 
   } = useCookieSpots();
   
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'map'
-  const [mapCenter, setMapCenter] = useState([40.7128, -74.0060]); // Default to NYC
+  const [viewMode, setViewMode] = useState('grid');
+  const [mapCenter, setMapCenter] = useState([40.7128, -74.0060]);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   
   // Parse query params on initial load
   useEffect(() => {
@@ -61,31 +62,39 @@ const SearchResultsPage = () => {
     if (Object.keys(initialFilters).length > 0) {
       updateFilters(initialFilters);
     }
-  }, []);
-  
-  // Update URL when filters change
-  useEffect(() => {
+    setIsInitialLoad(false);
+  }, [location.search]);
+
+  // Memoize the URL update function
+  const updateURL = useCallback((currentFilters) => {
     const searchParams = new URLSearchParams();
     
-    if (filters.search) {
-      searchParams.set('search', filters.search);
+    if (currentFilters.search) {
+      searchParams.set('search', currentFilters.search);
     }
     
-    if (filters.cookieType) {
-      searchParams.set('cookieType', filters.cookieType);
+    if (currentFilters.cookieType) {
+      searchParams.set('cookieType', currentFilters.cookieType);
     }
     
-    if (filters.dietaryOption) {
-      searchParams.set('dietaryOption', filters.dietaryOption);
+    if (currentFilters.dietaryOption) {
+      searchParams.set('dietaryOption', currentFilters.dietaryOption);
     }
     
-    if (filters.sort !== 'average_rating' || filters.order !== 'desc') {
-      searchParams.set('sort', filters.sort);
-      searchParams.set('order', filters.order);
+    if (currentFilters.sort !== 'average_rating' || currentFilters.order !== 'desc') {
+      searchParams.set('sort', currentFilters.sort);
+      searchParams.set('order', currentFilters.order);
     }
     
     navigate(`/search?${searchParams.toString()}`, { replace: true });
-  }, [filters, navigate]);
+  }, [navigate]);
+  
+  // Update URL when filters change, but only after initial load
+  useEffect(() => {
+    if (!isInitialLoad) {
+      updateURL(filters);
+    }
+  }, [filters, updateURL, isInitialLoad]);
   
   // Update map center based on first result
   useEffect(() => {
@@ -136,7 +145,7 @@ const SearchResultsPage = () => {
   };
   
   return (
-    <div className="min-h-screen bg-white"> {/* Added min-h-screen and bg-white */}
+    <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumbs */}
         <div className="text-sm text-gray-500 mb-4">
@@ -194,7 +203,7 @@ const SearchResultsPage = () => {
         <div className="flex flex-col lg:flex-row">
           {/* Filters Sidebar */}
           <div className="lg:w-1/4 lg:pr-8 mb-6 lg:mb-0">
-            <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="bg-white rounded-lg shadow-md p-6 sticky top-4">
               <h2 className="text-lg font-semibold mb-4">Filters</h2>
               
               {/* Cookie Types Filter */}
@@ -256,135 +265,78 @@ const SearchResultsPage = () => {
           
           {/* Results */}
           <div className="lg:w-3/4">
-            {loading ? (
-              <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div> {/* Changed color class */}
-              </div>
-            ) : error ? (
-              <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm text-red-700">{error}</p>
-                  </div>
+            <div className="bg-white rounded-lg shadow-md">
+              {loading ? (
+                <div className="flex justify-center items-center h-64">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
                 </div>
-              </div>
-            ) : cookieSpots.length === 0 ? (
-              <div className="bg-white rounded-lg shadow-md p-6 text-center">
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No cookie spots found</h3>
-                <p className="text-gray-600 mb-4">Try adjusting your search or filters to find what you're looking for.</p>
-                <button
-                  onClick={() => updateFilters({ search: '', cookieType: '', dietaryOption: '' })}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" 
-                  /* Changed color classes */
-                >
-                  Clear all filters
-                </button>
-              </div>
-            ) : viewMode === 'grid' ? (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-                  {cookieSpots.map(cookieSpot => (
-                    <CookieSpotCard key={cookieSpot._id} cookieSpot={cookieSpot} />
-                  ))}
+              ) : error ? (
+                <div className="p-6 text-center">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Error loading results</h3>
+                  <p className="text-gray-600">{error}</p>
                 </div>
-                
-                {/* Pagination */}
-                {pagination.totalPages > 1 && (
-                  <div className="flex justify-center mt-8">
-                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                      <button
-                        onClick={() => handlePageChange(pagination.currentPage - 1)}
-                        disabled={pagination.currentPage === 1}
-                        className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${
-                          pagination.currentPage === 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-50'
-                        }`}
-                      >
-                        <span className="sr-only">Previous</span>
-                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                          <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </button>
-                      
-                      {[...Array(pagination.totalPages)].map((_, i) => (
-                        <button
-                          key={i}
-                          onClick={() => handlePageChange(i + 1)}
-                          className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                            pagination.currentPage === i + 1
-                              ? 'z-10 bg-blue-50 border-primary text-primary' /* Changed color classes */
-                              : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                          }`}
-                        >
-                          {i + 1}
-                        </button>
-                      ))}
-                      
-                      <button
-                        onClick={() => handlePageChange(pagination.currentPage + 1)}
-                        disabled={pagination.currentPage === pagination.totalPages}
-                        className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${
-                          pagination.currentPage === pagination.totalPages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-50'
-                        }`}
-                      >
-                        <span className="sr-only">Next</span>
-                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                          <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </button>
-                    </nav>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                {/* Only render MapContainer if cookieSpots has data */}
-                <div className="h-[600px]">
-                  {cookieSpots.length > 0 && (
-                    <MapContainer 
-                      center={mapCenter} 
-                      zoom={13} 
-                      style={{ height: '100%', width: '100%' }}
-                    >
-                      <TileLayer
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                      />
+              ) : cookieSpots.length === 0 ? (
+                <div className="p-6 text-center">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No cookie spots found</h3>
+                  <p className="text-gray-600 mb-4">Try adjusting your search or filters to find what you're looking for.</p>
+                  <button
+                    onClick={() => updateFilters({ search: '', cookieType: '', dietaryOption: '' })}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                  >
+                    Clear all filters
+                  </button>
+                </div>
+              ) : (
+                <div className="p-6">
+                  {viewMode === 'grid' ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {cookieSpots.map(cookieSpot => (
-                        cookieSpot.location && cookieSpot.location.coordinates && (
-                          <Marker 
-                            key={cookieSpot._id} 
-                            position={[cookieSpot.location.coordinates[1], cookieSpot.location.coordinates[0]]}
-                          >
-                            <Popup>
-                              <div>
-                                <h3 className="font-bold">{cookieSpot.name}</h3>
-                                <p className="text-sm">{cookieSpot.address}</p>
-                                <div className="flex items-center mt-1">
-                                  <span className="text-yellow-400 text-sm">{'★'.repeat(Math.floor(cookieSpot.average_rating))}</span>
-                                  <span className="text-gray-300 text-sm">{'★'.repeat(5 - Math.floor(cookieSpot.average_rating))}</span>
-                                  <span className="ml-1 text-xs text-gray-600">{cookieSpot.average_rating.toFixed(1)}</span>
-                                </div>
-                                <Link 
-                                  to={`/cookie-spot/${cookieSpot._id}`}
-                                  className="block mt-2 text-sm text-primary hover:text-opacity-90" /* Changed color classes */
-                                >
-                                  View Details
-                                </Link>
-                              </div>
-                            </Popup>
-                          </Marker>
-                        )
+                        <CookieSpotCard key={cookieSpot._id} cookieSpot={cookieSpot} />
                       ))}
-                    </MapContainer>
+                    </div>
+                  ) : (
+                    <div className="h-[600px] rounded-lg overflow-hidden">
+                      <MapContainer 
+                        center={mapCenter} 
+                        zoom={13} 
+                        style={{ height: '100%', width: '100%' }}
+                      >
+                        <TileLayer
+                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        />
+                        {cookieSpots.map(cookieSpot => (
+                          cookieSpot.location && cookieSpot.location.coordinates && (
+                            <Marker 
+                              key={cookieSpot._id} 
+                              position={[cookieSpot.location.coordinates[1], cookieSpot.location.coordinates[0]]}
+                            >
+                              <Popup>
+                                <div>
+                                  <h3 className="font-bold">{cookieSpot.name}</h3>
+                                  <p className="text-sm">{cookieSpot.address}</p>
+                                  <div className="flex items-center mt-1">
+                                    <span className="text-yellow-400 text-sm">{'★'.repeat(Math.floor(cookieSpot.average_rating))}</span>
+                                    <span className="text-gray-300 text-sm">{'★'.repeat(5 - Math.floor(cookieSpot.average_rating))}</span>
+                                    <span className="ml-1 text-xs text-gray-600">{cookieSpot.average_rating.toFixed(1)}</span>
+                                  </div>
+                                  <Link 
+                                    to={`/cookie-spot/${cookieSpot._id}`}
+                                    className="block mt-2 text-sm text-primary hover:text-opacity-90"
+                                  >
+                                    View Details
+                                  </Link>
+                                </div>
+                              </Popup>
+                            </Marker>
+                          )
+                        ))}
+                      </MapContainer>
+                    </div>
                   )}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
