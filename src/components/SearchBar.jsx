@@ -258,14 +258,16 @@ const SearchBar = ({ onSearch }) => {
     overflowY: 'auto',
     backgroundColor: 'white',
     borderRadius: '8px',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-    zIndex: 50
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+    zIndex: 50,
+    border: '1px solid rgba(90, 118, 132, 0.3)'  // Light border using #5A7684 with opacity
   }
   
   const suggestionItemStyle = {
     padding: '10px 16px',
     cursor: 'pointer',
-    borderBottom: '1px solid #f0f0f0'
+    borderBottom: '1px solid #f0f0f0',
+    color: '#5A7684'  // Using #5A7684 color for suggestion text
   }
 
   return (
@@ -309,7 +311,7 @@ const SearchBar = ({ onSearch }) => {
             >
               <div className="font-medium">{suggestion.structured_formatting?.main_text || suggestion.description}</div>
               {suggestion.structured_formatting?.secondary_text && (
-                <div className="text-sm text-gray-500">{suggestion.structured_formatting.secondary_text}</div>
+                <div className="text-sm" style={{color: '#5A7684', opacity: 0.75}}>{suggestion.structured_formatting.secondary_text}</div>
               )}
             </div>
           ))}
