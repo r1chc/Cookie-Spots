@@ -34,12 +34,38 @@ const SearchResultsPage = () => {
   const [mapCenter, setMapCenter] = useState([40.7128, -74.0060]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   
+  // Add an effect to force white background
+  useEffect(() => {
+    // Set body class to indicate we're on search page
+    document.body.classList.add('search-page');
+    
+    // Force background color to white
+    const style = document.createElement('style');
+    style.textContent = `
+      body.search-page, 
+      body.search-page #root, 
+      body.search-page main, 
+      body.search-page [class*="bg-primary"] {
+        background-color: white !important;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.body.classList.remove('search-page');
+      document.head.removeChild(style);
+    };
+  }, []);
+  
   // Parse query params on initial load
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const initialFilters = {};
     
-    if (searchParams.has('search')) {
+    // Check for location parameter first, then search
+    if (searchParams.has('location')) {
+      initialFilters.search = searchParams.get('location');
+    } else if (searchParams.has('search')) {
       initialFilters.search = searchParams.get('search');
     }
     
@@ -98,7 +124,7 @@ const SearchResultsPage = () => {
   
   // Update map center based on first result
   useEffect(() => {
-    if (cookieSpots.length > 0 && cookieSpots[0].location && cookieSpots[0].location.coordinates) {
+    if (cookieSpots && cookieSpots.length > 0 && cookieSpots[0].location && cookieSpots[0].location.coordinates) {
       setMapCenter([cookieSpots[0].location.coordinates[1], cookieSpots[0].location.coordinates[0]]);
     }
   }, [cookieSpots]);
@@ -145,11 +171,11 @@ const SearchResultsPage = () => {
   };
   
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white" style={{ backgroundColor: 'white !important' }}>
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumbs */}
         <div className="text-sm text-gray-500 mb-4">
-          <Link to="/" className="hover:text-primary">Home</Link> {/* Changed to text-primary */}
+          <Link to="/" className="hover:text-primary">Home</Link>
           <span className="mx-2">/</span>
           <span className="text-gray-700">Search Results</span>
         </div>
@@ -166,8 +192,7 @@ const SearchResultsPage = () => {
                 id="sort"
                 value={getCurrentSortValue()}
                 onChange={handleSortChange}
-                className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md" 
-                /* Changed focus styles */
+                className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md"
               >
                 <option value="rating_high">Highest Rated</option>
                 <option value="rating_low">Lowest Rated</option>
@@ -179,7 +204,6 @@ const SearchResultsPage = () => {
               <button
                 onClick={() => setViewMode('grid')}
                 className={`px-3 py-2 ${viewMode === 'grid' ? 'bg-blue-100 text-primary' : 'bg-white text-gray-700'}`}
-                /* Changed color classes */
                 aria-label="Grid view"
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
@@ -189,7 +213,6 @@ const SearchResultsPage = () => {
               <button
                 onClick={() => setViewMode('map')}
                 className={`px-3 py-2 ${viewMode === 'map' ? 'bg-blue-100 text-primary' : 'bg-white text-gray-700'}`}
-                /* Changed color classes */
                 aria-label="Map view"
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
@@ -213,7 +236,7 @@ const SearchResultsPage = () => {
                   items={cookieTypes}
                   selectedId={filters.cookieType}
                   onSelect={(id) => updateFilters({ cookieType: id })}
-                  colorClass="bg-blue-100 text-primary" /* Changed color classes */
+                  colorClass="bg-blue-100 text-primary"
                 />
               </div>
               
@@ -233,19 +256,19 @@ const SearchResultsPage = () => {
                 <h3 className="font-medium mb-2">Features</h3>
                 <div className="space-y-2">
                   <label className="flex items-center">
-                    <input type="checkbox" className="rounded text-primary focus:ring-primary" /> {/* Changed color classes */}
+                    <input type="checkbox" className="rounded text-primary focus:ring-primary" />
                     <span className="ml-2 text-gray-700">Dine-in</span>
                   </label>
                   <label className="flex items-center">
-                    <input type="checkbox" className="rounded text-primary focus:ring-primary" /> {/* Changed color classes */}
+                    <input type="checkbox" className="rounded text-primary focus:ring-primary" />
                     <span className="ml-2 text-gray-700">Takeout</span>
                   </label>
                   <label className="flex items-center">
-                    <input type="checkbox" className="rounded text-primary focus:ring-primary" /> {/* Changed color classes */}
+                    <input type="checkbox" className="rounded text-primary focus:ring-primary" />
                     <span className="ml-2 text-gray-700">Delivery</span>
                   </label>
                   <label className="flex items-center">
-                    <input type="checkbox" className="rounded text-primary focus:ring-primary" /> {/* Changed color classes */}
+                    <input type="checkbox" className="rounded text-primary focus:ring-primary" />
                     <span className="ml-2 text-gray-700">Wheelchair Accessible</span>
                   </label>
                 </div>
@@ -275,7 +298,7 @@ const SearchResultsPage = () => {
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Error loading results</h3>
                   <p className="text-gray-600">{error}</p>
                 </div>
-              ) : cookieSpots.length === 0 ? (
+              ) : !cookieSpots || cookieSpots.length === 0 ? (
                 <div className="p-6 text-center">
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No cookie spots found</h3>
                   <p className="text-gray-600 mb-4">Try adjusting your search or filters to find what you're looking for.</p>
@@ -290,8 +313,9 @@ const SearchResultsPage = () => {
                 <div className="p-6">
                   {viewMode === 'grid' ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {cookieSpots.map(cookieSpot => (
-                        <CookieSpotCard key={cookieSpot._id} cookieSpot={cookieSpot} />
+                      {cookieSpots.map((cookieSpot, index) => (
+                        // Add index as fallback key and ensure cookieSpot is not undefined
+                        cookieSpot ? <CookieSpotCard key={cookieSpot._id || `spot-${index}`} cookieSpot={cookieSpot} /> : null
                       ))}
                     </div>
                   ) : (
@@ -305,10 +329,10 @@ const SearchResultsPage = () => {
                           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                         />
-                        {cookieSpots.map(cookieSpot => (
-                          cookieSpot.location && cookieSpot.location.coordinates && (
+                        {cookieSpots.map((cookieSpot, index) => (
+                          cookieSpot && cookieSpot.location && cookieSpot.location.coordinates && (
                             <Marker 
-                              key={cookieSpot._id} 
+                              key={cookieSpot._id || `marker-${index}`} 
                               position={[cookieSpot.location.coordinates[1], cookieSpot.location.coordinates[0]]}
                             >
                               <Popup>
@@ -316,9 +340,15 @@ const SearchResultsPage = () => {
                                   <h3 className="font-bold">{cookieSpot.name}</h3>
                                   <p className="text-sm">{cookieSpot.address}</p>
                                   <div className="flex items-center mt-1">
-                                    <span className="text-yellow-400 text-sm">{'★'.repeat(Math.floor(cookieSpot.average_rating))}</span>
-                                    <span className="text-gray-300 text-sm">{'★'.repeat(5 - Math.floor(cookieSpot.average_rating))}</span>
-                                    <span className="ml-1 text-xs text-gray-600">{cookieSpot.average_rating.toFixed(1)}</span>
+                                    <span className="text-yellow-400 text-sm">
+                                      {'★'.repeat(Math.floor(cookieSpot.average_rating || 0))}
+                                    </span>
+                                    <span className="text-gray-300 text-sm">
+                                      {'★'.repeat(5 - Math.floor(cookieSpot.average_rating || 0))}
+                                    </span>
+                                    <span className="ml-1 text-xs text-gray-600">
+                                      {(cookieSpot.average_rating || 0).toFixed(1)}
+                                    </span>
                                   </div>
                                   <Link 
                                     to={`/cookie-spot/${cookieSpot._id}`}
