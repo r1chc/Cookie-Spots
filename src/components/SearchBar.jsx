@@ -4,16 +4,18 @@ const SearchBar = ({ onSearch }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [isApiLoaded, setIsApiLoaded] = useState(false)
   const [apiError, setApiError] = useState(null)
-  const autocompleteService = useRef(null)
+  const AutocompleteSuggestion = useRef(null)
   const sessionToken = useRef(null)
   const [suggestions, setSuggestions] = useState([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const wrapperRef = useRef(null)
+  const autocompleteService = useRef(null)
   
   // Load Google Maps API with better error handling
   useEffect(() => {
-    // Check if API is already loaded
-    if (window.google && window.google.maps && window.google.maps.places) {
+    // Check if API is already loaded - more robust check
+    if (window.google && window.google.maps && window.google.maps.places && 
+        window.google.maps.places.AutocompleteService) {
       console.log("Google Maps API already loaded");
       setIsApiLoaded(true);
       sessionToken.current = new window.google.maps.places.AutocompleteSessionToken();
@@ -21,15 +23,32 @@ const SearchBar = ({ onSearch }) => {
       return;
     }
     
+    // Check if script is already being loaded
+    if (document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]')) {
+      console.log("Google Maps API script already in DOM, waiting for it to load");
+      
+      // Create a listener for when the API is fully loaded
+      const checkGoogleMapsLoaded = setInterval(() => {
+        if (window.google && window.google.maps && window.google.maps.places &&
+            window.google.maps.places.AutocompleteService) {
+          console.log("Google Maps API finished loading");
+          clearInterval(checkGoogleMapsLoaded);
+          setIsApiLoaded(true);
+          sessionToken.current = new window.google.maps.places.AutocompleteSessionToken();
+          autocompleteService.current = new window.google.maps.places.AutocompleteService();
+        }
+      }, 100);
+      
+      return () => clearInterval(checkGoogleMapsLoaded);
+    }
+    
     console.log("Loading Google Maps API...");
     
-    // Create a script element
-    const googleScript = document.createElement('script')
-    
-    // Use your actual API key here - make sure it's enabled for Places API
-    googleScript.src = `https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places&callback=initPlacesAPI`
-    googleScript.async = true
-    googleScript.defer = true
+    // Create a script element with loading=async for better performance
+    const googleScript = document.createElement('script');
+    googleScript.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_GOOGLE_PLACES_API_KEY}&libraries=places&callback=initPlacesAPI&loading=async`;
+    googleScript.async = true;
+    googleScript.defer = true;
     
     // Error handler
     googleScript.onerror = () => {
@@ -40,12 +59,12 @@ const SearchBar = ({ onSearch }) => {
     // Define the callback function
     window.initPlacesAPI = () => {
       console.log("Google Maps API loaded successfully");
-      setIsApiLoaded(true)
+      setIsApiLoaded(true);
       try {
         // Create a new session token
         if (window.google && window.google.maps && window.google.maps.places) {
-          sessionToken.current = new window.google.maps.places.AutocompleteSessionToken()
-          autocompleteService.current = new window.google.maps.places.AutocompleteService()
+          sessionToken.current = new window.google.maps.places.AutocompleteSessionToken();
+          autocompleteService.current = new window.google.maps.places.AutocompleteService();
           console.log("Autocomplete service initialized");
         } else {
           console.error("Google Maps Places API not available");
@@ -55,17 +74,17 @@ const SearchBar = ({ onSearch }) => {
         console.error("Error initializing Places API:", error);
         setApiError("Error initializing Places API");
       }
-    }
+    };
     
-    document.head.appendChild(googleScript)
+    document.head.appendChild(googleScript);
     
     return () => {
       if (document.head.contains(googleScript)) {
-        document.head.removeChild(googleScript)
+        document.head.removeChild(googleScript);
       }
-      delete window.initPlacesAPI
-    }
-  }, [])
+      delete window.initPlacesAPI;
+    };
+  }, []);
   
   // Click outside to close suggestions
   useEffect(() => {
@@ -87,7 +106,7 @@ const SearchBar = ({ onSearch }) => {
     setSearchTerm(value)
     
     if (value.length > 2) {
-      if (isApiLoaded && autocompleteService.current) {
+      if (isApiLoaded && AutocompleteSuggestion.current) {
         console.log("Getting predictions for:", value);
         
         // Check if input looks like a zip code (5 digits)
@@ -106,7 +125,7 @@ const SearchBar = ({ onSearch }) => {
         }
         
         try {
-          autocompleteService.current.getPlacePredictions(request, (predictions, status) => {
+          AutocompleteSuggestion.current.getPlacePredictions(request, (predictions, status) => {
             console.log("Predictions status:", status);
             
             if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions && predictions.length > 0) {

@@ -24,9 +24,9 @@ export const getCurrentLocation = () => {
           reject(error);
         },
         {
-          enableHighAccuracy: false, // Set to true for more accurate results, but may take longer
-          timeout: 5000, // Time in milliseconds before timeout
-          maximumAge: 300000 // Maximum age of a cached position in milliseconds (5 minutes)
+          enableHighAccuracy: true,
+          timeout: 15000, // Increase timeout to 15 seconds (from default 3 seconds)
+          maximumAge: 0
         }
       );
     });
