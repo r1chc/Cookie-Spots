@@ -11,6 +11,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProfilePage from './pages/ProfilePage';
 import AddCookieSpotPage from './pages/AddCookieSpotPage';
+import BlogPage from './pages/BlogPage';
 import './styles/index.css';
 
 function App() {
@@ -46,6 +47,7 @@ function App() {
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/add-cookie-spot" element={<AddCookieSpotPage />} />
+              <Route path="/blog" element={<BlogPage />} />
             </Routes>
           </main>
           <Footer />

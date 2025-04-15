@@ -12,9 +12,16 @@ const Header = () => {
         <div className="flex justify-between items-center">
           {/* Logo */}
           <Link to="/" className="flex items-center">
-            {/* Fallback for missing logo */}
-            <span className="text-primary h-10 w-10 mr-2 flex items-center justify-center text-xl font-bold">🍪</span>
-            <span className="cookie-spots-logo">CookieSpots</span>
+            <img 
+              src="/images/Cookie_Spots_Logo.png" 
+              alt="Cookie Spots Logo" 
+              className="h-8 w-auto mr-2"
+            />
+            <img 
+              src="/images/Cookie_Spots_Logo_Words.png" 
+              alt="Cookie Spots" 
+              className="h-8 w-auto"
+            />
           </Link>
 
           {/* Navigation - Desktop */}

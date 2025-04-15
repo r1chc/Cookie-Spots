@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { check } = require('express-validator');
+const { auth } = require('../middleware/auth');
 const reviewController = require('../controllers/reviewController');
-const auth = require('../middleware/auth');
 
 // @route   GET /api/reviews/cookie-spot/:cookieSpotId
 // @desc    Get all reviews for a cookie spot
@@ -17,31 +17,23 @@ router.get('/user/:userId', reviewController.getReviewsByUser);
 // @route   POST /api/reviews
 // @desc    Create a review
 // @access  Private
-router.post(
-  '/',
-  [
-    auth,
-    [
-      check('cookie_spot_id', 'Cookie spot ID is required').not().isEmpty(),
-      check('rating', 'Rating is required and must be between 1 and 5').isInt({ min: 1, max: 5 }),
-      check('content', 'Review content is required').not().isEmpty()
-    ]
-  ],
+router.post('/', auth,
+  check('cookie_spot_id', 'Cookie spot ID is required').notEmpty(),
+  check('rating', 'Rating must be between 1 and 5').isInt({ min: 1, max: 5 }),
+  check('content', 'Content is required').notEmpty(),
+  check('title', 'Title is required').notEmpty(),
+  check('visit_date', 'Visit date must be a valid date').optional().isISO8601(),
   reviewController.createReview
 );
 
 // @route   PUT /api/reviews/:id
 // @desc    Update a review
 // @access  Private
-router.put(
-  '/:id',
-  [
-    auth,
-    [
-      check('rating', 'Rating must be between 1 and 5').optional().isInt({ min: 1, max: 5 }),
-      check('content', 'Review content cannot be empty').optional().not().isEmpty()
-    ]
-  ],
+router.put('/:id', auth,
+  check('rating', 'Rating must be between 1 and 5').optional().isInt({ min: 1, max: 5 }),
+  check('content', 'Content cannot be empty if provided').optional().notEmpty(),
+  check('title', 'Title cannot be empty if provided').optional().notEmpty(),
+  check('visit_date', 'Visit date must be a valid date').optional().isISO8601(),
   reviewController.updateReview
 );
 
