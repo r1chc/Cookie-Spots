@@ -171,6 +171,7 @@ const SearchBar = ({ onSearch }) => {
               window.location.href = `/search?${params.toString()}`
             }
           } else {
+            // Only run this code when place details are NOT available
             console.log("Fallback to basic search - place details not available")
             if (onSearch) {
               onSearch(suggestion.description)
@@ -260,14 +261,14 @@ const SearchBar = ({ onSearch }) => {
     borderRadius: '8px',
     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
     zIndex: 50,
-    border: '1px solid rgba(90, 118, 132, 0.3)'  // Light border using #5A7684 with opacity
+    border: '1px solid rgba(250, 121, 33, 0.3)'  // Light orange border
   }
   
   const suggestionItemStyle = {
     padding: '10px 16px',
     cursor: 'pointer',
     borderBottom: '1px solid #f0f0f0',
-    color: '#5A7684'  // Using #5A7684 color for suggestion text
+    color: '#1F2F16'  // Orange color for suggestion text
   }
 
   return (
@@ -306,12 +307,12 @@ const SearchBar = ({ onSearch }) => {
             <div
               key={suggestion.place_id || index}
               style={suggestionItemStyle}
-              className="hover:bg-gray-50"
+              className="hover:bg-orange-50"
               onClick={() => handleSuggestionClick(suggestion)}
             >
               <div className="font-medium">{suggestion.structured_formatting?.main_text || suggestion.description}</div>
               {suggestion.structured_formatting?.secondary_text && (
-                <div className="text-sm" style={{color: '#5A7684', opacity: 0.75}}>{suggestion.structured_formatting.secondary_text}</div>
+                <div className="text-sm" style={{color: '#1F2F16', opacity: 0.75}}>{suggestion.structured_formatting.secondary_text}</div>
               )}
             </div>
           ))}

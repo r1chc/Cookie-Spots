@@ -3,8 +3,8 @@
 import axios from 'axios';
 
 /**
- * Service for fetching and combining cookie spot data from external APIs
- * (Google Places, Yelp, and Facebook)
+ * Service for fetching cookie spot data from external APIs
+ * (Google Places)
  */
 
 // Create an axios instance with base URL
@@ -16,9 +16,9 @@ const api = axios.create({
 });
 
 /**
- * Fetch cookie spots from all external sources
+ * Fetch cookie spots from Google Places API
  * @param {Object} params - Search parameters (location or coordinates)
- * @returns {Promise} - Promise that resolves with combined results
+ * @returns {Promise} - Promise that resolves with results
  */
 export const fetchFromAllSources = async (params = {}) => {
   try {
@@ -27,25 +27,36 @@ export const fetchFromAllSources = async (params = {}) => {
       throw new Error('Either location or coordinates required');
     }
     
-    console.log('Fetching from all sources with params:', params);
+    console.log('Fetching from Google Places API with params:', params);
     
-    // Call our backend endpoint that integrates all three sources
+    // Call our backend endpoint that integrates with Google Places API
     const response = await api.post('/external/all-sources', params);
     
     if (response.data && response.data.cookieSpots) {
-      console.log(`Fetched ${response.data.cookieSpots.length} cookie spots from all sources`);
+      console.log(`Fetched ${response.data.cookieSpots.length} cookie spots from Google Places API`);
       return response.data.cookieSpots;
     }
     
     return [];
   } catch (error) {
-    console.error('Error fetching from external APIs:', error);
+    console.error('Error fetching from Google Places API:', error);
+    if (error.response) {
+      // The request was made and the server responded with a status code outside of 2xx range
+      console.error('Error response data:', error.response.data);
+      console.error('Error response status:', error.response.status);
+    } else if (error.request) {
+      // The request was made but no response was received
+      console.error('No response received:', error.request);
+    } else {
+      // Something happened in setting up the request
+      console.error('Error message:', error.message);
+    }
     return [];
   }
 };
 
 /**
- * Process raw cookie spots from external APIs to match our app's data structure
+ * Process raw cookie spots from Google Places API to match our app's data structure
  * @param {Array} cookieSpots - Raw cookie spots from external APIs
  * @returns {Array} - Processed cookie spots with unified structure
  */
@@ -56,7 +67,7 @@ export const processExternalCookieSpots = (cookieSpots = []) => {
   
   return cookieSpots.map(spot => {
     // Create a unique ID if not present
-    const id = spot._id || spot.id || `ext-${spot.source}-${spot.source_id || Math.random().toString(36).substring(2, 15)}`;
+    const id = spot._id || spot.id || `ext-google-${spot.source_id || Math.random().toString(36).substring(2, 15)}`;
     
     // Process coordinates to ensure they're in the right format
     let coordinates = [0, 0]; // Default
@@ -108,14 +119,14 @@ export const processExternalCookieSpots = (cookieSpots = []) => {
       features: spot.features || [],
       average_rating: spot.average_rating || spot.rating || 0,
       review_count: spot.review_count || 0,
-      source: spot.source || 'unknown',
+      source: spot.source || 'google',
       source_id: spot.source_id || id
     };
   });
 };
 
 /**
- * Main function to fetch, process and return cookie spots from all sources
+ * Main function to fetch, process and return cookie spots from Google Places API
  * @param {Object|string} location - Location object or string
  * @returns {Promise} - Promise that resolves with processed cookie spots
  */
@@ -139,9 +150,9 @@ export const getAllSourceCookieSpots = async (location) => {
       params = { location: locationString };
     }
     
-    console.log('Getting cookie spots from all sources with params:', params);
+    console.log('Getting cookie spots from Google Places API with params:', params);
     
-    // Fetch raw data from external APIs
+    // Fetch raw data from Google Places API
     const rawCookieSpots = await fetchFromAllSources(params);
     
     // Process the raw data

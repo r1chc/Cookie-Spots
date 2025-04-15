@@ -353,25 +353,45 @@ exports.getNearbyCookieSpots = async (req, res) => {
       return res.status(400).json({ msg: 'Latitude and longitude are required' });
     }
     
+    // Convert string parameters to numbers
+    const parsedLat = parseFloat(lat);
+    const parsedLng = parseFloat(lng);
+    const parsedDistance = parseInt(distance);
+    const parsedLimit = parseInt(limit);
+    
+    // Check for valid coordinates
+    if (isNaN(parsedLat) || isNaN(parsedLng) || 
+        parsedLat < -90 || parsedLat > 90 || 
+        parsedLng < -180 || parsedLng > 180) {
+      return res.status(400).json({ msg: 'Invalid coordinates provided' });
+    }
+    
+    console.log(`Searching for cookie spots near [${parsedLng}, ${parsedLat}]`);
+    
+    // Search in MongoDB cache
     const cookieSpots = await CookieSpot.find({
       location: {
         $near: {
           $geometry: {
             type: 'Point',
-            coordinates: [parseFloat(lng), parseFloat(lat)]
+            coordinates: [parsedLng, parsedLat]
           },
-          $maxDistance: parseInt(distance)
+          $maxDistance: parsedDistance
         }
       },
       status: 'active'
     })
-    .limit(parseInt(limit))
+    .limit(parsedLimit)
     .populate('cookie_types', 'name')
     .populate('dietary_options', 'name');
     
+    console.log(`Found ${cookieSpots.length} cookie spots in cache`);
+    
+    // Return results from cache (even if empty)
     res.json(cookieSpots);
+    
   } catch (err) {
-    console.error(err.message);
+    console.error('Error in getNearbyCookieSpots:', err.message);
     res.status(500).send('Server error');
   }
 };

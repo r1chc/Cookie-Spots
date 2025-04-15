@@ -1,6 +1,6 @@
 /**
  * @route   POST /api/cookie-spots/all-sources
- * @desc    Fetch cookie spots from all sources (Google, Yelp, Facebook)
+ * @desc    Fetch cookie spots from Google Places API
  * @access  Public
  */
 router.post('/all-sources', async (req, res) => {
@@ -15,9 +15,12 @@ router.post('/all-sources', async (req, res) => {
       searchParams = { location };
     } else {
       return res.status(400).json({ 
+        success: false,
         message: 'Either location or coordinates (lat/lng) are required' 
       });
     }
+    
+    console.log('Received search request with params:', searchParams);
     
     // Define search areas/zip codes based on provided location/coordinates
     let zipCodes = [];
@@ -25,7 +28,8 @@ router.post('/all-sources', async (req, res) => {
     // For lat/lng, convert to zip code
     if (searchParams.lat && searchParams.lng) {
       try {
-        const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${searchParams.lat},${searchParams.lng}&key=${process.env.GOOGLE_PLACES_API_KEY}`;
+        const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${searchParams.lat},${searchParams.lng}&key=${process.env.VITE_GOOGLE_PLACES_API_KEY}`;
+        console.log('Geocoding coordinates to zip code');
         const geocodeResponse = await axios.get(geocodeUrl);
         
         if (geocodeResponse.data.results && geocodeResponse.data.results.length > 0) {
@@ -37,6 +41,7 @@ router.post('/all-sources', async (req, res) => {
             
             if (postalComponent) {
               zipCodes.push(postalComponent.long_name);
+              console.log('Found zip code from coordinates:', postalComponent.long_name);
               break;
             }
           }
@@ -51,10 +56,12 @@ router.post('/all-sources', async (req, res) => {
       // Check if location itself is a zip code
       if (/^\d{5}$/.test(searchParams.location.trim())) {
         zipCodes.push(searchParams.location.trim());
+        console.log('Using provided zip code:', searchParams.location.trim());
       } else {
         try {
           // Use geocoding to get zip code for location
-          const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(searchParams.location)}&key=${process.env.GOOGLE_PLACES_API_KEY}`;
+          const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(searchParams.location)}&key=${process.env.VITE_GOOGLE_PLACES_API_KEY}`;
+          console.log('Geocoding location to zip code:', searchParams.location);
           const geocodeResponse = await axios.get(geocodeUrl);
           
           if (geocodeResponse.data.results && geocodeResponse.data.results.length > 0) {
@@ -66,11 +73,13 @@ router.post('/all-sources', async (req, res) => {
               
               if (postalComponent) {
                 zipCodes.push(postalComponent.long_name);
+                console.log('Found zip code from location:', postalComponent.long_name);
               }
             }
           }
         } catch (error) {
           console.error('Error getting zip code from location:', error);
+          console.error('Geocoding response:', error.response?.data);
         }
       }
     }
@@ -92,9 +101,11 @@ router.post('/all-sources', async (req, res) => {
           // Generic popular US zip codes as fallback
           zipCodes = ['10001', '90210', '60601', '94102', '02108'];
         }
+        console.log('Using default zip codes for location:', zipCodes);
       } else {
         // Default to New York zip codes
         zipCodes = ['10001', '10023', '10014', '10013'];
+        console.log('Using default New York zip codes:', zipCodes);
       }
     }
     
@@ -107,14 +118,29 @@ router.post('/all-sources', async (req, res) => {
     const { fetchCookieSpots } = require('../seed');
     const cookieSpots = await fetchCookieSpots(zipCodes);
     
+    if (!cookieSpots || cookieSpots.length === 0) {
+      console.log('No cookie spots found, checking API key status');
+      if (!process.env.VITE_GOOGLE_PLACES_API_KEY) {
+        return res.status(500).json({
+          success: false,
+          message: 'Google Places API key is not configured'
+        });
+      }
+    }
+    
     // Return the combined results
     return res.json({ 
+      success: true,
       zipCodes,
       cookieSpots
     });
     
   } catch (error) {
     console.error('Error fetching from all sources:', error);
-    return res.status(500).json({ message: 'Server error' });
+    return res.status(500).json({ 
+      success: false,
+      message: 'Server error',
+      error: error.message 
+    });
   }
 }); 

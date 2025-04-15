@@ -17,9 +17,27 @@ const CookieSpotCard = ({ cookieSpot, spot }) => {
   const image = data?.image || '/images/cookie-spot-placeholder.jpg';
   const rating = data?.average_rating || data?.rating || 0;
   const reviewCount = data?.review_count || data?.reviewCount || 0;
-  const location = data?.address || data?.location || '';
+  
+  // Handle different location formats
+  let locationText = '';
+  if (typeof data.address === 'string') {
+    locationText = data.address;
+  } else if (typeof data.location === 'string') {
+    locationText = data.location;
+  } else if (data.address && data.city) {
+    // Format: "address, city, state"
+    locationText = `${data.address}, ${data.city}${data.state_province ? `, ${data.state_province}` : ''}`;
+  } else if (data.location && typeof data.location === 'object' && data.location.type === 'Point') {
+    // It's a GeoJSON Point - don't render it directly, use other address parts
+    locationText = [data.address, data.city, data.state_province].filter(Boolean).join(', ');
+  } else {
+    locationText = 'Location not available';
+  }
+  
   const description = data?.description || '';
-  const cookieTypes = data?.cookieTypes || [];
+  const cookieTypes = Array.isArray(data?.cookie_types) 
+    ? data.cookie_types.map(type => typeof type === 'object' ? type.name : type)
+    : data?.cookieTypes || [];
 
   return (
     <div className="cookie-spot-card bg-white rounded-lg shadow-md overflow-hidden">
@@ -33,7 +51,7 @@ const CookieSpotCard = ({ cookieSpot, spot }) => {
         </div>
         <div className="p-4">
           <h3 className="text-lg font-bold mb-1">{name}</h3>
-          <p className="text-gray-600 text-sm mb-2">{location}</p>
+          <p className="text-gray-600 text-sm mb-2">{locationText}</p>
           
           <div className="flex items-center text-sm text-gray-600 mb-3">
             <span className="rating mr-2">

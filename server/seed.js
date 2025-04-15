@@ -339,172 +339,6 @@ const fetchCookieSpotsFromGoogle = async (zipCode) => {
   }
 };
 
-// Fetch cookie spots from Yelp API
-const fetchCookieSpotsFromYelp = async (zipCode) => {
-  try {
-    const cachedData = cookieSpotCache.get(`yelp-${zipCode}`);
-    if (cachedData) {
-      console.log(`Using cached Yelp data for ${zipCode}`);
-      return cachedData;
-    }
-
-    const yelpApiKey = process.env.YELP_API_KEY;
-    if (!yelpApiKey) {
-      console.error('Yelp API key not found');
-      return [];
-    }
-    
-    const yelpUrl = `https://api.yelp.com/v3/businesses/search?term=cookies&location=${zipCode}&categories=bakeries&limit=50`;
-    const response = await axios.get(yelpUrl, {
-      headers: {
-        Authorization: `Bearer ${yelpApiKey}`
-      }
-    });
-    
-    if (!response.data.businesses) {
-      console.error('No results from Yelp API');
-      return [];
-    }
-    
-    // Map Yelp results to our schema
-    const spots = await Promise.all(response.data.businesses.map(async (business) => {
-      // Get business details for more information
-      const detailsUrl = `https://api.yelp.com/v3/businesses/${business.id}`;
-      const detailsResponse = await axios.get(detailsUrl, {
-        headers: {
-          Authorization: `Bearer ${yelpApiKey}`
-        }
-      });
-      const details = detailsResponse.data || {};
-      
-      // Format hours of operation
-      const hours = {};
-      if (details.hours && details.hours.length > 0) {
-        const daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-        details.hours[0].open.forEach(openPeriod => {
-          const day = daysOfWeek[openPeriod.day];
-          const start = openPeriod.start.replace(/(\d{2})(\d{2})/, '$1:$2');
-          const end = openPeriod.end.replace(/(\d{2})(\d{2})/, '$1:$2');
-          hours[day] = `${start} - ${end}`;
-        });
-      }
-      
-      return {
-        name: business.name,
-        description: details.categories?.map(cat => cat.title).join(', ') || '',
-        address: business.location.address1,
-        city: business.location.city,
-        state_province: business.location.state,
-        country: business.location.country || 'USA',
-        postal_code: business.location.zip_code,
-        location: {
-          type: 'Point',
-          coordinates: [business.coordinates.longitude, business.coordinates.latitude]
-        },
-        phone: business.phone || '',
-        website: business.url || '',
-        hours_of_operation: hours,
-        price_range: business.price || '$$',
-        has_dine_in: true,
-        has_takeout: business.transactions?.includes('pickup') || false,
-        has_delivery: business.transactions?.includes('delivery') || false,
-        is_wheelchair_accessible: false,
-        accepts_credit_cards: true,
-        cookie_types: [],
-        dietary_options: [],
-        features: ['Yelp Verified'],
-        average_rating: business.rating || 0,
-        review_count: business.review_count || 0,
-        source: 'yelp',
-        source_id: business.id
-      };
-    }));
-    
-    // Cache the results
-    cookieSpotCache.set(`yelp-${zipCode}`, spots);
-    return spots;
-  } catch (error) {
-    console.error('Error fetching from Yelp API:', error);
-    return [];
-  }
-};
-
-// Fetch cookie spots from Facebook Graph API
-const fetchCookieSpotsFromFacebook = async (zipCode) => {
-  try {
-    const cachedData = cookieSpotCache.get(`facebook-${zipCode}`);
-    if (cachedData) {
-      console.log(`Using cached Facebook data for ${zipCode}`);
-      return cachedData;
-    }
-
-    const fbAccessToken = process.env.FACEBOOK_ACCESS_TOKEN;
-    if (!fbAccessToken) {
-      console.error('Facebook access token not found');
-      return [];
-    }
-    
-    // Search for places near this location
-    const searchUrl = `https://graph.facebook.com/v17.0/search?type=place&q=cookie bakery&center=${zipCode}&distance=10000&fields=name,location,overall_star_rating,price_range,phone,website,hours,category_list&access_token=${fbAccessToken}`;
-    const response = await axios.get(searchUrl);
-    
-    if (!response.data.data) {
-      console.error('No results from Facebook Graph API');
-      return [];
-    }
-    
-    // Map Facebook results to our schema
-    const spots = response.data.data.map(place => {
-      // Format hours of operation
-      const hours = {};
-      if (place.hours) {
-        const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-        days.forEach(day => {
-          hours[day] = place.hours[day + '_1_open'] && place.hours[day + '_1_close'] 
-            ? `${place.hours[day + '_1_open']} - ${place.hours[day + '_1_close']}` 
-            : 'Closed';
-        });
-      }
-      
-      return {
-        name: place.name,
-        description: place.category_list?.map(cat => cat.name).join(', ') || '',
-        address: place.location?.street || '',
-        city: place.location?.city || '',
-        state_province: place.location?.state || '',
-        country: place.location?.country || 'USA',
-        postal_code: place.location?.zip || zipCode,
-        location: {
-          type: 'Point',
-          coordinates: [place.location?.longitude || 0, place.location?.latitude || 0]
-        },
-        phone: place.phone || '',
-        website: place.website || '',
-        hours_of_operation: hours,
-        price_range: place.price_range?.length ? '$'.repeat(place.price_range.length) : '$$',
-        has_dine_in: true,
-        has_takeout: true,
-        has_delivery: false,
-        is_wheelchair_accessible: false,
-        accepts_credit_cards: true,
-        cookie_types: [],
-        dietary_options: [],
-        features: ['Facebook Verified'],
-        average_rating: place.overall_star_rating || 0,
-        source: 'facebook',
-        source_id: place.id
-      };
-    });
-    
-    // Cache the results
-    cookieSpotCache.set(`facebook-${zipCode}`, spots);
-    return spots;
-  } catch (error) {
-    console.error('Error fetching from Facebook Graph API:', error);
-    return [];
-  }
-};
-
 // Fetch and combine cookie spots from all APIs
 const fetchCookieSpots = async (zipCodes = ['10001', '10023', '10014', '10013', '10036', '10018']) => {
   try {
@@ -513,29 +347,13 @@ const fetchCookieSpots = async (zipCodes = ['10001', '10023', '10014', '10013', 
     for (const zipCode of zipCodes) {
       console.log(`Fetching cookie spots for ZIP: ${zipCode}`);
       
-      // Fetch from all APIs in parallel
-      const [googleSpots, yelpSpots, facebookSpots] = await Promise.all([
-        fetchCookieSpotsFromGoogle(zipCode),
-        fetchCookieSpotsFromYelp(zipCode),
-        fetchCookieSpotsFromFacebook(zipCode)
-      ]);
+      // Fetch only from Google Places API
+      const googleSpots = await fetchCookieSpotsFromGoogle(zipCode);
       
-      console.log(`Found: Google (${googleSpots.length}), Yelp (${yelpSpots.length}), Facebook (${facebookSpots.length})`);
+      console.log(`Found: Google (${googleSpots.length})`);
       
-      // Combine results, avoiding duplicates by checking name and address
-      const spots = [...googleSpots, ...yelpSpots, ...facebookSpots];
-      const uniqueSpots = [];
-      const seenBusinesses = new Set();
-      
-      for (const spot of spots) {
-        const key = `${spot.name}|${spot.address}|${spot.city}`.toLowerCase();
-        if (!seenBusinesses.has(key)) {
-          seenBusinesses.add(key);
-          uniqueSpots.push(spot);
-        }
-      }
-      
-      allSpots = [...allSpots, ...uniqueSpots];
+      // No need to combine from multiple sources anymore
+      allSpots = [...allSpots, ...googleSpots];
     }
     
     return allSpots;
@@ -601,8 +419,6 @@ module.exports = {
   connectDB,
   fetchCookieSpots,
   fetchCookieSpotsFromGoogle,
-  fetchCookieSpotsFromYelp,
-  fetchCookieSpotsFromFacebook,
   clearCache,
   seedDatabase
 };
