@@ -38,15 +38,20 @@ const HomePage = ({ onSearch }) => {
           const spotsArray = Array.isArray(spots) ? spots : (spots?.spots || []);
           
           if (spotsArray.length > 0) {
-            setFeaturedSpots(spotsArray);
+            // Sort by rating and limit to top 5
+            const sortedSpots = [...spotsArray].sort((a, b) => 
+              (b.average_rating || 0) - (a.average_rating || 0)
+            ).slice(0, 5);
+            
+            setFeaturedSpots(sortedSpots);
           } else {
-            // If no spots returned, create mock data
-            setFeaturedSpots(createMockDataForLocation(locationData.city || 'Your Area', locationData));
+            // If no spots returned, create mock data (limit to 5)
+            setFeaturedSpots(createMockDataForLocation(locationData.city || 'Your Area', locationData).slice(0, 5));
           }
         } catch (spotError) {
           console.error('Error fetching spots:', spotError);
-          // Create mock data on error
-          setFeaturedSpots(createMockDataForLocation(locationData.city || 'Your Area', locationData));
+          // Create mock data on error (limit to 5)
+          setFeaturedSpots(createMockDataForLocation(locationData.city || 'Your Area', locationData).slice(0, 5));
         }
         
       } catch (error) {
@@ -64,15 +69,20 @@ const HomePage = ({ onSearch }) => {
           const spotsArray = Array.isArray(defaultSpots) ? defaultSpots : (defaultSpots?.spots || []);
           
           if (spotsArray.length > 0) {
-            setFeaturedSpots(spotsArray);
+            // Sort by rating and limit to top 5
+            const sortedSpots = [...spotsArray].sort((a, b) => 
+              (b.average_rating || 0) - (a.average_rating || 0)
+            ).slice(0, 5);
+            
+            setFeaturedSpots(sortedSpots);
           } else {
-            // If no spots returned, create mock data
-            setFeaturedSpots(createMockDataForLocation('New York', defaultLocation));
+            // If no spots returned, create mock data (limit to 5)
+            setFeaturedSpots(createMockDataForLocation('New York', defaultLocation).slice(0, 5));
           }
         } catch (spotError) {
           console.error('Error fetching default spots:', spotError);
-          // Create mock data on error
-          setFeaturedSpots(createMockDataForLocation('New York', defaultLocation));
+          // Create mock data on error (limit to 5)
+          setFeaturedSpots(createMockDataForLocation('New York', defaultLocation).slice(0, 5));
         }
       } finally {
         setIsLoading(false);
@@ -137,6 +147,19 @@ const HomePage = ({ onSearch }) => {
           },
           website: 'https://example.com',
           phone: '(555) 456-7890'
+        },
+        {
+          _id: 'mock-5',
+          name: 'The Cookie Connoisseur',
+          description: 'Gourmet cookies made with premium ingredients.',
+          address: `202 Maple Ave, ${locationName}`,
+          average_rating: 4.6,
+          review_count: 47,
+          location: {
+            coordinates: [lng + 0.015, lat - 0.015]
+          },
+          website: 'https://example.com',
+          phone: '(555) 567-8901'
         }
       ];
     };
@@ -176,7 +199,7 @@ const HomePage = ({ onSearch }) => {
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center mb-8">
             <h2 className="text-2xl font-bold">
-              {userLocation ? `Cookie Spots Near ${userLocation.city}` : 'Cookie Spots Near Me'}
+              {userLocation ? `Top 5 Cookie Spots Near ${userLocation.city}` : 'Top 5 Cookie Spots Near Me'}
               {locationError && <span className="text-sm text-gray-500 ml-2">(Using default locations)</span>}
             </h2>
             <Link to="/search" className="text-primary-600 hover:text-primary-700">
@@ -191,9 +214,11 @@ const HomePage = ({ onSearch }) => {
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mt-6">
               {Array.isArray(featuredSpots) && featuredSpots.map(spot => (
-                <CookieSpotCard key={spot.id || spot._id} spot={spot} />
+                <div key={spot.id || spot._id} className="bg-white rounded-lg shadow-md transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+                  <CookieSpotCard spot={spot} />
+                </div>
               ))}
             </div>
           )}
