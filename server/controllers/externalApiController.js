@@ -37,10 +37,17 @@ const externalApiController = {
       const cachedResults = apiCache.get(cacheKey);
       if (cachedResults) {
         console.log(`Using cached results for ${cacheKey}`);
-        return res.json({
-          success: true,
-          cookieSpots: cachedResults
-        });
+        if (cachedResults.cookieSpots && Array.isArray(cachedResults.cookieSpots)) {
+          console.log(`Returning ${cachedResults.cookieSpots.length} cached spots`);
+          return res.json({
+            success: true,
+            cookieSpots: cachedResults.cookieSpots,
+            viewport: cachedResults.viewport
+          });
+        } else {
+          console.log('Cached results found but invalid format, fetching fresh data');
+          apiCache.del(cacheKey); // Delete invalid cache
+        }
       }
       
       // Define search parameters
@@ -54,19 +61,23 @@ const externalApiController = {
       console.log('Fetching cookie spots with params:', searchParams);
       
       // Only fetch from Google Places API now
-      const googleSpots = await fetchFromGoogle(searchParams);
+      const result = await fetchFromGoogle(searchParams);
       
-      console.log(`Found: Google (${googleSpots.length})`);
+      console.log(`Found: Google (${result.cookieSpots.length})`);
       
       // No need to combine results anymore since we only use Google
-      const uniqueSpots = googleSpots;
+      const uniqueSpots = result.cookieSpots;
       
-      // Cache the results
-      apiCache.set(cacheKey, uniqueSpots);
+      // Cache the complete results object including viewport
+      apiCache.set(cacheKey, { 
+        cookieSpots: uniqueSpots, 
+        viewport: result.viewport 
+      });
       
       return res.json({
         success: true,
-        cookieSpots: uniqueSpots
+        cookieSpots: uniqueSpots,
+        viewport: result.viewport
       });
     } catch (error) {
       console.error('Error fetching from Google Places API:', error);
@@ -102,6 +113,8 @@ async function fetchFromGoogle(params) {
     try {
       // Get either location or coordinates
       let coordinates;
+      let viewport;
+      let searchRadius = 2000; // Default to 2km (neighborhood size)
       
       if (params.lat && params.lng) {
         coordinates = { lat: params.lat, lng: params.lng };
@@ -116,7 +129,49 @@ async function fetchFromGoogle(params) {
           console.log('Geocode response status:', geocodeResponse.status);
           
           if (geocodeResponse.data.results && geocodeResponse.data.results.length > 0) {
-            coordinates = geocodeResponse.data.results[0].geometry.location;
+            const result = geocodeResponse.data.results[0];
+            coordinates = result.geometry.location;
+            
+            // Get viewport information for better boundary targeting
+            if (result.geometry.viewport) {
+              viewport = result.geometry.viewport;
+              console.log('Viewport from geocoding:', viewport);
+              
+              // Calculate radius based on viewport for more precise neighborhood targeting
+              // Use the distance between the northeast and southwest corners to determine size
+              const neLat = viewport.northeast.lat;
+              const neLng = viewport.northeast.lng;
+              const swLat = viewport.southwest.lat;
+              const swLng = viewport.southwest.lng;
+              
+              // Calculate distance in meters approximating the viewport's diagonal
+              // Using Haversine approximation for simplicity
+              const latDiff = Math.abs(neLat - swLat) * 111000; // 1 degree lat ≈ 111km
+              const lngDiff = Math.abs(neLng - swLng) * 111000 * Math.cos(coordinates.lat * Math.PI / 180);
+              
+              // Set radius to half of the diagonal distance to cover the viewport area
+              const viewportDiagonal = Math.sqrt(Math.pow(latDiff, 2) + Math.pow(lngDiff, 2));
+              searchRadius = Math.min(Math.max(viewportDiagonal / 2, 1000), 5000); // Min 1km, max 5km
+              
+              console.log('Calculated search radius from viewport:', searchRadius.toFixed(0) + 'm');
+            }
+            
+            // Adjust search radius based on location type
+            const types = result.types || [];
+            if (types.includes('postal_code')) {
+              // Zip codes are small areas, reduce radius
+              searchRadius = Math.min(searchRadius, 2000);
+              console.log('Location is a postal code, using smaller radius:', searchRadius);
+            } else if (types.includes('neighborhood') || types.includes('sublocality')) {
+              // Neighborhoods are small areas, reduce radius
+              searchRadius = Math.min(searchRadius, 2500);
+              console.log('Location is a neighborhood, using smaller radius:', searchRadius);
+            } else if (types.includes('locality')) {
+              // Cities are larger, but don't search too far
+              searchRadius = Math.min(searchRadius, 4000);
+              console.log('Location is a city/locality, using medium radius:', searchRadius);
+            }
+            
             console.log('Coordinates from geocoding:', coordinates);
           } else {
             console.error('No geocoding results for:', params.location);
@@ -133,9 +188,8 @@ async function fetchFromGoogle(params) {
       
       // Search for places
       console.log('Building Google Places search requests with API key');
+      console.log('Using search radius:', searchRadius.toFixed(0) + 'm');
 
-      // Make search radius larger to find more results
-      const searchRadius = 10000; // 10km instead of 5km
       const placesRequests = [
         // Search for bakeries with "cookie" keyword
         axios.get(`https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${coordinates.lat},${coordinates.lng}&radius=${searchRadius}&type=bakery&keyword=cookie&key=${googleApiKey}`),
@@ -146,10 +200,20 @@ async function fetchFromGoogle(params) {
         // Search with keyword "cookies" only
         axios.get(`https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${coordinates.lat},${coordinates.lng}&radius=${searchRadius}&keyword=cookies&key=${googleApiKey}`),
         // Search with keyword "dessert" and "bakery"
-        axios.get(`https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${coordinates.lat},${coordinates.lng}&radius=${searchRadius}&keyword=dessert+bakery&key=${googleApiKey}`),
-        // Textual search for cookies in the area
-        axios.get(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=cookies+near+${coordinates.lat},${coordinates.lng}&key=${googleApiKey}`)
+        axios.get(`https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${coordinates.lat},${coordinates.lng}&radius=${searchRadius}&keyword=dessert+bakery&key=${googleApiKey}`)
       ];
+      
+      // Add text search which can be more precise with location names
+      if (params.location) {
+        placesRequests.push(
+          axios.get(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=cookies+in+${encodeURIComponent(params.location)}&key=${googleApiKey}`)
+        );
+      } else {
+        // Generic nearby search if only coordinates provided
+        placesRequests.push(
+          axios.get(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=cookies+near+${coordinates.lat},${coordinates.lng}&key=${googleApiKey}`)
+        );
+      }
       
       console.log('Searching for places near coordinates:', coordinates);
       console.log('Total search requests:', placesRequests.length);
@@ -204,21 +268,37 @@ async function fetchFromGoogle(params) {
           const details = detailsResponse.data.result || {};
           
           // Check if the place has relevant types or keywords in the name that suggest it sells cookies
-          const relevantTypes = ['bakery', 'cafe', 'food', 'store', 'restaurant'];
+          const relevantTypes = ['bakery', 'cafe', 'food', 'store', 'restaurant', 'establishment', 'point_of_interest', 'meal_delivery', 'meal_takeaway'];
           const placeTypes = details.types || place.types || [];
           const hasRelevantType = placeTypes.some(type => relevantTypes.includes(type));
           
           const nameLowerCase = place.name.toLowerCase();
-          const hasRelevantKeyword = nameLowerCase.includes('cookie') || 
-                                     nameLowerCase.includes('bakery') || 
-                                     nameLowerCase.includes('sweets') || 
-                                     nameLowerCase.includes('dessert') || 
-                                     nameLowerCase.includes('pastry') ||
-                                     nameLowerCase.includes('cake') ||
-                                     nameLowerCase.includes('food');
+          const addressLowerCase = place.vicinity ? place.vicinity.toLowerCase() : '';
+          const formattedAddressLowerCase = details.formatted_address ? details.formatted_address.toLowerCase() : '';
+          
+          // Expand keyword matching to include more food-related terms
+          const hasRelevantKeyword = 
+            nameLowerCase.includes('cookie') || 
+            nameLowerCase.includes('bakery') || 
+            nameLowerCase.includes('sweets') || 
+            nameLowerCase.includes('dessert') || 
+            nameLowerCase.includes('pastry') ||
+            nameLowerCase.includes('cake') ||
+            nameLowerCase.includes('food') ||
+            nameLowerCase.includes('cafe') ||
+            nameLowerCase.includes('coffee') ||
+            nameLowerCase.includes('donut') ||
+            nameLowerCase.includes('treat') || 
+            // Check address for relevant keywords too
+            addressLowerCase.includes('bakery') ||
+            formattedAddressLowerCase.includes('bakery');
+          
+          // Be more inclusive - include more results even if they don't perfectly match our criteria
+          const shouldInclude = hasRelevantType || hasRelevantKeyword;
           
           // Skip places that don't match our criteria
-          if (!hasRelevantType && !hasRelevantKeyword) {
+          if (!shouldInclude) {
+            console.log(`Skipping place "${place.name}" - doesn't match criteria`);
             continue;
           }
           
@@ -241,9 +321,37 @@ async function fetchFromGoogle(params) {
             });
           }
           
+          // Determine cookie types based on the name and place types
+          let cookieTypes = [{ name: 'Cookies' }]; // Default
+          if (nameLowerCase.includes('chocolate') || nameLowerCase.includes('chip')) {
+            cookieTypes = [{ name: 'Chocolate Chip' }, ...cookieTypes];
+          }
+          if (nameLowerCase.includes('sugar')) {
+            cookieTypes = [{ name: 'Sugar Cookie' }, ...cookieTypes];
+          }
+          if (nameLowerCase.includes('oatmeal')) {
+            cookieTypes = [{ name: 'Oatmeal Cookie' }, ...cookieTypes];
+          }
+          if (nameLowerCase.includes('peanut')) {
+            cookieTypes = [{ name: 'Peanut Butter' }, ...cookieTypes];
+          }
+          if (nameLowerCase.includes('donut') || nameLowerCase.includes('doughnut')) {
+            cookieTypes = [{ name: 'Donuts' }, ...cookieTypes];
+          }
+          
+          // Add bakery-specific cookie types
+          if (placeTypes.includes('bakery') || nameLowerCase.includes('bakery')) {
+            cookieTypes = [{ name: 'Bakery Cookies' }, ...cookieTypes];
+          }
+          
+          // Remove duplicates
+          cookieTypes = cookieTypes.filter((type, index, self) => 
+            index === self.findIndex(t => t.name === type.name)
+          );
+          
           spots.push({
             name: place.name,
-            description: place.vicinity || '',
+            description: place.vicinity || details.formatted_address || '',
             address: `${streetNumber} ${street}`.trim(),
             city,
             state_province: state,
@@ -263,7 +371,7 @@ async function fetchFromGoogle(params) {
             has_delivery: false,
             is_wheelchair_accessible: false,
             accepts_credit_cards: true,
-            cookie_types: [{ name: 'Cookies' }],
+            cookie_types: cookieTypes,
             dietary_options: [],
             features: ['Google Verified'],
             average_rating: place.rating || 0,
@@ -280,23 +388,32 @@ async function fetchFromGoogle(params) {
         // If not enough spots were found after filtering, add mock data
         if (spots.length < 3) {
           console.log(`Only ${spots.length} valid spots found, adding some mock data`);
-          return [...spots, ...getMockData(params)];
+          const mockData = getMockData(params);
+          const result = { 
+            cookieSpots: [...spots, ...mockData],
+            viewport: viewport || null
+          };
+          return result;
         }
         
-        return spots;
+        const result = { 
+          cookieSpots: spots,
+          viewport: viewport || null
+        };
+        return result;
       }
       
       // If the above fails but no error was thrown, fall back to mock data
-      console.log('No valid spots found from Google API, falling back to mock data');
+      console.log('No valid spots found from Google Places API, falling back to mock data');
       throw new Error('No valid spots from Google Places API');
       
     } catch (googleApiError) {
       console.error('Error with Google Places API, using mock data instead:', googleApiError.message);
-      return getMockData(params);
+      return { cookieSpots: getMockData(params), viewport: null };
     }
   } catch (error) {
     console.error('Fatal error in fetchFromGoogle:', error.message);
-    return getMockData(params);
+    return { cookieSpots: getMockData(params), viewport: null };
   }
 }
 

@@ -35,9 +35,19 @@ const CookieSpotCard = ({ cookieSpot, spot }) => {
   }
   
   const description = data?.description || '';
-  const cookieTypes = Array.isArray(data?.cookie_types) 
-    ? data.cookie_types.map(type => typeof type === 'object' ? type.name : type)
-    : data?.cookieTypes || [];
+
+  // Handle different formats of cookie types
+  let cookieTypes = [];
+  if (Array.isArray(data?.cookie_types)) {
+    cookieTypes = data.cookie_types.map(type => {
+      if (typeof type === 'string') return type;
+      return type?.name || 'Cookies';
+    }).filter(Boolean);
+  } else if (Array.isArray(data?.cookieTypes)) {
+    cookieTypes = data.cookieTypes;
+  } else {
+    cookieTypes = ['Cookies']; // Default
+  }
 
   return (
     <div className="cookie-spot-card bg-white rounded-lg shadow-md overflow-hidden">

@@ -118,7 +118,7 @@ export const fetchAllSourceCookieSpots = async (location) => {
     // Make sure we have a valid location
     if (!location) {
       console.error('Invalid location provided to fetchAllSourceCookieSpots');
-      return [];
+      return { spots: [], viewport: null };
     }
     
     // Log the exact format of the location for debugging
@@ -132,11 +132,21 @@ export const fetchAllSourceCookieSpots = async (location) => {
     const cookieSpots = await getAllSourceCookieSpots(location);
     
     // Log the response details
-    console.log(`Found ${cookieSpots.length} cookie spots from Google Places API`);
-    if (cookieSpots.length === 0) {
-      console.log('No results received from Google Places API');
+    if (cookieSpots.spots) {
+      console.log(`Found ${cookieSpots.spots.length} cookie spots from Google Places API`);
+      if (cookieSpots.spots.length === 0) {
+        console.log('No results received from Google Places API');
+      } else {
+        console.log('First result example:', cookieSpots.spots[0].name);
+        console.log('Has viewport:', !!cookieSpots.viewport);
+      }
     } else {
-      console.log('First result example:', cookieSpots[0].name);
+      console.error('Invalid response format from getAllSourceCookieSpots:', cookieSpots);
+      // Try to handle old response format for backward compatibility
+      if (Array.isArray(cookieSpots)) {
+        console.log('Backward compatibility: converting array response to object format');
+        return { spots: cookieSpots, viewport: null };
+      }
     }
     
     return cookieSpots;
@@ -148,14 +158,7 @@ export const fetchAllSourceCookieSpots = async (location) => {
       console.error('API response error:', error.response.status, error.response.data);
     }
     
-    // Fallback to standard search
-    if (typeof location === 'string') {
-      return await searchCookieSpots(location);
-    } else if (location && (location.latitude || location.city)) {
-      return await fetchCookieSpotsByLocation(location);
-    }
-    
-    return [];
+    return { spots: [], viewport: null };
   }
 };
 

@@ -40,6 +40,7 @@ const SearchResultsPage = () => {
   const [externalResults, setExternalResults] = useState([]);
   const [isLoadingExternal, setIsLoadingExternal] = useState(false);
   const [combinedResults, setCombinedResults] = useState([]);
+  const [searchViewport, setSearchViewport] = useState(null);
   
   // Force white background
   useEffect(() => {
@@ -123,8 +124,22 @@ const SearchResultsPage = () => {
         console.log('Fetching external results for:', searchLocation);
         
         // Fetch from external APIs
-        const externalSpots = await fetchAllSourceCookieSpots(searchLocation);
+        const result = await fetchAllSourceCookieSpots(searchLocation);
+        const externalSpots = result.spots || [];
         setExternalResults(externalSpots);
+        
+        // Add debug logs
+        console.log('External API results:', {
+          totalSpots: externalSpots.length,
+          hasViewport: !!result.viewport,
+          firstSpot: externalSpots.length > 0 ? externalSpots[0].name : 'none'
+        });
+        
+        // Store viewport information for map centering
+        if (result.viewport) {
+          setSearchViewport(result.viewport);
+          console.log('Setting map viewport from search:', result.viewport);
+        }
         
         // Combine with database results (cookieSpots from context)
         const combined = [...cookieSpots];
@@ -152,6 +167,13 @@ const SearchResultsPage = () => {
         
         // Update state with combined results
         setCombinedResults(combined);
+
+        // No results UI update condition - this will help with debugging
+        if (combined.length === 0) {
+          console.error('No spots to display after combining results');
+          console.log('Database results:', cookieSpots);
+          console.log('External results:', externalSpots);
+        }
       } catch (error) {
         console.error('Error loading external results:', error);
       } finally {
@@ -170,6 +192,32 @@ const SearchResultsPage = () => {
     // Use combined results if available, otherwise fall back to cookieSpots
     const spotsToUse = combinedResults.length > 0 ? combinedResults : cookieSpots;
     
+    // First check if we have a viewport from search results
+    if (searchViewport) {
+      // Use the viewport from the search results to set the map boundaries
+      console.log('Using search viewport for map:', searchViewport);
+      
+      // Set center to the middle of the viewport
+      const centerLat = (searchViewport.northeast.lat + searchViewport.southwest.lat) / 2;
+      const centerLng = (searchViewport.northeast.lng + searchViewport.southwest.lng) / 2;
+      setMapCenter([centerLat, centerLng]);
+      
+      // Set bounds based on viewport
+      const southWest = [
+        searchViewport.southwest.lat,
+        searchViewport.southwest.lng
+      ];
+      
+      const northEast = [
+        searchViewport.northeast.lat,
+        searchViewport.northeast.lng
+      ];
+      
+      setBounds([southWest, northEast]);
+      return;
+    }
+    
+    // If no viewport, use the spots to calculate bounds
     if (spotsToUse && spotsToUse.length > 0) {
       // Find valid coordinates
       const validSpots = spotsToUse.filter(
@@ -190,20 +238,20 @@ const SearchResultsPage = () => {
           const lngs = validSpots.map(spot => spot.location.coordinates[0]);
           
           const southWest = [
-            Math.min(...lats) - 0.05,
-            Math.min(...lngs) - 0.05
+            Math.min(...lats) - 0.01,
+            Math.min(...lngs) - 0.01
           ];
           
           const northEast = [
-            Math.max(...lats) + 0.05,
-            Math.max(...lngs) + 0.05
+            Math.max(...lats) + 0.01,
+            Math.max(...lngs) + 0.01
           ];
           
           setBounds([southWest, northEast]);
         }
       }
     }
-  }, [combinedResults, cookieSpots]);
+  }, [combinedResults, cookieSpots, searchViewport]);
   
   // Memoize the URL update function
   const updateURL = useCallback((currentFilters) => {
@@ -402,13 +450,25 @@ const SearchResultsPage = () => {
               ) : spotsToDisplay.length === 0 ? (
                 <div className="p-6 text-center">
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No cookie spots found</h3>
-                  <p className="text-gray-600 mb-4">Try adjusting your search or filters to find what you're looking for.</p>
-                  <button
-                    onClick={() => updateFilters({ search: '', cookieType: '', dietaryOption: '' })}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-                  >
-                    Clear all filters
-                  </button>
+                  <p className="text-gray-600 mb-4">
+                    We couldn't find any cookie spots for your search "{filters.search}".
+                    <br />
+                    Try searching for a different location, or try removing some filters.
+                  </p>
+                  <div className="flex justify-center space-x-4">
+                    <button
+                      onClick={() => updateFilters({ search: '', cookieType: '', dietaryOption: '' })}
+                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                    >
+                      Clear all filters
+                    </button>
+                    <Link
+                      to="/"
+                      className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                    >
+                      Return home
+                    </Link>
+                  </div>
                 </div>
               ) : (
                 <div className="p-4">
