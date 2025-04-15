@@ -33,7 +33,8 @@ const HomePage = ({ onSearch }) => {
         
         // Fetch cookie spots based on the user's location
         const spots = await fetchCookieSpotsByLocation(locationData);
-        setFeaturedSpots(spots);
+        // Check if spots is an array or an object with spots property
+        setFeaturedSpots(Array.isArray(spots) ? spots : (spots?.spots || []));
         
       } catch (error) {
         console.error('Error getting location or spots:', error);
@@ -45,7 +46,8 @@ const HomePage = ({ onSearch }) => {
         
         // Fetch default cookie spots
         const defaultSpots = await fetchCookieSpotsByLocation(defaultLocation);
-        setFeaturedSpots(defaultSpots);
+        // Check if spots is an array or an object with spots property
+        setFeaturedSpots(Array.isArray(defaultSpots) ? defaultSpots : (defaultSpots?.spots || []));
       } finally {
         setIsLoading(false);
       }
@@ -102,8 +104,8 @@ const HomePage = ({ onSearch }) => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
-              {featuredSpots.map(spot => (
-                <CookieSpotCard key={spot.id} spot={spot} />
+              {Array.isArray(featuredSpots) && featuredSpots.map(spot => (
+                <CookieSpotCard key={spot.id || spot._id} spot={spot} />
               ))}
             </div>
           )}

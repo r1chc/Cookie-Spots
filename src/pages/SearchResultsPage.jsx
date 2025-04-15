@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useCookieSpots } from '../utils/CookieSpotContext';
 import CookieSpotCard from '../components/CookieSpotCard';
 import FilterButtons from '../components/FilterButtons';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { fetchAllSourceCookieSpots } from '../utils/cookieSpotService';
@@ -15,6 +15,21 @@ L.Icon.Default.mergeOptions({
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
+
+// Component to handle map view updates
+const MapUpdater = ({ center, bounds }) => {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (bounds) {
+      map.fitBounds(bounds);
+    } else if (center) {
+      map.setView(center, 13);
+    }
+  }, [map, center, bounds]);
+  
+  return null;
+};
 
 const SearchResultsPage = () => {
   const location = useLocation();
@@ -553,9 +568,9 @@ const SearchResultsPage = () => {
                   <MapContainer 
                     center={mapCenter} 
                     zoom={13}
-                    bounds={bounds}
                     style={{ height: '100%', width: '100%' }}
                   >
+                    <MapUpdater center={mapCenter} bounds={bounds} />
                     <TileLayer
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
