@@ -1,85 +1,27 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { authApi } from '../utils/api'
 
 const ProfilePage = () => {
   const [user, setUser] = useState(null)
   const [activeTab, setActiveTab] = useState('profile')
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
-  // Mock data - in a real app, this would come from an API
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setUser({
-        id: 1,
-        firstName: 'Jane',
-        lastName: 'Doe',
-        email: 'jane.doe@example.com',
-        username: 'CookieLover42',
-        bio: 'Cookie enthusiast and amateur baker. Always on the hunt for the perfect chocolate chip cookie!',
-        profileImage: '/images/profile-placeholder.jpg',
-        joinDate: 'January 2025',
-        location: 'New York, NY',
-        reviews: [
-          {
-            id: 1,
-            cookieSpotId: 2,
-            cookieSpotName: 'Levain Bakery',
-            date: 'March 15, 2025',
-            rating: 5,
-            text: 'Best cookies in NYC! The chocolate chip walnut is to die for. Crispy on the outside, gooey on the inside. Worth the wait in line!'
-          },
-          {
-            id: 2,
-            cookieSpotId: 3,
-            cookieSpotName: 'Insomnia Cookies',
-            date: 'February 10, 2025',
-            rating: 4,
-            text: 'Great late-night cookie option. The snickerdoodle is my favorite!'
-          }
-        ],
-        favorites: [
-          {
-            id: 2,
-            name: 'Levain Bakery',
-            image: '/images/cookie-spot-2.jpg',
-            rating: 4.9,
-            location: 'New York, NY'
-          },
-          {
-            id: 3,
-            name: 'Insomnia Cookies',
-            image: '/images/cookie-spot-3.jpg',
-            rating: 4.6,
-            location: 'New York, NY'
-          },
-          {
-            id: 5,
-            name: 'Schmackary\'s',
-            image: '/images/cookie-spot-5.jpg',
-            rating: 4.5,
-            location: 'New York, NY'
-          }
-        ],
-        photos: [
-          {
-            id: 1,
-            cookieSpotId: 2,
-            cookieSpotName: 'Levain Bakery',
-            image: '/images/levain-1.jpg',
-            date: 'March 15, 2025'
-          },
-          {
-            id: 2,
-            cookieSpotId: 3,
-            cookieSpotName: 'Insomnia Cookies',
-            image: '/images/cookie-spot-3.jpg',
-            date: 'February 10, 2025'
-          }
-        ]
-      })
-      setLoading(false)
-    }, 500)
+    const fetchUserProfile = async () => {
+      try {
+        const response = await authApi.getProfile()
+        setUser(response.data)
+      } catch (err) {
+        console.error('Error fetching user profile:', err)
+        setError('Failed to load user profile')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchUserProfile()
   }, [])
 
   if (loading) {
@@ -87,6 +29,29 @@ const ProfilePage = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center text-red-600">
+          {error}
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <p>Please log in to view your profile</p>
+          <Link to="/login" className="text-primary-600 hover:text-primary-700">
+            Go to Login
+          </Link>
         </div>
       </div>
     )

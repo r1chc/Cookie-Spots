@@ -45,13 +45,11 @@ const HomePage = ({ onSearch }) => {
             
             setFeaturedSpots(sortedSpots);
           } else {
-            // If no spots returned, create mock data (limit to 5)
-            setFeaturedSpots(createMockDataForLocation(locationData.city || 'Your Area', locationData).slice(0, 5));
+            setFeaturedSpots([]);
           }
         } catch (spotError) {
           console.error('Error fetching spots:', spotError);
-          // Create mock data on error (limit to 5)
-          setFeaturedSpots(createMockDataForLocation(locationData.city || 'Your Area', locationData).slice(0, 5));
+          setFeaturedSpots([]);
         }
         
       } catch (error) {
@@ -76,92 +74,15 @@ const HomePage = ({ onSearch }) => {
             
             setFeaturedSpots(sortedSpots);
           } else {
-            // If no spots returned, create mock data (limit to 5)
-            setFeaturedSpots(createMockDataForLocation('New York', defaultLocation).slice(0, 5));
+            setFeaturedSpots([]);
           }
         } catch (spotError) {
           console.error('Error fetching default spots:', spotError);
-          // Create mock data on error (limit to 5)
-          setFeaturedSpots(createMockDataForLocation('New York', defaultLocation).slice(0, 5));
+          setFeaturedSpots([]);
         }
       } finally {
         setIsLoading(false);
       }
-    };
-
-    // Helper function to create mock data when APIs fail
-    const createMockDataForLocation = (locationName, locationCoords) => {
-      const lat = locationCoords.latitude || (locationCoords.lat || 40.7128);
-      const lng = locationCoords.longitude || (locationCoords.lng || -74.0060);
-      
-      // Create some mock spots around the given coordinates
-      return [
-        {
-          _id: 'mock-1',
-          name: `${locationName} Cookie Company`,
-          description: 'Local favorite cookie shop with fresh baked goods daily.',
-          address: `123 Main St, ${locationName}`,
-          average_rating: 4.7,
-          review_count: 42,
-          location: {
-            coordinates: [lng, lat]
-          },
-          website: 'https://example.com',
-          phone: '(555) 123-4567'
-        },
-        {
-          _id: 'mock-2',
-          name: 'Cookie Monster Bakery',
-          description: 'Specialty cookies in dozens of flavors.',
-          address: `456 Elm St, ${locationName}`,
-          average_rating: 4.3,
-          review_count: 28,
-          location: {
-            coordinates: [lng + 0.01, lat + 0.01]
-          },
-          website: 'https://example.com',
-          phone: '(555) 234-5678'
-        },
-        {
-          _id: 'mock-3',
-          name: 'Sweet Treats & Co',
-          description: 'Artisanal cookies and pastries.',
-          address: `789 Oak St, ${locationName}`,
-          average_rating: 4.5,
-          review_count: 36,
-          location: {
-            coordinates: [lng - 0.01, lat - 0.01]
-          },
-          website: 'https://example.com',
-          phone: '(555) 345-6789'
-        },
-        {
-          _id: 'mock-4',
-          name: 'Grandma\'s Cookie Jar',
-          description: 'Homestyle cookies just like grandma used to make.',
-          address: `101 Pine St, ${locationName}`,
-          average_rating: 4.9,
-          review_count: 58,
-          location: {
-            coordinates: [lng - 0.02, lat + 0.02]
-          },
-          website: 'https://example.com',
-          phone: '(555) 456-7890'
-        },
-        {
-          _id: 'mock-5',
-          name: 'The Cookie Connoisseur',
-          description: 'Gourmet cookies made with premium ingredients.',
-          address: `202 Maple Ave, ${locationName}`,
-          average_rating: 4.6,
-          review_count: 47,
-          location: {
-            coordinates: [lng + 0.015, lat - 0.015]
-          },
-          website: 'https://example.com',
-          phone: '(555) 567-8901'
-        }
-      ];
     };
 
     // Call the function to get location and spots

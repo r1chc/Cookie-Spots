@@ -103,7 +103,7 @@ async function fetchFromGoogle(params) {
     if (!googleApiKey) {
       console.error('Google Places API key not found in environment variables');
       console.error('Available environment variables:', Object.keys(process.env).filter(key => key.includes('GOOGLE')));
-      return getMockData(params);
+      throw new Error('Google Places API key not found');
     }
     
     console.log('Google API Key available:', googleApiKey ? 'Yes' : 'No');
@@ -251,8 +251,8 @@ async function fetchFromGoogle(params) {
       console.log('Number of unique places found:', allResults.length);
       
       if (allResults.length === 0) {
-        console.log('No results from Google Places API, falling back to mock data');
-        return getMockData(params);
+        console.log('No results from Google Places API');
+        throw new Error('No results found from Google Places API');
       }
       
       console.log(`Found ${allResults.length} potential spots from Google`);
@@ -385,17 +385,6 @@ async function fetchFromGoogle(params) {
       }
       
       if (spots.length > 0) {
-        // If not enough spots were found after filtering, add mock data
-        if (spots.length < 3) {
-          console.log(`Only ${spots.length} valid spots found, adding some mock data`);
-          const mockData = getMockData(params);
-          const result = { 
-            cookieSpots: [...spots, ...mockData],
-            viewport: viewport || null
-          };
-          return result;
-        }
-        
         const result = { 
           cookieSpots: spots,
           viewport: viewport || null
@@ -403,171 +392,16 @@ async function fetchFromGoogle(params) {
         return result;
       }
       
-      // If the above fails but no error was thrown, fall back to mock data
-      console.log('No valid spots found from Google Places API, falling back to mock data');
       throw new Error('No valid spots from Google Places API');
       
     } catch (googleApiError) {
-      console.error('Error with Google Places API, using mock data instead:', googleApiError.message);
-      return { cookieSpots: getMockData(params), viewport: null };
+      console.error('Error with Google Places API:', googleApiError.message);
+      throw googleApiError;
     }
   } catch (error) {
     console.error('Fatal error in fetchFromGoogle:', error.message);
-    return { cookieSpots: getMockData(params), viewport: null };
+    throw error;
   }
-}
-
-/**
- * Get mock cookie spot data based on the requested location
- */
-function getMockData(params) {
-  console.log('Generating mock data for location params:', params);
-  
-  // Create mock data near the requested location
-  let mockCoordinates;
-  let locationName = "New York";
-  
-  if (params.lat && params.lng) {
-    mockCoordinates = [params.lng, params.lat]; // Use provided coordinates
-  } else if (params.location) {
-    // Try to extract city and state from location string
-    const locationParts = params.location.split(',').map(part => part.trim());
-    console.log('Location parts:', locationParts);
-    locationName = locationParts[0] || "New York";
-    
-    // Use default coordinates for specific locations, otherwise use NYC
-    if (locationParts[0].toLowerCase().includes('williamsburg')) {
-      mockCoordinates = [-73.9567, 40.7131]; // Williamsburg, Brooklyn
-    } else if (locationParts[0].toLowerCase().includes('astoria')) {
-      mockCoordinates = [-73.9245, 40.7615]; // Astoria
-    } else {
-      mockCoordinates = [-73.9665, 40.7812]; // NYC (default)
-    }
-  } else {
-    mockCoordinates = [-73.9665, 40.7812]; // NYC (default)
-  }
-  
-  console.log('Using mock coordinates:', mockCoordinates, 'for location:', locationName);
-  
-  // Create mock spots
-  const mockSpots = [
-    {
-      name: "Cookie Dreams Bakery",
-      description: "Fresh, homemade cookies of all varieties",
-      address: "123 Main Street",
-      city: locationName,
-      state_province: "NY",
-      country: "USA",
-      postal_code: "10001",
-      location: {
-        type: 'Point',
-        coordinates: mockCoordinates
-      },
-      phone: "(718) 555-1212",
-      website: "https://www.broadwaybakery.com",
-      hours_of_operation: {
-        monday: "7:00 AM - 8:00 PM",
-        tuesday: "7:00 AM - 8:00 PM",
-        wednesday: "7:00 AM - 8:00 PM",
-        thursday: "7:00 AM - 8:00 PM",
-        friday: "7:00 AM - 9:00 PM",
-        saturday: "8:00 AM - 9:00 PM",
-        sunday: "8:00 AM - 7:00 PM"
-      },
-      price_range: "$$",
-      status: 'active',
-      has_dine_in: true,
-      has_takeout: true,
-      has_delivery: false,
-      is_wheelchair_accessible: true,
-      accepts_credit_cards: true,
-      cookie_types: [{ name: 'Chocolate Chip' }],
-      dietary_options: [],
-      features: ['Google Verified'],
-      average_rating: 4.7,
-      review_count: 123,
-      source: 'google',
-      source_id: 'mock-google-1'
-    },
-    {
-      name: "Crumbl Cookies",
-      description: "Premium gourmet cookies in rotating flavors",
-      address: "456 Oak Avenue",
-      city: locationName,
-      state_province: "NY",
-      country: "USA",
-      postal_code: "10001",
-      location: {
-        type: 'Point',
-        coordinates: [mockCoordinates[0] + 0.005, mockCoordinates[1] + 0.003]
-      },
-      phone: "(212) 555-3434",
-      website: "https://www.crumblcookies.com",
-      hours_of_operation: {
-        monday: "10:00 AM - 10:00 PM",
-        tuesday: "10:00 AM - 10:00 PM",
-        wednesday: "10:00 AM - 10:00 PM",
-        thursday: "10:00 AM - 10:00 PM",
-        friday: "10:00 AM - 12:00 AM",
-        saturday: "10:00 AM - 12:00 AM",
-        sunday: "12:00 PM - 8:00 PM"
-      },
-      price_range: "$$$",
-      status: 'active',
-      has_dine_in: true,
-      has_takeout: true,
-      has_delivery: true,
-      is_wheelchair_accessible: true,
-      accepts_credit_cards: true,
-      cookie_types: [{ name: "Chocolate Chip" }, { name: "Sugar" }, { name: "Peanut Butter" }],
-      dietary_options: [{ name: "Gluten-Free Options" }],
-      features: ["Weekly Specials", "Rotating Menu"],
-      average_rating: 4.7,
-      review_count: 342,
-      source: 'google',
-      source_id: 'mock-crumbl-cookies'
-    },
-    {
-      name: "Levain Bakery",
-      description: "Famous for thick, gooey cookies",
-      address: "789 Maple Street",
-      city: locationName,
-      state_province: "NY",
-      country: "USA",
-      postal_code: "10001",
-      location: {
-        type: 'Point',
-        coordinates: [mockCoordinates[0] - 0.004, mockCoordinates[1] - 0.002]
-      },
-      phone: "(212) 555-8989",
-      website: "https://www.levainbakery.com",
-      hours_of_operation: {
-        monday: "8:00 AM - 8:00 PM",
-        tuesday: "8:00 AM - 8:00 PM",
-        wednesday: "8:00 AM - 8:00 PM",
-        thursday: "8:00 AM - 8:00 PM",
-        friday: "8:00 AM - 9:00 PM",
-        saturday: "8:00 AM - 9:00 PM",
-        sunday: "9:00 AM - 7:00 PM"
-      },
-      price_range: "$$$",
-      status: 'active',
-      has_dine_in: true,
-      has_takeout: true,
-      has_delivery: false,
-      is_wheelchair_accessible: true,
-      accepts_credit_cards: true,
-      cookie_types: [{ name: "Chocolate Chip Walnut" }, { name: "Dark Chocolate Chip" }],
-      dietary_options: [],
-      features: ["Award Winning"],
-      average_rating: 4.9,
-      review_count: 896,
-      source: 'google',
-      source_id: 'mock-levain-bakery'
-    }
-  ];
-  
-  return mockSpots;
 }
 
 // Remove fetchFromYelp and fetchFromFacebook functions
@@ -577,4 +411,5 @@ function removeDuplicates(spots) {
   return spots; // Just return the spots as is since they're all from one source
 }
 
+module.exports = externalApiController;
 module.exports = externalApiController;

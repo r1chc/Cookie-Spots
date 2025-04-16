@@ -317,79 +317,16 @@ const SearchResultsPage = () => {
           
           // Update state with combined results
           setCombinedResults(combined);
-
-          // If there are no results at all, we might want to show some sample/fallback data
-          if (combined.length === 0 && locationQuery) {
-            console.warn('No spots found. Creating fallback demo data for the search location.');
-            
-            // Create some mock data to show something rather than an empty state
-            const mockSpots = createMockDataForLocation(locationQuery, searchLocation);
-            setCombinedResults(mockSpots);
-          }
         } catch (error) {
           console.error('Error fetching from external sources:', error);
-          
-          // If API calls failed but we have a location, create some mock data
-          if (locationQuery) {
-            console.warn('API call failed. Creating fallback demo data for the search location.');
-            const mockSpots = createMockDataForLocation(locationQuery, searchLocation);
-            setCombinedResults(mockSpots);
-          }
+          setCombinedResults([]);
         }
       } catch (error) {
         console.error('Error in loadExternalResults:', error);
+        setCombinedResults([]);
       } finally {
         setIsLoadingExternal(false);
       }
-    };
-    
-    // Helper function to create mock data when APIs fail
-    const createMockDataForLocation = (locationName, locationCoords) => {
-      const lat = locationCoords.latitude || (locationCoords.lat || 40.7128);
-      const lng = locationCoords.longitude || (locationCoords.lng || -74.0060);
-      
-      // Create some mock spots around the given coordinates
-      return [
-        {
-          _id: 'mock-1',
-          name: `${locationName} Cookie Company`,
-          description: 'Local favorite cookie shop with fresh baked goods daily.',
-          address: `123 Main St, ${locationName}`,
-          average_rating: 4.7,
-          review_count: 42,
-          location: {
-            coordinates: [lng, lat]
-          },
-          website: 'https://example.com',
-          phone: '(555) 123-4567'
-        },
-        {
-          _id: 'mock-2',
-          name: 'Cookie Monster Bakery',
-          description: 'Specialty cookies in dozens of flavors.',
-          address: `456 Elm St, ${locationName}`,
-          average_rating: 4.3,
-          review_count: 28,
-          location: {
-            coordinates: [lng + 0.01, lat + 0.01]
-          },
-          website: 'https://example.com',
-          phone: '(555) 234-5678'
-        },
-        {
-          _id: 'mock-3',
-          name: 'Sweet Treats & Co',
-          description: 'Artisanal cookies and pastries.',
-          address: `789 Oak St, ${locationName}`,
-          average_rating: 4.5,
-          review_count: 36,
-          location: {
-            coordinates: [lng - 0.01, lat - 0.01]
-          },
-          website: 'https://example.com',
-          phone: '(555) 345-6789'
-        }
-      ];
     };
     
     // Only run this effect after internal database results are loaded
