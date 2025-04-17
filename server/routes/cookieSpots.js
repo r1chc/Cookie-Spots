@@ -109,8 +109,8 @@ router.post('/all-sources', async (req, res) => {
       }
     }
     
-    // Limit to at most 3 zip codes to avoid excessive API calls
-    zipCodes = zipCodes.slice(0, 3);
+    // Limit to at most 1 zip code to avoid excessive API calls
+    zipCodes = zipCodes.slice(0, 2);
     
     console.log(`Searching cookie spots in zip codes: ${zipCodes.join(', ')}`);
     

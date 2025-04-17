@@ -30,8 +30,9 @@ const GoogleMap = ({ center, bounds, spots, hoveredSpot }) => {
         
         const loader = new Loader({
           apiKey,
-          version: 'weekly',
-          libraries: ['places', 'marker']
+          version: 'beta',
+          libraries: ['places', 'marker'],
+          platformLibraries: ['places']
         });
         
         // Load the API
