@@ -6,6 +6,7 @@ const User = require('./models/User');
 const bcrypt = require('bcryptjs');
 const axios = require('axios');
 const NodeCache = require('node-cache');
+const config = require('./config/config');
 require('dotenv').config();
 
 // Create a cache with TTL of 24 hours (in seconds)
@@ -15,7 +16,11 @@ const cookieSpotCache = new NodeCache({ stdTTL: 86400 });
 const connectDB = async () => {
   try {
     // Use MongoDB Atlas connection string from environment variable or config
-    const mongoURI = process.env.MONGO_URI || 'mongodb+srv://C00kieUs3r:MVGeUvnwrpiuS90e@cookiespots.5b0b1zp.mongodb.net/?retryWrites=true&w=majority&appName=CookieSpots';
+    const mongoURI = process.env.MONGO_URI || config.mongoURI;
+    
+    if (!mongoURI) {
+      throw new Error('MongoDB connection string is not configured. Please set MONGO_URI in your environment variables.');
+    }
     
     await mongoose.connect(mongoURI, {
       useNewUrlParser: true,
@@ -25,6 +30,23 @@ const connectDB = async () => {
   } catch (error) {
     console.error('MongoDB connection error:', error);
     process.exit(1);
+  }
+};
+
+// Safety check before clearing data
+const safetyCheck = async () => {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('Refusing to seed database in production environment');
+    process.exit(1);
+  }
+  
+  const count = await CookieSpot.countDocuments();
+  if (count > 0) {
+    console.log(`Warning: Database already contains ${count} cookie spots`);
+    console.log('To proceed with seeding, please run with FORCE_SEED=true');
+    if (process.env.FORCE_SEED !== 'true') {
+      process.exit(1);
+    }
   }
 };
 
@@ -394,6 +416,8 @@ const clearCache = () => {
 const seedDatabase = async () => {
   try {
     await connectDB();
+    await safetyCheck();
+    
     const cookieTypes = await seedCookieTypes();
     const dietaryOptions = await seedDietaryOptions();
     const adminUser = await createAdminUser();
@@ -425,5 +449,14 @@ module.exports = {
 
 // Run the seed function if this file is executed directly
 if (require.main === module) {
-  seedDatabase();
+  // Check if this is being run directly (not imported)
+  console.log('Running seed script directly...');
+  console.log('NODE_ENV:', process.env.NODE_ENV);
+  console.log('FORCE_SEED:', process.env.FORCE_SEED);
+  
+  // Add a small delay to allow for Ctrl+C to cancel
+  console.log('Press Ctrl+C within 3 seconds to cancel seeding...');
+  setTimeout(() => {
+    seedDatabase();
+  }, 3000);
 }

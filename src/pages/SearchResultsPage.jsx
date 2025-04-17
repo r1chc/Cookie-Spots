@@ -31,7 +31,7 @@ const GoogleMap = ({ center, bounds, spots, hoveredSpot }) => {
         const loader = new Loader({
           apiKey,
           version: 'weekly',
-          libraries: ['places']
+          libraries: ['places', 'marker']
         });
         
         // Load the API
@@ -44,25 +44,55 @@ const GoogleMap = ({ center, bounds, spots, hoveredSpot }) => {
     };
     
     loadGoogleMapsAPI();
+    
+    // Cleanup function
+    return () => {
+      // Clean up markers when component unmounts
+      if (markersRef.current) {
+        markersRef.current.forEach(marker => {
+          if (marker && marker.map) {
+            marker.map = null;
+          }
+        });
+        markersRef.current = [];
+      }
+      
+      // Clean up map instance
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current = null;
+      }
+      
+      // Clean up info window
+      if (infoWindowRef.current) {
+        infoWindowRef.current = null;
+      }
+    };
   }, []);
   
   // Initialize map once API is loaded
   useEffect(() => {
     if (!isLoaded || !mapRef.current) return;
     
-    // Create map instance
-    const googleCenter = { lat: center[0], lng: center[1] };
-    mapInstanceRef.current = new google.maps.Map(mapRef.current, {
-      center: googleCenter,
-      zoom: 13,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: true,
-      zoomControl: true,
-    });
-    
-    // Create info window for markers
-    infoWindowRef.current = new google.maps.InfoWindow();
+    try {
+      // Create map instance with Map ID
+      const googleCenter = { lat: center[0], lng: center[1] };
+      mapInstanceRef.current = new google.maps.Map(mapRef.current, {
+        center: googleCenter,
+        zoom: 13,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: true,
+        zoomControl: true,
+        mapId: '6bd27628afc2485', // Your Map ID for advanced markers
+        gestureHandling: 'greedy'
+      });
+      
+      // Create info window for markers
+      infoWindowRef.current = new google.maps.InfoWindow();
+    } catch (error) {
+      console.error('Error initializing map:', error);
+      setLoadError('Failed to initialize map');
+    }
     
   }, [isLoaded, center]);
   
@@ -70,14 +100,18 @@ const GoogleMap = ({ center, bounds, spots, hoveredSpot }) => {
   useEffect(() => {
     if (!isLoaded || !mapInstanceRef.current) return;
     
-    if (bounds) {
-      const googleBounds = new google.maps.LatLngBounds(
-        { lat: bounds[0][0], lng: bounds[0][1] },
-        { lat: bounds[1][0], lng: bounds[1][1] }
-      );
-      mapInstanceRef.current.fitBounds(googleBounds);
-    } else if (center) {
-      mapInstanceRef.current.setCenter({ lat: center[0], lng: center[1] });
+    try {
+      if (bounds) {
+        const googleBounds = new google.maps.LatLngBounds(
+          { lat: bounds[0][0], lng: bounds[0][1] },
+          { lat: bounds[1][0], lng: bounds[1][1] }
+        );
+        mapInstanceRef.current.fitBounds(googleBounds);
+      } else if (center) {
+        mapInstanceRef.current.setCenter({ lat: center[0], lng: center[1] });
+      }
+    } catch (error) {
+      console.error('Error updating map bounds:', error);
     }
   }, [isLoaded, center, bounds]);
   
@@ -85,63 +119,89 @@ const GoogleMap = ({ center, bounds, spots, hoveredSpot }) => {
   useEffect(() => {
     if (!isLoaded || !mapInstanceRef.current || !spots) return;
     
-    // Clear existing markers
-    markersRef.current.forEach(marker => marker.setMap(null));
-    markersRef.current = [];
-    
-    // Add new markers
-    spots.forEach((spot, index) => {
-      if (!spot || !spot.location || !spot.location.coordinates) return;
-      
-      const position = {
-        lat: spot.location.coordinates[1],
-        lng: spot.location.coordinates[0]
-      };
-      
-      const marker = new google.maps.Marker({
-        position,
-        map: mapInstanceRef.current,
-        title: spot.name,
-        opacity: hoveredSpot && hoveredSpot._id === spot._id ? 1.0 : 0.7,
-        zIndex: hoveredSpot && hoveredSpot._id === spot._id ? 1000 : index
-      });
-      
-      // Create content for info window
-      const contentString = `
-        <div>
-          <h3 style="font-weight: bold; margin-bottom: 4px;">${spot.name}</h3>
-          <p style="font-size: 14px; margin-bottom: 4px;">${spot.address || ''}</p>
-          <div style="display: flex; align-items: center; margin-top: 4px;">
-            <span style="color: #FBBF24; font-size: 14px;">
-              ${'★'.repeat(Math.floor(spot.average_rating || 0))}
-            </span>
-            <span style="color: #D1D5DB; font-size: 14px;">
-              ${'★'.repeat(5 - Math.floor(spot.average_rating || 0))}
-            </span>
-            <span style="margin-left: 4px; font-size: 12px; color: #4B5563;">
-              ${(spot.average_rating || 0).toFixed(1)}
-            </span>
-          </div>
-          <a 
-            href="/cookie-spot/${spot._id}" 
-            style="display: block; margin-top: 8px; font-size: 14px; color: #4F46E5; text-decoration: none;"
-          >
-            View Details
-          </a>
-        </div>
-      `;
-      
-      // Add click listener for info window
-      marker.addListener('click', () => {
-        infoWindowRef.current.setContent(contentString);
-        infoWindowRef.current.open({
-          anchor: marker,
-          map: mapInstanceRef.current
+    try {
+      // Safely clear existing markers
+      if (markersRef.current) {
+        markersRef.current.forEach(marker => {
+          if (marker && marker.map) {
+            marker.map = null;
+          }
         });
-      });
+        markersRef.current = [];
+      }
       
-      markersRef.current.push(marker);
-    });
+      // Add new markers
+      spots.forEach((spot, index) => {
+        if (!spot || !spot.location || !spot.location.coordinates) return;
+        
+        try {
+          const position = {
+            lat: spot.location.coordinates[1],
+            lng: spot.location.coordinates[0]
+          };
+          
+          // Create marker element
+          const markerView = new google.maps.marker.AdvancedMarkerElement({
+            position,
+            map: mapInstanceRef.current,
+            title: spot.name,
+            gmpDraggable: false,
+            gmpClickable: true
+          });
+          
+          // Create content for info window
+          const contentString = `
+            <div>
+              <h3 style="font-weight: bold; margin-bottom: 4px;">${spot.name}</h3>
+              <p style="font-size: 14px; margin-bottom: 4px;">${spot.address || ''}</p>
+              <div style="display: flex; align-items: center; margin-top: 4px;">
+                <span style="color: #FBBF24; font-size: 14px;">
+                  ${'★'.repeat(Math.floor(spot.average_rating || 0))}
+                </span>
+                <span style="color: #D1D5DB; font-size: 14px;">
+                  ${'★'.repeat(5 - Math.floor(spot.average_rating || 0))}
+                </span>
+                <span style="margin-left: 4px; font-size: 12px; color: #4B5563;">
+                  ${(spot.average_rating || 0).toFixed(1)}
+                </span>
+              </div>
+              <a 
+                href="/cookie-spot/${spot._id}" 
+                style="display: block; margin-top: 8px; font-size: 14px; color: #4F46E5; text-decoration: none;"
+              >
+                View Details
+              </a>
+            </div>
+          `;
+          
+          // Add click listener for info window
+          markerView.addListener('click', () => {
+            if (infoWindowRef.current) {
+              infoWindowRef.current.setContent(contentString);
+              infoWindowRef.current.open({
+                anchor: markerView,
+                map: mapInstanceRef.current
+              });
+            }
+          });
+          
+          // Set opacity based on hover state
+          if (hoveredSpot && hoveredSpot._id === spot._id) {
+            markerView.style.opacity = '1';
+            markerView.style.zIndex = '1000';
+          } else {
+            markerView.style.opacity = '0.7';
+            markerView.style.zIndex = index.toString();
+          }
+          
+          markersRef.current.push(markerView);
+        } catch (markerError) {
+          console.error('Error creating marker:', markerError);
+        }
+      });
+    } catch (error) {
+      console.error('Error updating markers:', error);
+    }
   }, [isLoaded, spots, hoveredSpot]);
   
   return (

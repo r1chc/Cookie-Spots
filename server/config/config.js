@@ -1,8 +1,9 @@
-require('dotenv').config();
+// Remove the dotenv config since it's already loaded in server.js
+// require('dotenv').config();
 
 module.exports = {
   // MongoDB Atlas connection string
-  mongoURI: process.env.MONGO_URI || 'mongodb+srv://C00kieUs3r:MVGeUvnwrpiuS90e@cookiespots.5b0b1zp.mongodb.net/?retryWrites=true&w=majority&appName=CookieSpots',
+  mongoURI: process.env.MONGO_URI,
   
   // JWT secret for authentication
   jwtSecret: process.env.JWT_SECRET || 'cookiespotsecret',
@@ -11,7 +12,7 @@ module.exports = {
   jwtExpiration: '7d',
   
   // Server port
-  port: process.env.PORT || 5000,
+  port: process.env.PORT || 5001, // Changed to match server.js default
   
   // Upload directory for photos
   uploadDir: 'uploads',
