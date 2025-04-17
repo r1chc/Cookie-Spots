@@ -140,12 +140,56 @@ export const fetchAllSourceCookieSpots = async (location) => {
         console.log('First result example:', cookieSpots.spots[0].name);
         console.log('Has viewport:', !!cookieSpots.viewport);
       }
+      
+      // Validate coordinates for each spot
+      const validatedSpots = cookieSpots.spots.map(spot => {
+        // Ensure spot has valid coordinates
+        if (!spot.location || !spot.location.coordinates || 
+            !Array.isArray(spot.location.coordinates) || 
+            spot.location.coordinates.length !== 2 ||
+            isNaN(spot.location.coordinates[0]) || isNaN(spot.location.coordinates[1])) {
+          console.warn('Found spot with invalid coordinates:', spot.name);
+          
+          // If we have fallback coordinates in other properties, use those
+          if (spot.longitude !== undefined && spot.latitude !== undefined &&
+              !isNaN(spot.longitude) && !isNaN(spot.latitude)) {
+            console.log('Using fallback coordinates for:', spot.name);
+            return {
+              ...spot,
+              location: {
+                type: 'Point',
+                coordinates: [Number(spot.longitude), Number(spot.latitude)]
+              }
+            };
+          }
+          
+          // Skip spots without valid coordinates
+          return null;
+        }
+        
+        // Spot has valid coordinates
+        return spot;
+      }).filter(Boolean); // Remove null spots
+      
+      return { 
+        spots: validatedSpots, 
+        viewport: cookieSpots.viewport 
+      };
     } else {
       console.error('Invalid response format from getAllSourceCookieSpots:', cookieSpots);
       // Try to handle old response format for backward compatibility
       if (Array.isArray(cookieSpots)) {
         console.log('Backward compatibility: converting array response to object format');
-        return { spots: cookieSpots, viewport: null };
+        
+        // Validate coordinates in this case too
+        const validatedSpots = cookieSpots.filter(spot => 
+          spot && spot.location && spot.location.coordinates && 
+          Array.isArray(spot.location.coordinates) && 
+          spot.location.coordinates.length === 2 &&
+          !isNaN(spot.location.coordinates[0]) && !isNaN(spot.location.coordinates[1])
+        );
+        
+        return { spots: validatedSpots, viewport: null };
       }
     }
     

@@ -12,7 +12,7 @@ module.exports = {
   jwtExpiration: '7d',
   
   // Server port
-  port: process.env.PORT || 5001, // Changed to match server.js default
+  port: process.env.PORT || 5002, // Changed to match server.js default
   
   // Upload directory for photos
   uploadDir: 'uploads',

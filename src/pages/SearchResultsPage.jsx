@@ -133,7 +133,16 @@ const GoogleMap = ({ center, bounds, spots, hoveredSpot }) => {
       
       // Add new markers
       spots.forEach((spot, index) => {
-        if (!spot || !spot.location || !spot.location.coordinates) return;
+        // Check if spot has valid location coordinates
+        if (!spot || !spot.location || !spot.location.coordinates || 
+            !Array.isArray(spot.location.coordinates) || 
+            spot.location.coordinates.length !== 2 ||
+            isNaN(spot.location.coordinates[0]) || isNaN(spot.location.coordinates[1])) {
+          console.warn('Skipping marker for spot with invalid coordinates:', 
+            spot ? spot.name : 'undefined spot',
+            spot?.location?.coordinates);
+          return;
+        }
         
         try {
           const position = {
