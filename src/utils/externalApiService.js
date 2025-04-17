@@ -38,11 +38,12 @@ export const fetchFromAllSources = async (params = {}) => {
       // Return both the cookie spots and the viewport information
       return {
         cookieSpots: response.data.cookieSpots,
-        viewport: response.data.viewport || null
+        viewport: response.data.viewport || null,
+        search_metadata: response.data.search_metadata || null
       };
     }
     
-    return { cookieSpots: [], viewport: null };
+    return { cookieSpots: [], viewport: null, search_metadata: null };
   } catch (error) {
     console.error('Error fetching from Google Places API:', error);
     if (error.response) {
@@ -56,7 +57,7 @@ export const fetchFromAllSources = async (params = {}) => {
       // Something happened in setting up the request
       console.error('Error message:', error.message);
     }
-    return { cookieSpots: [], viewport: null };
+    return { cookieSpots: [], viewport: null, search_metadata: null };
   }
 };
 
@@ -64,57 +65,45 @@ export const fetchFromAllSources = async (params = {}) => {
  * Process raw cookie spots from Google Places API to match our app's data structure
  * @param {Array} cookieSpots - Raw cookie spots from external APIs
  * @param {Object} viewport - Viewport information for the location search
+ * @param {Object} search_metadata - Search metadata from the API response
  * @returns {Object} - Processed cookie spots with unified structure and viewport info
  */
-export const processExternalCookieSpots = (cookieSpots = [], viewport = null) => {
+export const processExternalCookieSpots = (cookieSpots = [], viewport = null, search_metadata = null) => {
   if (!cookieSpots || !Array.isArray(cookieSpots) || cookieSpots.length === 0) {
-    return { spots: [], viewport };
+    return { spots: [], viewport, search_metadata };
   }
   
   const processedSpots = cookieSpots.map(spot => {
-    // Create a unique ID if not present
-    const id = spot._id || spot.id || `ext-google-${spot.source_id || Math.random().toString(36).substring(2, 15)}`;
+    // Generate a client-side ID if not present
+    const id = spot._id || spot.id || spot.place_id || `cs-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
-    // Process coordinates to ensure they're in the right format
-    let coordinates = [0, 0]; // Default
-    if (spot.location && spot.location.coordinates) {
-      coordinates = spot.location.coordinates;
-    } else if (spot.longitude && spot.latitude) {
-      coordinates = [spot.longitude, spot.latitude];
-    }
-    
-    // Extract cookie types and ensure they're in the right format
+    // Extract and normalize cookie types
     let cookieTypes = [];
-    if (spot.cookie_types && Array.isArray(spot.cookie_types)) {
-      cookieTypes = spot.cookie_types.map(type => {
-        if (typeof type === 'string') {
-          return { _id: `type-${type}`, name: type };
-        } else if (type && type.name) {
-          return { _id: type._id || `type-${type.name}`, name: type.name };
-        }
-        return null;
-      }).filter(Boolean);
+    if (spot.cookie_types) {
+      cookieTypes = Array.isArray(spot.cookie_types)
+        ? spot.cookie_types
+        : typeof spot.cookie_types === 'string'
+          ? spot.cookie_types.split(',').map(type => type.trim())
+          : [];
     }
     
-    // Unified structure that works with our app
+    // Return normalized cookie spot
     return {
       _id: id,
-      id,
-      name: spot.name || 'Unknown Cookie Spot',
-      description: spot.description || '',
-      address: spot.address || '',
+      name: spot.name,
+      description: spot.description || spot.vicinity || '',
+      address: spot.address || spot.vicinity || '',
       city: spot.city || '',
-      state_province: spot.state_province || spot.state || '',
+      state_province: spot.state_province || '',
       country: spot.country || 'USA',
-      postal_code: spot.postal_code || spot.zip_code || '',
-      location: {
+      postal_code: spot.postal_code || '',
+      location: spot.location || {
         type: 'Point',
-        coordinates
+        coordinates: [spot.lng || spot.longitude || 0, spot.lat || spot.latitude || 0]
       },
-      phone: spot.phone || '',
-      website: spot.website || '',
-      hours_of_operation: spot.hours_of_operation || {},
-      price_range: spot.price_range || '$$',
+      phone: spot.phone || spot.formatted_phone_number || '',
+      website: spot.website || spot.url || '',
+      price_range: spot.price_range || (spot.price_level ? '$'.repeat(spot.price_level) : '$$'),
       has_dine_in: spot.has_dine_in || false,
       has_takeout: spot.has_takeout || true,
       has_delivery: spot.has_delivery || false,
@@ -126,17 +115,23 @@ export const processExternalCookieSpots = (cookieSpots = [], viewport = null) =>
       average_rating: spot.average_rating || spot.rating || 0,
       review_count: spot.review_count || 0,
       source: spot.source || 'google',
-      source_id: spot.source_id || id
+      source_id: spot.source_id || id,
+      // Include any search metadata at the spot level if present
+      search_metadata: spot.search_metadata || null
     };
   });
   
-  return { spots: processedSpots, viewport };
+  return { 
+    spots: processedSpots, 
+    viewport, 
+    search_metadata 
+  };
 };
 
 /**
  * Main function to fetch, process and return cookie spots from Google Places API
  * @param {Object|string} location - Location object or string
- * @returns {Promise} - Promise that resolves with processed cookie spots and viewport
+ * @returns {Promise} - Promise that resolves with processed cookie spots, viewport and search metadata
  */
 export const getAllSourceCookieSpots = async (location) => {
   try {
@@ -163,16 +158,22 @@ export const getAllSourceCookieSpots = async (location) => {
     // Fetch raw data from Google Places API
     const rawResult = await fetchFromAllSources(params);
     
-    // Process the raw data (this will return an object with spots and viewport)
+    // Process the raw data (this will return an object with spots, viewport and search_metadata)
     const result = processExternalCookieSpots(
       rawResult.cookieSpots || [], 
-      rawResult.viewport || null
+      rawResult.viewport || null,
+      rawResult.search_metadata || null
     );
+    
+    // Log the search metadata if available
+    if (result.search_metadata) {
+      console.log('Search metadata received:', result.search_metadata);
+    }
     
     return result;
   } catch (error) {
     console.error('Error in getAllSourceCookieSpots:', error);
-    return { spots: [], viewport: null };
+    return { spots: [], viewport: null, search_metadata: null };
   }
 };
 

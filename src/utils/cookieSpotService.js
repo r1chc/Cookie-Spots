@@ -109,7 +109,7 @@ export const searchCookieSpots = async (locationQuery) => {
 /**
  * Fetch cookie spots from Google Places API for a location
  * @param {string|Object} location - Location string or object with coordinates
- * @returns {Array} Array of cookie spots from Google Places API
+ * @returns {Object} Object containing spots, viewport and search metadata
  */
 export const fetchAllSourceCookieSpots = async (location) => {
   try {
@@ -118,7 +118,7 @@ export const fetchAllSourceCookieSpots = async (location) => {
     // Make sure we have a valid location
     if (!location) {
       console.error('Invalid location provided to fetchAllSourceCookieSpots');
-      return { spots: [], viewport: null };
+      return { spots: [], viewport: null, search_metadata: null };
     }
     
     // Log the exact format of the location for debugging
@@ -139,6 +139,7 @@ export const fetchAllSourceCookieSpots = async (location) => {
       } else {
         console.log('First result example:', cookieSpots.spots[0].name);
         console.log('Has viewport:', !!cookieSpots.viewport);
+        console.log('Has search metadata:', !!cookieSpots.search_metadata);
       }
       
       // Validate coordinates for each spot
@@ -173,7 +174,8 @@ export const fetchAllSourceCookieSpots = async (location) => {
       
       return { 
         spots: validatedSpots, 
-        viewport: cookieSpots.viewport 
+        viewport: cookieSpots.viewport,
+        search_metadata: cookieSpots.search_metadata || null
       };
     } else {
       console.error('Invalid response format from getAllSourceCookieSpots:', cookieSpots);
@@ -189,7 +191,7 @@ export const fetchAllSourceCookieSpots = async (location) => {
           !isNaN(spot.location.coordinates[0]) && !isNaN(spot.location.coordinates[1])
         );
         
-        return { spots: validatedSpots, viewport: null };
+        return { spots: validatedSpots, viewport: null, search_metadata: null };
       }
     }
     
@@ -202,7 +204,7 @@ export const fetchAllSourceCookieSpots = async (location) => {
       console.error('API response error:', error.response.status, error.response.data);
     }
     
-    return { spots: [], viewport: null };
+    return { spots: [], viewport: null, search_metadata: null };
   }
 };
 

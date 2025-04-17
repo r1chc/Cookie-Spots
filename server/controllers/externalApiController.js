@@ -121,40 +121,12 @@ async function fetchFromGoogle(params) {
 
     let searchRequest;
     let viewport;
+    let searchRadius = 5000; // Default 5km radius
+    let isNeighborhood = false;
 
-    // If we have coordinates, use them directly
-    if (params.lat && params.lng) {
-      searchRequest = {
-        locationRestriction: {
-          circle: {
-            center: {
-              latitude: params.lat,
-              longitude: params.lng
-            },
-            radius: 5000.0 // 5km radius - increased from 2km for better coverage
-          }
-        },
-        includedTypes: ['bakery', 'cafe'],
-        maxResultCount: 20,
-        rankPreference: 'DISTANCE'
-      };
-      
-      // Create a viewport based on the radius
-      const latLngDelta = 5000 / 111000; // approximate degrees for 5km
-      viewport = {
-        southwest: {
-          lat: params.lat - latLngDelta,
-          lng: params.lng - latLngDelta
-        },
-        northeast: {
-          lat: params.lat + latLngDelta,
-          lng: params.lng + latLngDelta
-        }
-      };
-    } 
-    // If we have a location string, geocode it first
-    else if (params.location) {
-      // Geocode the location to get coordinates
+    // If we have a location string, geocode it first to detect location type
+    if (params.location) {
+      // Geocode the location to get coordinates and location type
       const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(params.location)}&key=${googleApiKey}`;
       const geocodeResponse = await axios.get(geocodeUrl);
       
@@ -163,6 +135,44 @@ async function fetchFromGoogle(params) {
         const location = result.geometry.location;
         viewport = result.geometry.viewport;
         
+        // Check if this is a neighborhood or sublocality
+        // Types reference: https://developers.google.com/maps/documentation/geocoding/requests-geocoding#Types
+        const types = result.types || [];
+        isNeighborhood = types.some(type => 
+          ['neighborhood', 'sublocality', 'sublocality_level_1', 'sublocality_level_2'].includes(type)
+        );
+        
+        // For neighborhoods, use a larger radius to cover the entire area
+        if (isNeighborhood) {
+          console.log(`Detected neighborhood search for "${params.location}". Using expanded radius.`);
+          searchRadius = 7500; // 7.5km to cover larger neighborhoods
+          
+          // Calculate a better radius based on the viewport if available
+          if (viewport) {
+            // Calculate the diagonal distance of the viewport as a better approximation of neighborhood size
+            const northEast = viewport.northeast;
+            const southWest = viewport.southwest;
+            
+            // Haversine distance calculation between the corners
+            const R = 6371000; // Earth radius in meters
+            const dLat = (northEast.lat - southWest.lat) * Math.PI / 180;
+            const dLon = (northEast.lng - southWest.lng) * Math.PI / 180;
+            const a = 
+              Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(southWest.lat * Math.PI / 180) * Math.cos(northEast.lat * Math.PI / 180) * 
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            const distance = R * c;
+            
+            // Use viewport-based radius with a minimum of 3km and maximum of 10km
+            searchRadius = Math.max(3000, Math.min(10000, distance / 2));
+            console.log(`Calculated neighborhood radius: ${searchRadius.toFixed(0)}m based on viewport`);
+          }
+        } else if (types.includes('locality') || types.includes('administrative_area_level_1')) {
+          // For cities and states, also use a larger radius
+          searchRadius = 8000; // 8km for cities
+        }
+        
         searchRequest = {
           locationRestriction: {
             circle: {
@@ -170,17 +180,58 @@ async function fetchFromGoogle(params) {
                 latitude: location.lat,
                 longitude: location.lng
               },
-              radius: 5000.0 // 5km radius
+              radius: searchRadius
             }
           },
           includedTypes: ['bakery', 'cafe'],
           maxResultCount: 20,
           rankPreference: 'DISTANCE'
         };
+        
+        // If we have explicit coordinates from URL params, override the geocoded ones
+        if (params.lat && params.lng) {
+          console.log('Using explicit coordinates from URL params');
+          searchRequest.locationRestriction.circle.center = {
+            latitude: parseFloat(params.lat),
+            longitude: parseFloat(params.lng)
+          };
+        }
       } else {
         throw new Error('Location not found');
       }
+    } 
+    // If we only have coordinates (no location string), use them directly
+    else if (params.lat && params.lng) {
+      searchRequest = {
+        locationRestriction: {
+          circle: {
+            center: {
+              latitude: parseFloat(params.lat),
+              longitude: parseFloat(params.lng)
+            },
+            radius: searchRadius
+          }
+        },
+        includedTypes: ['bakery', 'cafe'],
+        maxResultCount: 20,
+        rankPreference: 'DISTANCE'
+      };
+      
+      // Create a viewport based on the radius
+      const latLngDelta = searchRadius / 111000; // approximate degrees for the radius
+      viewport = {
+        southwest: {
+          lat: parseFloat(params.lat) - latLngDelta,
+          lng: parseFloat(params.lng) - latLngDelta
+        },
+        northeast: {
+          lat: parseFloat(params.lat) + latLngDelta,
+          lng: parseFloat(params.lng) + latLngDelta
+        }
+      };
     }
+
+    console.log(`Searching for cookie spots with radius: ${searchRadius}m`);
 
     // Make the API call
     const response = await axios.post(
@@ -209,12 +260,25 @@ async function fetchFromGoogle(params) {
       price_range: place.priceLevel ? '$'.repeat(place.priceLevel) : '$$',
       rating: place.rating,
       user_ratings_total: place.userRatingCount,
-      place_id: place.id
+      place_id: place.id,
+      // Add search metadata to help with UI presentation
+      search_metadata: {
+        search_type: isNeighborhood ? 'neighborhood' : 'general',
+        search_radius: searchRadius
+      }
     }));
+
+    // For debugging
+    console.log(`Found ${cookieSpots.length} cookie spots for ${isNeighborhood ? 'neighborhood' : 'location'} "${params.location || 'coordinates'}" with ${searchRadius}m radius`);
 
     return {
       cookieSpots,
-      viewport
+      viewport,
+      search_metadata: {
+        search_type: isNeighborhood ? 'neighborhood' : 'general',
+        search_radius: searchRadius,
+        location: params.location
+      }
     };
   } catch (error) {
     console.error('Error with Google Places API:', error);

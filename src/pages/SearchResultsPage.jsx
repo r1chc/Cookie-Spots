@@ -5,233 +5,58 @@ import CookieSpotCard from '../components/CookieSpotCard';
 import FilterButtons from '../components/FilterButtons';
 import { Loader } from '@googlemaps/js-api-loader';
 import { fetchAllSourceCookieSpots } from '../utils/cookieSpotService';
+import MapComponent from '../components/Map';
 
 // Google Map component
-const GoogleMap = ({ center, bounds, spots, hoveredSpot }) => {
+const GoogleMap = ({ center, bounds, spots, hoveredSpot, searchMetadata }) => {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
-  const markersRef = useRef([]);
-  const infoWindowRef = useRef(null);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [loadError, setLoadError] = useState(null);
+  const googleRef = useRef(null);
+  const markersRef = useRef({});
   
-  // Load Google Maps API
   useEffect(() => {
-    const loadGoogleMapsAPI = async () => {
-      try {
-        // Get API key from environment variables
-        const apiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
-        
-        if (!apiKey) {
-          console.error("No Google API key found in environment variables");
-          setLoadError("Missing API key. Please check your environment configuration.");
-          return;
-        }
-        
-        const loader = new Loader({
-          apiKey,
-          version: 'beta',
-          libraries: ['places', 'marker'],
-          platformLibraries: ['places']
-        });
-        
-        // Load the API
-        await loader.load();
-        setIsLoaded(true);
-      } catch (error) {
-        console.error("Error loading Google Maps API:", error);
-        setLoadError(`Failed to load Google Maps: ${error.message}`);
-      }
-    };
-    
     loadGoogleMapsAPI();
     
-    // Cleanup function
     return () => {
-      // Clean up markers when component unmounts
-      if (markersRef.current) {
-        markersRef.current.forEach(marker => {
-          if (marker && marker.map) {
-            marker.map = null;
-          }
-        });
-        markersRef.current = [];
-      }
-      
       // Clean up map instance
       if (mapInstanceRef.current) {
-        mapInstanceRef.current = null;
-      }
-      
-      // Clean up info window
-      if (infoWindowRef.current) {
-        infoWindowRef.current = null;
+        // Clean up any listeners if needed
       }
     };
   }, []);
   
-  // Initialize map once API is loaded
-  useEffect(() => {
-    if (!isLoaded || !mapRef.current) return;
-    
+  const loadGoogleMapsAPI = async () => {
     try {
-      // Create map instance with Map ID
-      const googleCenter = { lat: center[0], lng: center[1] };
-      mapInstanceRef.current = new google.maps.Map(mapRef.current, {
-        center: googleCenter,
-        zoom: 13,
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: true,
-        zoomControl: true,
-        mapId: '6bd27628afc2485', // Your Map ID for advanced markers
-        gestureHandling: 'greedy'
+      const loader = new Loader({
+        apiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
+        version: 'weekly',
+        libraries: ['places']
       });
       
-      // Create info window for markers
-      infoWindowRef.current = new google.maps.InfoWindow();
-    } catch (error) {
-      console.error('Error initializing map:', error);
-      setLoadError('Failed to initialize map');
-    }
-    
-  }, [isLoaded, center]);
-  
-  // Update map center or bounds when they change
-  useEffect(() => {
-    if (!isLoaded || !mapInstanceRef.current) return;
-    
-    try {
-      if (bounds) {
-        const googleBounds = new google.maps.LatLngBounds(
-          { lat: bounds[0][0], lng: bounds[0][1] },
-          { lat: bounds[1][0], lng: bounds[1][1] }
-        );
-        mapInstanceRef.current.fitBounds(googleBounds);
-      } else if (center) {
-        mapInstanceRef.current.setCenter({ lat: center[0], lng: center[1] });
-      }
-    } catch (error) {
-      console.error('Error updating map bounds:', error);
-    }
-  }, [isLoaded, center, bounds]);
-  
-  // Update markers when spots change
-  useEffect(() => {
-    if (!isLoaded || !mapInstanceRef.current || !spots) return;
-    
-    try {
-      // Safely clear existing markers
-      if (markersRef.current) {
-        markersRef.current.forEach(marker => {
-          if (marker && marker.map) {
-            marker.map = null;
-          }
-        });
-        markersRef.current = [];
-      }
+      await loader.load();
       
-      // Add new markers
-      spots.forEach((spot, index) => {
-        // Check if spot has valid location coordinates
-        if (!spot || !spot.location || !spot.location.coordinates || 
-            !Array.isArray(spot.location.coordinates) || 
-            spot.location.coordinates.length !== 2 ||
-            isNaN(spot.location.coordinates[0]) || isNaN(spot.location.coordinates[1])) {
-          console.warn('Skipping marker for spot with invalid coordinates:', 
-            spot ? spot.name : 'undefined spot',
-            spot?.location?.coordinates);
-          return;
-        }
-        
-        try {
-          const position = {
-            lat: spot.location.coordinates[1],
-            lng: spot.location.coordinates[0]
-          };
-          
-          // Create marker element
-          const markerView = new google.maps.marker.AdvancedMarkerElement({
-            position,
-            map: mapInstanceRef.current,
-            title: spot.name,
-            gmpDraggable: false,
-            gmpClickable: true
-          });
-          
-          // Create content for info window
-          const contentString = `
-            <div>
-              <h3 style="font-weight: bold; margin-bottom: 4px;">${spot.name}</h3>
-              <p style="font-size: 14px; margin-bottom: 4px;">${spot.address || ''}</p>
-              <div style="display: flex; align-items: center; margin-top: 4px;">
-                <span style="color: #FBBF24; font-size: 14px;">
-                  ${'★'.repeat(Math.floor(spot.average_rating || 0))}
-                </span>
-                <span style="color: #D1D5DB; font-size: 14px;">
-                  ${'★'.repeat(5 - Math.floor(spot.average_rating || 0))}
-                </span>
-                <span style="margin-left: 4px; font-size: 12px; color: #4B5563;">
-                  ${(spot.average_rating || 0).toFixed(1)}
-                </span>
-              </div>
-              <a 
-                href="/cookie-spot/${spot._id}" 
-                style="display: block; margin-top: 8px; font-size: 14px; color: #4F46E5; text-decoration: none;"
-              >
-                View Details
-              </a>
-            </div>
-          `;
-          
-          // Add click listener for info window
-          markerView.addListener('click', () => {
-            if (infoWindowRef.current) {
-              infoWindowRef.current.setContent(contentString);
-              infoWindowRef.current.open({
-                anchor: markerView,
-                map: mapInstanceRef.current
-              });
-            }
-          });
-          
-          // Set opacity based on hover state
-          if (hoveredSpot && hoveredSpot._id === spot._id) {
-            markerView.style.opacity = '1';
-            markerView.style.zIndex = '1000';
-          } else {
-            markerView.style.opacity = '0.7';
-            markerView.style.zIndex = index.toString();
-          }
-          
-          markersRef.current.push(markerView);
-        } catch (markerError) {
-          console.error('Error creating marker:', markerError);
-        }
-      });
+      // Instead of initializing Google Maps here, we'll use our Map component
+      googleRef.current = window.google;
     } catch (error) {
-      console.error('Error updating markers:', error);
+      console.error('Error loading Google Maps API:', error);
     }
-  }, [isLoaded, spots, hoveredSpot]);
+  };
   
+  // Use our Map component instead of direct Google Maps implementation
   return (
-    <div ref={mapRef} style={{ height: '100%', width: '100%' }}>
-      {!isLoaded && !loadError && (
-        <div className="flex justify-center items-center h-full bg-gray-100">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
-        </div>
-      )}
-      {loadError && (
-        <div className="flex flex-col justify-center items-center h-full bg-gray-100 p-4">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <h3 className="text-lg font-medium text-gray-700 mb-2">Map unavailable</h3>
-          <p className="text-gray-500 text-center">{loadError}</p>
-          <p className="text-gray-500 text-center text-sm mt-2">Search results will still be displayed in the list view.</p>
-        </div>
-      )}
-    </div>
+    <MapComponent
+      spots={spots}
+      center={center && center.length === 2 ? { lat: center[0], lng: center[1] } : null}
+      bounds={bounds ? {
+        north: bounds[1][0],
+        east: bounds[1][1],
+        south: bounds[0][0],
+        west: bounds[0][1]
+      } : null}
+      hoveredSpot={hoveredSpot}
+      mapType="google"
+      searchMetadata={searchMetadata}
+    />
   );
 };
 
@@ -260,6 +85,7 @@ const SearchResultsPage = () => {
   const [isLoadingExternal, setIsLoadingExternal] = useState(false);
   const [combinedResults, setCombinedResults] = useState([]);
   const [searchViewport, setSearchViewport] = useState(null);
+  const [searchMetadata, setSearchMetadata] = useState(null);
   
   // Force white background
   useEffect(() => {
@@ -348,11 +174,18 @@ const SearchResultsPage = () => {
           const externalSpots = result.spots || [];
           setExternalResults(externalSpots);
           
+          // Store search metadata if available
+          if (result.search_metadata) {
+            setSearchMetadata(result.search_metadata);
+            console.log('Received search metadata:', result.search_metadata);
+          }
+          
           // Add debug logs
           console.log('External API results:', {
             totalSpots: externalSpots.length,
             hasViewport: !!result.viewport,
-            firstSpot: externalSpots.length > 0 ? externalSpots[0].name : 'none'
+            firstSpot: externalSpots.length > 0 ? externalSpots[0].name : 'none',
+            hasSearchMetadata: !!result.search_metadata
           });
           
           // Store viewport information for map centering
@@ -773,6 +606,7 @@ const SearchResultsPage = () => {
                     bounds={bounds}
                     spots={spotsToDisplay}
                     hoveredSpot={hoveredSpot}
+                    searchMetadata={searchMetadata}
                   />
                 )}
               </div>
