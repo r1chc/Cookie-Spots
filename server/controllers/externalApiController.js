@@ -131,6 +131,7 @@ async function fetchFromGoogle(params) {
     let viewport;
     let searchRadius = 5000; // Default 5km radius
     let isNeighborhood = false;
+    let search_metadata = {};
 
     // If we have a location string, geocode it first to detect location type
     if (params.location) {
@@ -144,65 +145,188 @@ async function fetchFromGoogle(params) {
         viewport = result.geometry.viewport;
         
         // Check if this is a neighborhood or sublocality
-        // Types reference: https://developers.google.com/maps/documentation/geocoding/requests-geocoding#Types
         const types = result.types || [];
         isNeighborhood = types.some(type => 
           ['neighborhood', 'sublocality', 'sublocality_level_1', 'sublocality_level_2'].includes(type)
         );
         
-        // For neighborhoods, use a larger radius to cover the entire area
+        // For neighborhoods, try to get the actual boundary polygon if available
         if (isNeighborhood) {
-          console.log(`Detected neighborhood search for "${params.location}". Using expanded radius.`);
-          searchRadius = 7500; // 7.5km to cover larger neighborhoods
+          console.log(`Detected neighborhood search for "${params.location}". Fetching boundary...`);
           
-          // Calculate a better radius based on the viewport if available
-          if (viewport) {
-            // Calculate the diagonal distance of the viewport as a better approximation of neighborhood size
-            const northEast = viewport.northeast;
-            const southWest = viewport.southwest;
+          try {
+            // Try to get the actual neighborhood boundary from the Places API
+            const placeDetailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${result.place_id}&fields=geometry,name&key=${googleApiKey}`;
+            const placeDetailsResponse = await axios.get(placeDetailsUrl);
             
-            // Haversine distance calculation between the corners
-            const R = 6371000; // Earth radius in meters
-            const dLat = (northEast.lat - southWest.lat) * Math.PI / 180;
-            const dLon = (northEast.lng - southWest.lng) * Math.PI / 180;
-            const a = 
-              Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(southWest.lat * Math.PI / 180) * Math.cos(northEast.lat * Math.PI / 180) * 
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-            const distance = R * c;
-            
-            // Use viewport-based radius with a minimum of 3km and maximum of 10km
-            searchRadius = Math.max(3000, Math.min(10000, distance / 2));
-            console.log(`Calculated neighborhood radius: ${searchRadius.toFixed(0)}m based on viewport`);
-          }
-        } else if (types.includes('locality') || types.includes('administrative_area_level_1')) {
-          // For cities and states, also use a larger radius
-          searchRadius = 8000; // 8km for cities
-        }
-        
-        searchRequest = {
-          locationRestriction: {
-            circle: {
-              center: {
-                latitude: location.lat,
-                longitude: location.lng
-              },
-              radius: searchRadius
+            if (placeDetailsResponse.data.result && placeDetailsResponse.data.result.geometry && 
+                placeDetailsResponse.data.result.geometry.viewport) {
+              
+              console.log(`Found boundary data for "${params.location}"`);
+              const neighborhoodBoundary = placeDetailsResponse.data.result.geometry.viewport;
+              
+              // Store the boundary for UI purposes and filtering
+              search_metadata = {
+                search_type: 'neighborhood_with_boundary',
+                viewport: neighborhoodBoundary,
+                location: params.location,
+                place_id: result.place_id,
+                boundary_available: true
+              };
+              
+              // For UI visualization, we'll also include the place_id which the frontend can use
+              // to render the actual neighborhood polygon using the Google Maps JavaScript API
             }
-          },
-          includedTypes: ['bakery', 'cafe'],
-          maxResultCount: 20,
-          rankPreference: 'DISTANCE'
-        };
+          } catch (boundaryError) {
+            console.log(`Error fetching neighborhood boundary: ${boundaryError.message}`);
+            // Continue with the text search approach even if boundary fetch fails
+          }
+          
+          // Use text search approach for neighborhoods
+          const textSearchRequest = {
+            textQuery: `bakery OR cafe OR coffee shop in ${params.location}`,
+            maxResultCount: 50  // Maximum allowed by the API
+          };
+          
+          console.log(`Trying text search for "${textSearchRequest.textQuery}"`);
+          
+          try {
+            // Try text search with the specific neighborhood name
+            const textSearchHeaders = {
+              'X-Goog-Api-Key': googleApiKey,
+              'X-Goog-FieldMask': '*',
+              'Content-Type': 'application/json'
+            };
+            
+            const textSearchResponse = await axios.post(
+              'https://places.googleapis.com/v1/places:searchText',
+              textSearchRequest,
+              { headers: textSearchHeaders }
+            );
+            
+            if (textSearchResponse.data.places && textSearchResponse.data.places.length > 0) {
+              console.log(`Text search for "${params.location}" found ${textSearchResponse.data.places.length} places`);
+              
+              // Process the results
+              const places = textSearchResponse.data.places || [];
+              const cookieSpots = places.map(place => ({
+                name: place.displayName?.text,
+                description: place.formattedAddress,
+                address: place.addressComponents?.streetNumber + ' ' + place.addressComponents?.route,
+                city: place.addressComponents?.locality,
+                state_province: place.addressComponents?.administrativeArea,
+                country: place.addressComponents?.country,
+                postal_code: place.addressComponents?.postalCode,
+                location: {
+                  type: 'Point',
+                  coordinates: [place.location.longitude, place.location.latitude]
+                },
+                phone: place.internationalPhoneNumber,
+                website: place.websiteUri,
+                hours_of_operation: place.currentOpeningHours?.periods || [],
+                price_range: place.priceLevel ? '$'.repeat(place.priceLevel) : '$$',
+                rating: place.rating,
+                user_ratings_total: place.userRatingCount,
+                place_id: place.id,
+                search_metadata: search_metadata || {
+                  search_type: 'neighborhood_text',
+                  location: params.location
+                }
+              }));
+              
+              // Filter results to only include those that actually mention the neighborhood in the address
+              // This helps ensure we're only getting places actually in the neighborhood
+              const neighborhoodFiltered = cookieSpots.filter(spot => {
+                const addressText = (spot.description || '').toLowerCase();
+                const neighborhoodName = params.location.toLowerCase();
+                return addressText.includes(neighborhoodName);
+              });
+              
+              console.log(`Filtered to ${neighborhoodFiltered.length} places specifically mentioning ${params.location} in address`);
+              
+              return {
+                cookieSpots: neighborhoodFiltered.length > 0 ? neighborhoodFiltered : cookieSpots, // Fall back to all results if filter is too strict
+                viewport,
+                search_metadata: search_metadata || {
+                  search_type: 'neighborhood_text',
+                  location: params.location
+                }
+              };
+            }
+          } catch (textSearchError) {
+            console.log(`Text search failed, falling back to nearby search: ${textSearchError.message}`);
+            // Fall back to nearby search if text search fails
+          }
+          
+          // Fall back to circle-based search if text search fails or returns no results
+          searchRequest = {
+            locationRestriction: {
+              circle: {
+                center: {
+                  latitude: location.lat,
+                  longitude: location.lng
+                },
+                radius: searchRadius
+              }
+            },
+            includedTypes: ['bakery', 'cafe', 'coffee_shop', 'restaurant', 'food'],
+            maxResultCount: 30
+          };
+          
+          // Add post-processing filter in search_metadata to filter results within neighborhood bounds
+          search_metadata = {
+            search_type: 'neighborhood',
+            viewport: viewport,
+            location: params.location,
+            bounds_filter: {
+              southwest: {
+                lat: viewport.southwest.lat,
+                lng: viewport.southwest.lng
+              },
+              northeast: {
+                lat: viewport.northeast.lat,
+                lng: viewport.northeast.lng
+              }
+            }
+          };
+          
+          console.log(`Falling back to nearby search with radius of ${searchRadius.toFixed(2)} meters for neighborhood search.`);
+        } else {
+          // For non-neighborhood searches or when viewport is not available, use radius-based search
+          searchRadius = types.some(type => ['locality', 'administrative_area_level_1', 'administrative_area_level_2'].includes(type))
+            ? 15000  // 15km for cities
+            : 5000;  // 5km default
+          
+          searchRequest = {
+            locationRestriction: {
+              circle: {
+                center: {
+                  latitude: location.lat,
+                  longitude: location.lng
+                },
+                radius: searchRadius
+              }
+            },
+            includedTypes: ['bakery', 'cafe', 'coffee_shop', 'restaurant', 'food'],
+            maxResultCount: 30
+          };
+          
+          search_metadata = {
+            search_type: 'general',
+            search_radius: searchRadius,
+            location: params.location
+          };
+        }
         
         // If we have explicit coordinates from URL params, override the geocoded ones
         if (params.lat && params.lng) {
           console.log('Using explicit coordinates from URL params');
-          searchRequest.locationRestriction.circle.center = {
-            latitude: parseFloat(params.lat),
-            longitude: parseFloat(params.lng)
-          };
+          if (searchRequest.locationRestriction.circle) {
+            searchRequest.locationRestriction.circle.center = {
+              latitude: parseFloat(params.lat),
+              longitude: parseFloat(params.lng)
+            };
+          }
         }
       } else {
         throw new Error('Location not found');
@@ -220,9 +344,9 @@ async function fetchFromGoogle(params) {
             radius: searchRadius
           }
         },
-        includedTypes: ['bakery', 'cafe'],
-        maxResultCount: 20,
-        rankPreference: 'DISTANCE'
+        includedTypes: ['bakery', 'cafe', 'coffee_shop', 'restaurant', 'food'],
+        maxResultCount: 30,
+        languageCode: 'en'
       };
       
       // Create a viewport based on the radius
@@ -237,9 +361,14 @@ async function fetchFromGoogle(params) {
           lng: parseFloat(params.lng) + latLngDelta
         }
       };
+      
+      search_metadata = {
+        search_type: 'general',
+        search_radius: searchRadius
+      };
     }
 
-    console.log(`Searching for cookie spots with radius: ${searchRadius}m`);
+    console.log(`Searching for cookie spots with request:`, JSON.stringify(searchRequest, null, 2));
 
     // Make the API call
     const response = await axios.post(
@@ -270,26 +399,22 @@ async function fetchFromGoogle(params) {
       user_ratings_total: place.userRatingCount,
       place_id: place.id,
       // Add search metadata to help with UI presentation
-      search_metadata: {
-        search_type: isNeighborhood ? 'neighborhood' : 'general',
-        search_radius: searchRadius
-      }
+      search_metadata: search_metadata
     }));
 
     // For debugging
-    console.log(`Found ${cookieSpots.length} cookie spots for ${isNeighborhood ? 'neighborhood' : 'location'} "${params.location || 'coordinates'}" with ${searchRadius}m radius`);
+    console.log(`Found ${cookieSpots.length} cookie spots for ${isNeighborhood ? 'neighborhood' : 'location'} "${params.location || 'coordinates'}"`);
 
     return {
       cookieSpots,
       viewport,
-      search_metadata: {
-        search_type: isNeighborhood ? 'neighborhood' : 'general',
-        search_radius: searchRadius,
-        location: params.location
-      }
+      search_metadata: search_metadata
     };
   } catch (error) {
     console.error('Error with Google Places API:', error);
+    if (error.response) {
+      console.error('API Error Response:', error.response.data);
+    }
     throw error;
   }
 }
