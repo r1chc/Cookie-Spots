@@ -15,6 +15,7 @@ const cookieTypeRoutes = require('./routes/cookieTypeRoutes');
 const dietaryOptionRoutes = require('./routes/dietaryOptionRoutes');
 const tripRoutes = require('./routes/tripRoutes');
 const externalApiRoutes = require('./routes/externalApiRoutes');
+const cookieSpots = require('./routes/cookieSpots');
 
 const app = express();
 
@@ -109,11 +110,8 @@ app.use('/api/dietary-options', dietaryOptionRoutes);
 app.use('/api/trips', tripRoutes);
 app.use('/api/external', externalApiRoutes);
 
-// Add route for all-sources to the main cookie-spots route
-app.use('/api/cookie-spots/all-sources', (req, res, next) => {
-  req.url = '/';
-  return externalApiRoutes(req, res, next);
-});
+// Use our new enhanced cookie spots route
+app.use('/api/cookie-spots/all-sources', cookieSpots);
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {

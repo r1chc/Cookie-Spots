@@ -6,6 +6,10 @@
 
 const axios = require('axios');
 const NodeCache = require('node-cache');
+const express = require('express');
+const { getZipCodesForNeighborhood } = require('../utils/neighborhoodUtils');
+
+const router = express.Router();
 
 // Create a cache with TTL of 14 days (in seconds)
 const cookieSpotCache = new NodeCache({ stdTTL: 1209600 });
@@ -117,23 +121,63 @@ const fetchCookieSpots = async (zipCodes = []) => {
   try {
     let allSpots = [];
     
-    for (const zipCode of zipCodes) {
-      console.log(`Fetching cookie spots for ZIP: ${zipCode}`);
+    // Process in chunks of 3 to avoid overwhelming the API
+    const chunkSize = 3;
+    for (let i = 0; i < zipCodes.length; i += chunkSize) {
+      const zipCodeBatch = zipCodes.slice(i, i + chunkSize);
       
-      // Fetch only from Google Places API
-      const googleSpots = await fetchCookieSpotsFromGoogle(zipCode);
+      console.log(`Fetching batch ${Math.floor(i/chunkSize) + 1} of zip codes: ${zipCodeBatch.join(', ')}`);
       
-      console.log(`Found: Google (${googleSpots.length})`);
+      // Process batch concurrently
+      const batchResults = await Promise.all(
+        zipCodeBatch.map(zipCode => fetchCookieSpotsFromGoogle(zipCode))
+      );
       
-      // Add to combined results
-      allSpots = [...allSpots, ...googleSpots];
+      // Add all results to the combined array
+      batchResults.forEach((spots, index) => {
+        console.log(`Found ${spots.length} spots for ZIP: ${zipCodeBatch[index]}`);
+        allSpots = [...allSpots, ...spots];
+      });
     }
     
+    console.log(`Total combined: ${allSpots.length} spots from ${zipCodes.length} zip codes`);
     return allSpots;
   } catch (error) {
     console.error('Error fetching cookie spots:', error);
     return [];
   }
+};
+
+// Helper function to deduplicate cookie spots
+const deduplicateSpots = (spots) => {
+  if (!spots || !Array.isArray(spots)) return [];
+  
+  const uniqueSpots = [];
+  const seenIds = new Set();
+  const seenAddresses = new Set();
+  
+  for (const spot of spots) {
+    // Skip if already seen
+    if (!spot) continue;
+    
+    // Check by ID
+    if (spot.source_id && seenIds.has(spot.source_id)) continue;
+    if (spot.place_id && seenIds.has(spot.place_id)) continue;
+    
+    // Check by address
+    const addressKey = `${spot.name}|${spot.address}`.toLowerCase();
+    if (addressKey && seenAddresses.has(addressKey)) continue;
+    
+    // Add to unique spots
+    uniqueSpots.push(spot);
+    
+    // Mark as seen
+    if (spot.source_id) seenIds.add(spot.source_id);
+    if (spot.place_id) seenIds.add(spot.place_id);
+    if (addressKey) seenAddresses.add(addressKey);
+  }
+  
+  return uniqueSpots;
 };
 
 // Clear cache utility function
@@ -198,21 +242,32 @@ router.post('/all-sources', async (req, res) => {
         console.log('Using provided zip code:', searchParams.location.trim());
       } else {
         try {
-          // Use geocoding to get zip code for location
-          const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(searchParams.location)}&key=${process.env.VITE_GOOGLE_PLACES_API_KEY}`;
-          console.log('Geocoding location to zip code:', searchParams.location);
-          const geocodeResponse = await axios.get(geocodeUrl);
+          // First, check if this is a neighborhood and get multiple zip codes
+          const neighborhoodZipCodes = await getZipCodesForNeighborhood(
+            searchParams.location, 
+            process.env.VITE_GOOGLE_PLACES_API_KEY
+          );
           
-          if (geocodeResponse.data.results && geocodeResponse.data.results.length > 0) {
-            // Extract zip code and nearby areas
-            for (const result of geocodeResponse.data.results) {
-              const postalComponent = result.address_components.find(
-                comp => comp.types.includes('postal_code')
-              );
-              
-              if (postalComponent) {
-                zipCodes.push(postalComponent.long_name);
-                console.log('Found zip code from location:', postalComponent.long_name);
+          if (neighborhoodZipCodes.length > 0) {
+            console.log(`Using ${neighborhoodZipCodes.length} zip codes for neighborhood: ${searchParams.location}`);
+            zipCodes = neighborhoodZipCodes;
+          } else {
+            // Fall back to single zip code geocoding
+            const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(searchParams.location)}&key=${process.env.VITE_GOOGLE_PLACES_API_KEY}`;
+            console.log('Geocoding location to zip code:', searchParams.location);
+            const geocodeResponse = await axios.get(geocodeUrl);
+            
+            if (geocodeResponse.data.results && geocodeResponse.data.results.length > 0) {
+              // Extract zip code and nearby areas
+              for (const result of geocodeResponse.data.results) {
+                const postalComponent = result.address_components.find(
+                  comp => comp.types.includes('postal_code')
+                );
+                
+                if (postalComponent) {
+                  zipCodes.push(postalComponent.long_name);
+                  console.log('Found zip code from location:', postalComponent.long_name);
+                }
               }
             }
           }
@@ -248,15 +303,20 @@ router.post('/all-sources', async (req, res) => {
       }
     }
     
-    // Limit to at most 3 zip codes to avoid excessive API calls
-    zipCodes = zipCodes.slice(0, 3);
+    // Allow more zip codes for neighborhoods, but limit to a reasonable amount
+    // to avoid excessive API calls
+    zipCodes = zipCodes.slice(0, 8); // Increased from 3 to 8 for neighborhoods
     
     console.log(`Searching cookie spots in zip codes: ${zipCodes.join(', ')}`);
     
     // Use the local fetchCookieSpots function instead of importing from seed.js
     const cookieSpots = await fetchCookieSpots(zipCodes);
     
-    if (!cookieSpots || cookieSpots.length === 0) {
+    // Deduplicate results since we might get the same spots from different zip codes
+    const uniqueSpots = deduplicateSpots(cookieSpots);
+    console.log(`Deduplicated from ${cookieSpots.length} to ${uniqueSpots.length} unique spots`);
+    
+    if (!uniqueSpots || uniqueSpots.length === 0) {
       console.log('No cookie spots found, checking API key status');
       if (!process.env.VITE_GOOGLE_PLACES_API_KEY) {
         return res.status(500).json({
@@ -266,11 +326,16 @@ router.post('/all-sources', async (req, res) => {
       }
     }
     
-    // Return the combined results
+    // Return the combined results with neighborhood metadata
     return res.json({ 
       success: true,
       zipCodes,
-      cookieSpots
+      cookieSpots: uniqueSpots,
+      search_metadata: {
+        search_type: zipCodes.length > 1 ? 'multi_zipcode' : 'single_zipcode',
+        location: searchParams.location,
+        zipcode_count: zipCodes.length
+      }
     });
     
   } catch (error) {
@@ -281,4 +346,6 @@ router.post('/all-sources', async (req, res) => {
       error: error.message 
     });
   }
-}); 
+});
+
+module.exports = router; 
