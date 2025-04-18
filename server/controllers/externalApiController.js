@@ -336,7 +336,7 @@ async function fetchFromGoogle(params, isDebugMode = false) {
                 radius: searchRadius
               }
             },
-            includedTypes: ['bakery', 'cafe', 'coffee_shop', 'restaurant'],  // 'food' is not a supported type
+            includedTypes: ['bakery', 'cafe', 'coffee_shop'],  // 'food' is not a supported type
             maxResultCount: 20  // Maximum allowed by the API is 20
           };
           
@@ -374,14 +374,14 @@ async function fetchFromGoogle(params, isDebugMode = false) {
                 radius: searchRadius
               }
             },
-            includedTypes: ['bakery', 'cafe', 'coffee_shop', 'restaurant'],  // 'food' is not a supported type
+            includedTypes: ['bakery', 'cafe', 'coffee_shop'],  // 'food' is not a supported type
             maxResultCount: 20  // Maximum allowed by the API is 20
           };
           
+          // For coordinates-only searches, use a different search type
           search_metadata = {
-            search_type: 'general',
-            search_radius: searchRadius,
-            location: params.location
+            search_type: 'coordinates_only',
+            search_radius: searchRadius
           };
         }
         
@@ -411,7 +411,7 @@ async function fetchFromGoogle(params, isDebugMode = false) {
             radius: searchRadius
           }
         },
-        includedTypes: ['bakery', 'cafe', 'coffee_shop', 'restaurant'],  // 'food' is not a supported type
+        includedTypes: ['bakery', 'cafe', 'coffee_shop'],  // 'food' is not a supported type
         maxResultCount: 20,  // Maximum allowed by the API is 20
         languageCode: 'en'
       };
@@ -429,8 +429,9 @@ async function fetchFromGoogle(params, isDebugMode = false) {
         }
       };
       
+      // For coordinates-only searches, use a different search type
       search_metadata = {
-        search_type: 'general',
+        search_type: 'coordinates_only',
         search_radius: searchRadius
       };
     }
@@ -471,6 +472,25 @@ async function fetchFromGoogle(params, isDebugMode = false) {
 
     // For debugging
     console.log(`Found ${cookieSpots.length} cookie spots for ${isNeighborhood ? 'neighborhood' : 'location'} "${params.location || 'coordinates'}"`);
+
+    // If we're using a named location that appears to be a neighborhood, but we don't have a neighborhood_with_boundary
+    // search type yet, try to set it anyway based on the returned results
+    if (params.location && !isNeighborhood && search_metadata.search_type !== 'neighborhood_with_boundary') {
+      const locationWords = params.location.toLowerCase().split(/[,\s]+/);
+      const commonNeighborhoodNames = ['astoria', 'williamsburg', 'park slope', 'greenpoint', 'bushwick',
+                                       'dumbo', 'soho', 'tribeca', 'harlem', 'chelsea', 'queens', 'brooklyn'];
+      
+      // If the location contains a common NYC neighborhood name
+      if (locationWords.some(word => commonNeighborhoodNames.includes(word))) {
+        console.log(`Location "${params.location}" seems to be a neighborhood, updating search type`);
+        search_metadata.search_type = 'neighborhood';
+        
+        // If we have viewport data, add it to the metadata
+        if (viewport) {
+          search_metadata.viewport = viewport;
+        }
+      }
+    }
 
     return {
       cookieSpots,

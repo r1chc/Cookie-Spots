@@ -19,6 +19,54 @@ const api = axios.create({
 const DEBUG_MODE = true;
 
 /**
+ * Helper function to determine if a business is cookie-related
+ * @param {Object} spot - Business spot to check
+ * @returns {boolean} - True if the business is likely cookie-related
+ */
+const isCookieRelatedBusiness = (spot) => {
+  if (!spot || !spot.name) return false;
+  
+  // Strong cookie indicators - exact matches we definitely want to include
+  const strongCookieKeywords = ['cookie', 'bakery', 'pastry', 'dessert', 'cake', 'sweet', 'patisserie'];
+  
+  // Secondary indicators - increase confidence but not definitive
+  const secondaryCookieKeywords = ['bake', 'cafe', 'coffee'];
+  
+  // Definitely not cookie related - exclude these
+  const exclusionKeywords = ['uniqlo', 'bagel', 'clothing', 'apparel', 'store', 'market', 'pizza', 
+                            'restaurant', 'hardware', 'salon', 'cleaners', 'bank', 'gas', 'pharmacy'];
+                            
+  const name = (spot.name || '').toLowerCase();
+  const description = (spot.description || '').toLowerCase();
+  
+  // Immediately exclude if name contains exclusion keywords
+  if (exclusionKeywords.some(keyword => name.includes(keyword))) {
+    return false;
+  }
+
+  // Strong match if name contains any of the strong cookie keywords
+  if (strongCookieKeywords.some(keyword => name.includes(keyword))) {
+    return true;
+  }
+  
+  // Look for secondary indicators in the name
+  const hasSecondaryKeyword = secondaryCookieKeywords.some(keyword => name.includes(keyword));
+  
+  // If spot has cookie types defined, it's likely a cookie spot
+  if (spot.cookie_types && spot.cookie_types.length > 0) {
+    return true;
+  }
+  
+  // Check if the description mentions cookies
+  if (description.includes('cookie') || description.includes('bakery') || description.includes('cake')) {
+    return true;
+  }
+  
+  // No strong indicators, but has secondary keywords
+  return hasSecondaryKeyword;
+};
+
+/**
  * Fetch cookie spots from Google Places API
  * @param {Object} params - Search parameters (location or coordinates)
  * @returns {Promise} - Promise that resolves with results and viewport information
@@ -139,8 +187,35 @@ export const processExternalCookieSpots = (cookieSpots = [], viewport = null, se
     };
   });
   
+  // Step 1: Filter out non-cookie-related spots
+  const cookieRelatedSpots = processedSpots.filter(isCookieRelatedBusiness);
+  
+  // Step 2: If we have enough cookie-related spots, return only those
+  if (cookieRelatedSpots.length >= 5) {
+    console.log(`Found ${cookieRelatedSpots.length} cookie-related spots, filtering out non-cookie businesses`);
+    return { 
+      spots: cookieRelatedSpots, 
+      viewport, 
+      search_metadata 
+    };
+  }
+  
+  // Step 3: If we don't have enough, sort to prioritize cookie-related spots
+  console.log(`Only found ${cookieRelatedSpots.length} exact cookie-related spots, prioritizing them in results`);
+  const sortedSpots = processedSpots.sort((a, b) => {
+    const aIsCookie = isCookieRelatedBusiness(a);
+    const bIsCookie = isCookieRelatedBusiness(b);
+    
+    // Put cookie spots first
+    if (aIsCookie && !bIsCookie) return -1;
+    if (!aIsCookie && bIsCookie) return 1;
+    
+    // Then sort by rating
+    return (b.average_rating || 0) - (a.average_rating || 0);
+  });
+  
   return { 
-    spots: processedSpots, 
+    spots: sortedSpots, 
     viewport, 
     search_metadata 
   };

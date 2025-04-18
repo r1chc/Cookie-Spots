@@ -7,6 +7,44 @@ import { cookieSpotApi } from './api';
 import { getAllSourceCookieSpots } from './externalApiService';
 
 /**
+ * Add this function at the top of the file, after imports
+ * @param {Array} spots - Array of cookie spots
+ * @returns {Array} Filtered array of cookie spots
+ */
+const filterCookieRelatedBusinesses = (spots) => {
+  // Keywords that suggest a business is cookie-related
+  const cookieKeywords = ['cookie', 'bakery', 'bake', 'dessert', 'pastry', 'sweet'];
+  
+  // First, find any places with cookie-related keywords in the name
+  const exactMatches = spots.filter(spot => {
+    const name = spot.name?.toLowerCase() || '';
+    return cookieKeywords.some(keyword => name.includes(keyword));
+  });
+  
+  // If we have at least 5 exact matches, return those
+  if (exactMatches.length >= 5) {
+    console.log(`Found ${exactMatches.length} cookie-related matches by name for homepage`);
+    return exactMatches;
+  }
+  
+  // Sort to put cookie-related places first, then by rating
+  return spots.sort((a, b) => {
+    const aName = (a.name || '').toLowerCase();
+    const bName = (b.name || '').toLowerCase();
+    
+    const aHasKeyword = cookieKeywords.some(keyword => aName.includes(keyword));
+    const bHasKeyword = cookieKeywords.some(keyword => bName.includes(keyword));
+    
+    // Put cookie-related places first
+    if (aHasKeyword && !bHasKeyword) return -1;
+    if (!aHasKeyword && bHasKeyword) return 1;
+    
+    // Both or neither have keywords, sort by rating
+    return (b.average_rating || 0) - (a.average_rating || 0);
+  });
+};
+
+/**
  * Fetch cookie spots based on user location
  * @param {Object} location - Object containing location data
  * @returns {Array} Array of cookie spots near the location
