@@ -6,6 +6,7 @@ import FilterButtons from '../components/FilterButtons';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import useScrollRestoration from '../hooks/useScrollRestoration';
 
 // Fix for default marker icon in Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -16,6 +17,9 @@ L.Icon.Default.mergeOptions({
 });
 
 const SearchResultsPage = () => {
+  // Use the scroll restoration hook
+  useScrollRestoration();
+
   const location = useLocation();
   const navigate = useNavigate();
   const { 
