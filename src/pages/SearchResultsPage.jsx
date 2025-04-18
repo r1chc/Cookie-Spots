@@ -159,49 +159,42 @@ const SearchResultsPage = () => {
   // Effect to load external results after internal database results
   useEffect(() => {
     const loadExternalResults = async () => {
+      if (!location.search) return;
+      
+      // Get the search term from the URL - either 'location' or 'search' parameter
+      const searchParams = new URLSearchParams(location.search);
+      const searchLocation = searchParams.get('location') || searchParams.get('search');
+      
+      // Skip external fetching if no search term
+      if (!searchLocation) {
+        console.log('No search term, skipping external results load');
+        return;
+      }
+      
+      // Avoid duplicate searches if the search term hasn't changed
+      if (previousSearchRef.current === searchLocation) {
+        console.log('Skipping duplicate search for:', searchLocation);
+        return;
+      }
+      
+      // Track this search to avoid duplicates
+      previousSearchRef.current = searchLocation;
+      
+      // Start loading state
+      setIsLoadingExternal(true);
+      
+      console.log('Loading external results for:', searchLocation);
+      
       try {
-        // Get search parameters from URL
-        const searchParams = new URLSearchParams(location.search);
-        const locationQuery = searchParams.get('location') || searchParams.get('search');
-        const lat = searchParams.get('lat');
-        const lng = searchParams.get('lng');
-        
-        if (!locationQuery && (!lat || !lng)) {
-          setIsLoadingExternal(false);
-          return;
-        }
-        
-        // Create a search signature for comparison
-        const searchSignature = `${locationQuery || ''}-${lat || ''}-${lng || ''}`;
-        
-        // If this is the same search as before, don't duplicate the request
-        if (previousSearchRef.current === searchSignature) {
-          console.log('Skipping duplicate search request for:', searchSignature);
-          return;
-        }
-        
-        // Set loading state and store search reference
-        setIsLoadingExternal(true);
-        previousSearchRef.current = searchSignature;
-        
-        // Important: Reset both combined results and "no results" flag
-        setCombinedResults([]);
         setShowNoResults(false);
-        
-        // Prepare search parameters
-        let searchLocation;
-        if (lat && lng) {
-          searchLocation = { latitude: parseFloat(lat), longitude: parseFloat(lng) };
-        } else {
-          searchLocation = locationQuery;
-        }
-        
-        console.log('Fetching external results for:', searchLocation);
         
         try {
           // Fetch external API results
           const result = await fetchAllSourceCookieSpots(searchLocation);
           const externalSpots = result.spots || [];
+          
+          // Log the exact number of spots received
+          console.log(`RECEIVED ${externalSpots.length} spots from external API`);
           
           // If we got results, store them
           if (externalSpots && externalSpots.length > 0) {
@@ -209,6 +202,7 @@ const SearchResultsPage = () => {
             
             // Store metadata if available
             if (result.search_metadata) {
+              console.log('Search metadata:', result.search_metadata);
               setSearchMetadata(result.search_metadata);
             }
             
@@ -245,6 +239,9 @@ const SearchResultsPage = () => {
                 seenNames.set(key, true);
               }
             });
+            
+            // Log the final combined count
+            console.log(`COMBINED: Setting ${combined.length} spots in state (${cookieSpots.length} from DB + ${externalSpots.length - (combined.length - cookieSpots.length)} filtered out as duplicates)`);
             
             // Update state with combined results and ensure we don't show "no results"
             setCombinedResults(combined);

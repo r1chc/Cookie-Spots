@@ -18,7 +18,14 @@ const externalApiController = {
    */
   fetchAllSources: async (req, res) => {
     try {
-      const { location, lat, lng } = req.body;
+      const { location, lat, lng, debug } = req.body;
+      
+      // Debug mode for troubleshooting
+      const isDebugMode = debug === true;
+      
+      if (isDebugMode) {
+        console.log('=== DEBUG MODE ENABLED ===');
+      }
       
       // Validate inputs
       if (!location && (!lat || !lng)) {
@@ -63,7 +70,7 @@ const externalApiController = {
       console.log('Fetching cookie spots with params:', searchParams);
       
       // Only fetch from Google Places API now
-      const result = await fetchFromGoogle(searchParams);
+      const result = await fetchFromGoogle(searchParams, isDebugMode);
       
       console.log(`*** FRESH DATA: Found ${result.cookieSpots.length} results from Google Places API ***`);
       
@@ -78,6 +85,14 @@ const externalApiController = {
       });
       
       console.log(`Cached results for future use with key: ${cacheKey}`);
+      console.log(`Returning ${uniqueSpots.length} cookie spots to the client`);
+      
+      // In debug mode, log the first few spots for inspection
+      if (isDebugMode && uniqueSpots.length > 0) {
+        console.log('=== FIRST 3 RESULTS SAMPLE ===');
+        console.log(JSON.stringify(uniqueSpots.slice(0, 3), null, 2));
+        console.log('=== END SAMPLE ===');
+      }
       
       return res.json({
         success: true,
@@ -85,7 +100,12 @@ const externalApiController = {
         viewport: result.viewport,
         fromCache: false,
         search_metadata: result.search_metadata || null,
-        message: 'Fresh data from Google Places API'
+        message: 'Fresh data from Google Places API',
+        // In debug mode, add an extra field with the raw count
+        debug_info: isDebugMode ? {
+          raw_result_count: uniqueSpots.length,
+          request_params: { location, lat, lng }
+        } : null
       });
     } catch (error) {
       console.error('Error fetching from Google Places API:', error);
@@ -114,9 +134,10 @@ const externalApiController = {
 /**
  * Fetch cookie spots from Google Places API
  * @param {Object} params - Search parameters
+ * @param {Boolean} isDebugMode - Whether debug mode is enabled
  * @returns {Object} - Object containing cookie spots and viewport
  */
-async function fetchFromGoogle(params) {
+async function fetchFromGoogle(params, isDebugMode = false) {
   try {
     const googleApiKey = process.env.GOOGLE_PLACES_API_KEY || process.env.VITE_GOOGLE_PLACES_API_KEY;
     
@@ -173,43 +194,82 @@ async function fetchFromGoogle(params) {
                 place_id: result.place_id,
                 boundary_available: true
               };
-              
-              // For UI visualization, we'll also include the place_id which the frontend can use
-              // to render the actual neighborhood polygon using the Google Maps JavaScript API
             }
           } catch (boundaryError) {
             console.log(`Error fetching neighborhood boundary: ${boundaryError.message}`);
-            // Continue with the text search approach even if boundary fetch fails
           }
           
-          // Use text search approach for neighborhoods
-          const textSearchRequest = {
-            textQuery: `bakery OR cafe OR coffee shop in ${params.location}`,
-            maxResultCount: 50  // Maximum allowed by the API
+          // Strategy: Make multiple text searches with different queries to get more comprehensive results
+          const searchQueries = [
+            `bakery in ${params.location}`,
+            `cafe in ${params.location}`,
+            `coffee shop in ${params.location}`,
+            `cookies in ${params.location}`,
+            `dessert in ${params.location}`
+          ];
+          
+          // Function to fetch and process one search query
+          const fetchTextSearch = async (query) => {
+            try {
+              const textSearchRequest = {
+                textQuery: query,
+                maxResultCount: 20  // Maximum allowed by the API is 20
+              };
+              
+              if (isDebugMode) {
+                console.log(`Text search request for "${query}":`, JSON.stringify(textSearchRequest, null, 2));
+              }
+              
+              const textSearchHeaders = {
+                'X-Goog-Api-Key': googleApiKey,
+                'X-Goog-FieldMask': '*',
+                'Content-Type': 'application/json'
+              };
+              
+              const textSearchResponse = await axios.post(
+                'https://places.googleapis.com/v1/places:searchText',
+                textSearchRequest,
+                { headers: textSearchHeaders }
+              );
+              
+              if (textSearchResponse.data.places && textSearchResponse.data.places.length > 0) {
+                console.log(`Text search for "${query}" found ${textSearchResponse.data.places.length} places`);
+                return textSearchResponse.data.places;
+              }
+              return [];
+            } catch (error) {
+              console.error(`Error in text search for "${query}":`, error.message);
+              return [];
+            }
           };
           
-          console.log(`Trying text search for "${textSearchRequest.textQuery}"`);
+          // Fetch results for all queries
+          console.log(`Starting multiple text searches for "${params.location}"`);
+          const allSearchPromises = searchQueries.map(query => fetchTextSearch(query));
           
           try {
-            // Try text search with the specific neighborhood name
-            const textSearchHeaders = {
-              'X-Goog-Api-Key': googleApiKey,
-              'X-Goog-FieldMask': '*',
-              'Content-Type': 'application/json'
-            };
+            // Wait for all searches to complete
+            const searchResults = await Promise.all(allSearchPromises);
             
-            const textSearchResponse = await axios.post(
-              'https://places.googleapis.com/v1/places:searchText',
-              textSearchRequest,
-              { headers: textSearchHeaders }
-            );
+            // Merge all the results
+            const allPlaces = [];
+            const seenPlaceIds = new Set();
             
-            if (textSearchResponse.data.places && textSearchResponse.data.places.length > 0) {
-              console.log(`Text search for "${params.location}" found ${textSearchResponse.data.places.length} places`);
-              
-              // Process the results
-              const places = textSearchResponse.data.places || [];
-              const cookieSpots = places.map(place => ({
+            // Add unique places to the results
+            searchResults.forEach(places => {
+              places.forEach(place => {
+                if (!seenPlaceIds.has(place.id)) {
+                  allPlaces.push(place);
+                  seenPlaceIds.add(place.id);
+                }
+              });
+            });
+            
+            console.log(`Combined unique places from all searches: ${allPlaces.length}`);
+            
+            // Process the combined results
+            if (allPlaces.length > 0) {
+              const cookieSpots = allPlaces.map(place => ({
                 name: place.displayName?.text,
                 description: place.formattedAddress,
                 address: place.addressComponents?.streetNumber + ' ' + place.addressComponents?.route,
@@ -234,18 +294,25 @@ async function fetchFromGoogle(params) {
                 }
               }));
               
+              console.log(`Mapped ${cookieSpots.length} cookie spots`);
+              
               // Filter results to only include those that actually mention the neighborhood in the address
-              // This helps ensure we're only getting places actually in the neighborhood
+              const locationName = params.location.split(',')[0].trim().toLowerCase();
               const neighborhoodFiltered = cookieSpots.filter(spot => {
                 const addressText = (spot.description || '').toLowerCase();
-                const neighborhoodName = params.location.toLowerCase();
-                return addressText.includes(neighborhoodName);
+                // For Astoria specifically, ensure we're checking for Astoria and not just Queens
+                const isInNeighborhood = addressText.includes(locationName);
+                return isInNeighborhood;
               });
               
-              console.log(`Filtered to ${neighborhoodFiltered.length} places specifically mentioning ${params.location} in address`);
+              console.log(`Filtered to ${neighborhoodFiltered.length} places specifically mentioning ${locationName} in address`);
+              
+              // Choose the final spots to return - prefer filtered results but fall back to all if too few
+              const finalSpots = neighborhoodFiltered.length >= 5 ? neighborhoodFiltered : cookieSpots;
+              console.log(`Final count returned: ${finalSpots.length} cookie spots`);
               
               return {
-                cookieSpots: neighborhoodFiltered.length > 0 ? neighborhoodFiltered : cookieSpots, // Fall back to all results if filter is too strict
+                cookieSpots: finalSpots,
                 viewport,
                 search_metadata: search_metadata || {
                   search_type: 'neighborhood_text',
@@ -253,12 +320,12 @@ async function fetchFromGoogle(params) {
                 }
               };
             }
-          } catch (textSearchError) {
-            console.log(`Text search failed, falling back to nearby search: ${textSearchError.message}`);
-            // Fall back to nearby search if text search fails
+          } catch (multiSearchError) {
+            console.error('Error in multiple text searches:', multiSearchError);
           }
           
-          // Fall back to circle-based search if text search fails or returns no results
+          // If we get here, either all searches failed or returned no results
+          // Fall back to circle-based search as a last resort
           searchRequest = {
             locationRestriction: {
               circle: {
@@ -269,8 +336,8 @@ async function fetchFromGoogle(params) {
                 radius: searchRadius
               }
             },
-            includedTypes: ['bakery', 'cafe', 'coffee_shop', 'restaurant', 'food'],
-            maxResultCount: 30
+            includedTypes: ['bakery', 'cafe', 'coffee_shop', 'restaurant'],  // 'food' is not a supported type
+            maxResultCount: 20  // Maximum allowed by the API is 20
           };
           
           // Add post-processing filter in search_metadata to filter results within neighborhood bounds
@@ -307,8 +374,8 @@ async function fetchFromGoogle(params) {
                 radius: searchRadius
               }
             },
-            includedTypes: ['bakery', 'cafe', 'coffee_shop', 'restaurant', 'food'],
-            maxResultCount: 30
+            includedTypes: ['bakery', 'cafe', 'coffee_shop', 'restaurant'],  // 'food' is not a supported type
+            maxResultCount: 20  // Maximum allowed by the API is 20
           };
           
           search_metadata = {
@@ -344,8 +411,8 @@ async function fetchFromGoogle(params) {
             radius: searchRadius
           }
         },
-        includedTypes: ['bakery', 'cafe', 'coffee_shop', 'restaurant', 'food'],
-        maxResultCount: 30,
+        includedTypes: ['bakery', 'cafe', 'coffee_shop', 'restaurant'],  // 'food' is not a supported type
+        maxResultCount: 20,  // Maximum allowed by the API is 20
         languageCode: 'en'
       };
       

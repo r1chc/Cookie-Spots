@@ -15,6 +15,9 @@ const api = axios.create({
   }
 });
 
+// Enable debug mode for testing
+const DEBUG_MODE = true;
+
 /**
  * Fetch cookie spots from Google Places API
  * @param {Object} params - Search parameters (location or coordinates)
@@ -33,8 +36,11 @@ export const fetchFromAllSources = async (params = {}) => {
       : `all-sources-${params.lat}-${params.lng}`;
     console.log(`Requesting data for cache key: ${cacheKey}`);
     
+    // Add debug flag to params
+    const requestParams = { ...params, debug: DEBUG_MODE };
+    
     // Call our backend endpoint that integrates with Google Places API
-    const response = await api.post('/external/all-sources', params);
+    const response = await api.post('/external/all-sources', requestParams);
     
     // Check if response includes a cached flag
     const isFromCache = response.data?.fromCache === true;
