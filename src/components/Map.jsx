@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState, useLayoutEffect } from 'react';
+import React, { useEffect, useRef, useState, useLayoutEffect, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { loadGoogleMaps } from '../utils/googleMapsLoader';
+import { validateSpotCoordinates } from '../utils/spotUtils';
 
 // Fix default marker icon issue in Leaflet
 // This is a common issue with Leaflet in React applications
@@ -125,7 +126,8 @@ const Map = ({
   onBoundsChange,
   hoveredSpot,
   mapType = 'leaflet', // 'leaflet' or 'google'
-  searchMetadata = null // Added parameter for search metadata
+  searchMetadata = null, // Added parameter for search metadata
+  onSpotClick
 }) => {
   const [mapInstance, setMapInstance] = useState(null);
   const [currentViewport, setViewport] = useState(viewport);
@@ -137,23 +139,55 @@ const Map = ({
   const googleMapRef = useRef(null);
   const markersRef = useRef({});
   const spotIndexRef = useRef({});
+  const boundsChangeTimeoutRef = useRef(null);
 
-  // Calculate initial zoom based on search radius if available
-  useEffect(() => {
-    if (searchMetadata && searchMetadata.search_radius) {
-      const newZoom = calculateZoomForRadius(searchMetadata.search_radius);
-      console.log(`Adjusting zoom to ${newZoom} based on search radius of ${searchMetadata.search_radius}m`);
+  // Create a debounced bounds change handler at the component level
+  const handleBoundsChanged = useCallback(() => {
+    if (!mapInstance) return;
+
+    const bounds = mapInstance.getBounds();
+    const center = mapInstance.getCenter();
+    const zoom = mapInstance.getZoom();
+    
+    if (bounds && center && zoom) {
+      const newBounds = {
+        north: bounds.getNorthEast().lat(),
+        south: bounds.getSouthWest().lat(),
+        east: bounds.getNorthEast().lng(),
+        west: bounds.getSouthWest().lng()
+      };
       
-      // Update viewport with new zoom level if viewport exists
-      if (viewport) {
-        const adjustedViewport = {
-          ...viewport,
-          zoom: newZoom
-        };
-        setViewport(adjustedViewport);
+      const newViewport = {
+        center: {
+          lat: center.lat(),
+          lng: center.lng()
+        },
+        zoom
+      };
+
+      // Clear any existing timeout
+      if (boundsChangeTimeoutRef.current) {
+        clearTimeout(boundsChangeTimeoutRef.current);
       }
+
+      // Set a new timeout
+      boundsChangeTimeoutRef.current = setTimeout(() => {
+        setBounds(newBounds);
+        setViewport(newViewport);
+        if (onBoundsChange) onBoundsChange(newBounds);
+        if (onViewportChange) onViewportChange(newViewport);
+      }, 200); // 200ms debounce delay
     }
-  }, [searchMetadata, viewport]);
+  }, [mapInstance, onBoundsChange, onViewportChange]);
+
+  // Cleanup function for the debounce timeout
+  useEffect(() => {
+    return () => {
+      if (boundsChangeTimeoutRef.current) {
+        clearTimeout(boundsChangeTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Initialize Google Maps if using Google
   useEffect(() => {
@@ -161,25 +195,21 @@ const Map = ({
     
     const loadGoogleMapsAPI = async () => {
       try {
-        // Use the shared loader instead of creating a new one
         await loadGoogleMaps();
         
-        // After loading, check if Google Maps is available in the window object
         if (!window.google || !window.google.maps) {
           throw new Error('Google Maps API not available after loading');
         }
         
-        // Store the Google API reference
         setGoogleApi(window.google);
         
-        // Determine initial zoom from searchMetadata or use the provided zoom
         let initialZoom = zoom;
         if (searchMetadata && searchMetadata.search_radius) {
           initialZoom = calculateZoomForRadius(searchMetadata.search_radius);
         }
         
         const map = new window.google.maps.Map(mapContainerRef.current, {
-          center: center || { lat: 37.7749, lng: -122.4194 }, // Default to San Francisco
+          center: center || { lat: 37.7749, lng: -122.4194 },
           zoom: initialZoom,
           mapId: import.meta.env.VITE_GOOGLE_MAP_ID || '',
           disableDefaultUI: false,
@@ -189,119 +219,75 @@ const Map = ({
           fullscreenControl: true
         });
         
+        // Add the bounds changed listener using our debounced handler
+        map.addListener('bounds_changed', handleBoundsChanged);
+        
         setMapInstance(map);
         setGoogleLoaded(true);
         
-        // Use a more robust debounce mechanism to prevent update loops
-        let boundsChangeTimeout = null;
-        let lastUpdateTime = 0;
-        const DEBOUNCE_DELAY = 200; // 200ms debounce
-        const MIN_UPDATE_INTERVAL = 500; // Minimum 500ms between updates
-        
-        // Listen for map movements to update viewport/bounds
-        map.addListener('bounds_changed', () => {
-          // Clear any pending timeout
-          if (boundsChangeTimeout) {
-            clearTimeout(boundsChangeTimeout);
-          }
-          
-          const now = Date.now();
-          
-          // If an update just happened, always use debounce to prevent rapid sequential updates
-          if (now - lastUpdateTime < MIN_UPDATE_INTERVAL) {
-            boundsChangeTimeout = setTimeout(() => {
-              handleBoundsChanged();
-              lastUpdateTime = Date.now();
-            }, DEBOUNCE_DELAY);
-            return;
-          }
-          
-          // Otherwise process immediately and reset the timer
-          handleBoundsChanged();
-          lastUpdateTime = now;
-        });
-        
-        // Extract bounds changed handling logic to a separate function
-        const handleBoundsChanged = () => {
-          const newBounds = map.getBounds();
-          if (!newBounds) return;
-          
-          const newViewport = {
-            center: {
-              lat: map.getCenter().lat(),
-              lng: map.getCenter().lng()
-            },
-            zoom: map.getZoom()
-          };
-          
-          // Only update if there's a significant change to avoid loops
-          const hasSignificantViewportChange = 
-            !currentViewport || 
-            Math.abs(newViewport.center.lat - currentViewport.center?.lat) > 0.0001 ||
-            Math.abs(newViewport.center.lng - currentViewport.center?.lng) > 0.0001 ||
-            newViewport.zoom !== currentViewport.zoom;
-            
-          if (hasSignificantViewportChange) {
-            const newBoundsObj = {
-              north: newBounds.getNorthEast().lat(),
-              east: newBounds.getNorthEast().lng(),
-              south: newBounds.getSouthWest().lat(),
-              west: newBounds.getSouthWest().lng()
-            };
-            
-            // Update internal state
-            setViewport(newViewport);
-            setBounds(newBoundsObj);
-            
-            // Notify parent components
-            if (onViewportChange) onViewportChange(newViewport);
-            if (onBoundsChange) onBoundsChange(newBoundsObj);
+        return () => {
+          // Clean up the listener when the component unmounts
+          if (map) {
+            window.google.maps.event.clearInstanceListeners(map);
           }
         };
-        
-        // Apply bounds if available from search results
-        if (bounds && window.google) {
-          const googleBounds = new window.google.maps.LatLngBounds(
-            new window.google.maps.LatLng(bounds.south, bounds.west),
-            new window.google.maps.LatLng(bounds.north, bounds.east)
-          );
-          map.fitBounds(googleBounds);
-        }
       } catch (error) {
-        console.error('Error loading Google Maps:', error);
+        console.error('Error initializing Google Maps:', error);
       }
     };
     
     loadGoogleMapsAPI();
-    
-    return () => {
-      // Clean up Google Maps markers to prevent memory leaks
-      if (Object.keys(markersRef.current).length > 0) {
-        Object.values(markersRef.current).forEach(marker => {
-          if (marker && marker.setMap) {
-            marker.setMap(null);
-          }
-        });
-        markersRef.current = {};
-      }
-    };
-  }, [mapType, mapContainerRef, center, zoom, onViewportChange, onBoundsChange, googleLoaded, bounds, searchMetadata, currentViewport]);
+  }, [mapType, center, zoom, handleBoundsChanged, googleLoaded, searchMetadata]);
 
   // Update Google Map markers when spots change
-  useEffect(() => {
-    if (mapType !== 'google' || !mapInstance || !window.google || !spots || spots.length === 0) return;
+  const updateMarkers = useCallback((spots) => {
+    if (!mapInstance || !window.google || !spots) return;
     
-    // Build an index of current spots by ID for quick lookup
-    const currentSpotIds = {};
+    const currentSpotIds = new Set();
+    
     spots.forEach(spot => {
-      if (spot && spot._id) {
-        currentSpotIds[spot._id] = true;
+      const validSpot = validateSpotCoordinates(spot);
+      if (!validSpot || !validSpot._id) return;
+      
+      currentSpotIds.add(validSpot._id);
+      
+      const position = {
+        lat: validSpot.location.coordinates[1],
+        lng: validSpot.location.coordinates[0]
+      };
+      
+      let marker = markersRef.current[validSpot._id];
+      
+      if (marker) {
+        const currentPosition = marker.getPosition();
+        if (currentPosition.lat() !== position.lat || currentPosition.lng() !== position.lng) {
+          marker.setPosition(position);
+        }
+      } else {
+        marker = new window.google.maps.Marker({
+          position,
+          map: mapInstance,
+          title: validSpot.name
+        });
+        
+        marker.addListener('click', () => {
+          if (onSpotClick) onSpotClick(validSpot);
+        });
+        
+        markersRef.current[validSpot._id] = marker;
+      }
+      
+      // Update animation based on hover state
+      if (hoveredSpot && hoveredSpot._id === validSpot._id) {
+        marker.setAnimation(window.google.maps.Animation.BOUNCE);
+      } else {
+        marker.setAnimation(null);
       }
     });
     
-    // Remove markers that are no longer in the spots array
+    // Remove markers for spots that no longer exist
     Object.keys(markersRef.current).forEach(spotId => {
-      if (!currentSpotIds[spotId]) {
+      if (!currentSpotIds.has(spotId)) {
         const marker = markersRef.current[spotId];
         if (marker) {
           marker.setMap(null);
@@ -309,75 +295,13 @@ const Map = ({
         }
       }
     });
-    
-    // Add or update markers for current spots
-    spots.forEach(spot => {
-      if (!spot || !spot._id || !spot.location?.coordinates) return;
-      
-      const position = { 
-        lat: spot.location.coordinates[1], 
-        lng: spot.location.coordinates[0] 
-      };
-      
-      // Check if we already have a marker for this spot
-      const existingMarker = markersRef.current[spot._id];
-      
-      if (existingMarker) {
-        // Update existing marker position if needed
-        const currentPosition = existingMarker.getPosition();
-        if (currentPosition.lat() !== position.lat || currentPosition.lng() !== position.lng) {
-          existingMarker.setPosition(position);
-        }
-        
-        // Update animation based on hover state
-        if (hoveredSpot && hoveredSpot._id === spot._id) {
-          existingMarker.setAnimation(window.google.maps.Animation.BOUNCE);
-        } else {
-          existingMarker.setAnimation(null);
-        }
-      } else {
-        // Create new marker
-        const marker = new window.google.maps.Marker({
-          position,
-          map: mapInstance,
-          title: spot.name,
-          animation: hoveredSpot && hoveredSpot._id === spot._id ? 
-            window.google.maps.Animation.BOUNCE : null,
-          optimized: true
-        });
-        
-        // Create info window with spot details
-        const infoWindow = new window.google.maps.InfoWindow({
-          content: `
-            <div>
-              <h3 style="font-weight: bold; margin-bottom: 5px;">${spot.name}</h3>
-              <p style="margin-bottom: 8px;">${spot.address}</p>
-              <a 
-                href="/cookie-spot/${spot._id}" 
-                style="color: #4f46e5; text-decoration: underline;"
-                target="_blank"
-              >
-                View Details
-              </a>
-            </div>
-          `,
-          pixelOffset: new window.google.maps.Size(0, -30)
-        });
-        
-        // Add click listener to show info window
-        marker.addListener('click', () => {
-          infoWindow.open(mapInstance, marker);
-        });
-        
-        // Store marker reference
-        markersRef.current[spot._id] = marker;
-      }
-    });
-    
-    // Store the current spots index for future comparison
-    spotIndexRef.current = currentSpotIds;
-    
-  }, [mapType, mapInstance, spots, hoveredSpot]);
+  }, [mapInstance, onSpotClick, hoveredSpot]);
+
+  useEffect(() => {
+    if (mapType === 'google' && spots) {
+      updateMarkers(spots);
+    }
+  }, [mapType, spots, updateMarkers]);
 
   // Handle hover state changes for Google Maps markers
   useEffect(() => {

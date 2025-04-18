@@ -1,6 +1,7 @@
 const Review = require('../models/Review');
 const CookieSpot = require('../models/CookieSpot');
 const { validationResult } = require('express-validator');
+const mongoose = require('mongoose');
 
 // @desc    Get all reviews for a cookie spot
 // @route   GET /api/reviews/cookie-spot/:cookieSpotId
@@ -190,6 +191,9 @@ exports.updateReview = async (req, res) => {
 // @route   DELETE /api/reviews/:id
 // @access  Private
 exports.deleteReview = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const review = await Review.findById(req.params.id);
     
@@ -201,34 +205,54 @@ exports.deleteReview = async (req, res) => {
     if (review.user_id.toString() !== req.user.id && !req.user.is_admin) {
       return res.status(401).json({ msg: 'Not authorized to delete this review' });
     }
-    
-    await review.remove();
-    
-    // Update cookie spot rating
+
+    // Soft delete the review
+    review.status = 'deleted';
+    review.deleted_at = new Date();
+    review.deleted_by = req.user.id;
+    await review.save({ session });
+
+    // Update cookie spot rating using aggregation
+    const [aggregateResult] = await Review.aggregate([
+      {
+        $match: {
+          cookie_spot_id: review.cookie_spot_id,
+          status: 'published'
+        }
+      },
+      {
+        $group: {
+          _id: '$cookie_spot_id',
+          averageRating: { $avg: '$rating' },
+          reviewCount: { $sum: 1 }
+        }
+      }
+    ]).session(session);
+
+    // Update the cookie spot with aggregated values
     const cookieSpot = await CookieSpot.findById(review.cookie_spot_id);
-    const allReviews = await Review.find({ 
-      cookie_spot_id: review.cookie_spot_id,
-      status: 'published'
-    });
-    
-    if (allReviews.length > 0) {
-      const totalRating = allReviews.reduce((sum, review) => sum + review.rating, 0);
-      const averageRating = totalRating / allReviews.length;
-      cookieSpot.average_rating = averageRating;
-    } else {
-      cookieSpot.average_rating = 0;
+    if (cookieSpot) {
+      cookieSpot.average_rating = aggregateResult ? aggregateResult.averageRating : 0;
+      cookieSpot.review_count = aggregateResult ? aggregateResult.reviewCount : 0;
+      await cookieSpot.save({ session });
     }
+
+    await session.commitTransaction();
     
-    cookieSpot.review_count = allReviews.length;
-    await cookieSpot.save();
-    
-    res.json({ msg: 'Review removed' });
+    res.json({ 
+      msg: 'Review removed',
+      average_rating: cookieSpot.average_rating,
+      review_count: cookieSpot.review_count
+    });
   } catch (err) {
-    console.error(err.message);
+    await session.abortTransaction();
+    console.error('Error in deleteReview:', err);
     if (err.kind === 'ObjectId') {
       return res.status(404).json({ msg: 'Review not found' });
     }
-    res.status(500).send('Server error');
+    res.status(500).json({ msg: 'Server error', error: err.message });
+  } finally {
+    session.endSession();
   }
 };
 
