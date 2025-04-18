@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useCookieSpots } from '../utils/CookieSpotContext';
 import CookieSpotCard from '../components/CookieSpotCard';
 import FilterButtons from '../components/FilterButtons';
-import { Loader } from '@googlemaps/js-api-loader';
+import { loadGoogleMaps } from '../utils/googleMapsLoader';
 import { fetchAllSourceCookieSpots } from '../utils/cookieSpotService';
 import MapComponent from '../components/Map';
 
@@ -27,13 +27,8 @@ const GoogleMap = ({ center, bounds, spots, hoveredSpot, searchMetadata }) => {
   
   const loadGoogleMapsAPI = async () => {
     try {
-      const loader = new Loader({
-        apiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
-        version: 'weekly',
-        libraries: ['places']
-      });
-      
-      await loader.load();
+      // Use the shared loader instead of creating a new one
+      await loadGoogleMaps();
       
       // Instead of initializing Google Maps here, we'll use our Map component
       googleRef.current = window.google;
@@ -86,6 +81,9 @@ const SearchResultsPage = () => {
   const [combinedResults, setCombinedResults] = useState([]);
   const [searchViewport, setSearchViewport] = useState(null);
   const [searchMetadata, setSearchMetadata] = useState(null);
+  
+  // Store the caching status in state
+  const [isFromCache, setIsFromCache] = useState(false);
   
   // Force white background
   useEffect(() => {
@@ -185,8 +183,18 @@ const SearchResultsPage = () => {
             totalSpots: externalSpots.length,
             hasViewport: !!result.viewport,
             firstSpot: externalSpots.length > 0 ? externalSpots[0].name : 'none',
-            hasSearchMetadata: !!result.search_metadata
+            hasSearchMetadata: !!result.search_metadata,
+            fromCache: result.fromCache
           });
+          
+          // Store the caching status in state
+          if (result.fromCache) {
+            setIsFromCache(true);
+            console.log('%c✓ Results were served from server cache - No Google Places API calls were made', 'color: green; font-weight: bold');
+          } else {
+            setIsFromCache(false);
+            console.log('%c⚠ Fresh results from Google Places API', 'color: orange');
+          }
           
           // Store viewport information for map centering
           if (result.viewport) {
@@ -216,7 +224,12 @@ const SearchResultsPage = () => {
             seenNames.set(key, true);
           });
           
-          console.log(`Combined ${cookieSpots.length} database results with ${externalSpots.length} external results for a total of ${combined.length} unique spots`);
+          // Update log message to be more accurate about data source
+          if (result.fromCache) {
+            console.log(`Combined ${cookieSpots.length} database results with ${externalSpots.length} results from server cache for a total of ${combined.length} unique spots`);
+          } else {
+            console.log(`Combined ${cookieSpots.length} database results with ${externalSpots.length} external API results for a total of ${combined.length} unique spots`);
+          }
           
           // Update state with combined results
           setCombinedResults(combined);
@@ -588,7 +601,11 @@ const SearchResultsPage = () => {
                   {/* Source information */}
                   {externalResults.length > 0 && (
                     <div className="mt-4 text-center text-sm text-gray-500">
-                      <p>Results include data from our database and external sources</p>
+                      <p>
+                        {isFromCache ? 
+                          'Results include data from our database and cached external sources' :
+                          'Results include data from our database and external API calls'}
+                      </p>
                     </div>
                   )}
                 </div>

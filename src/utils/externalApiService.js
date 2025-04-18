@@ -27,23 +27,35 @@ export const fetchFromAllSources = async (params = {}) => {
       throw new Error('Either location or coordinates required');
     }
     
-    console.log('Fetching from Google Places API with params:', params);
+    // Generate cache key for debugging
+    const cacheKey = params.location 
+      ? `all-sources-${params.location}` 
+      : `all-sources-${params.lat}-${params.lng}`;
+    console.log(`Requesting data for cache key: ${cacheKey}`);
     
     // Call our backend endpoint that integrates with Google Places API
     const response = await api.post('/external/all-sources', params);
     
+    // Check if response includes a cached flag
+    const isFromCache = response.data?.fromCache === true;
+    
     if (response.data && response.data.cookieSpots) {
-      console.log(`Fetched ${response.data.cookieSpots.length} cookie spots from Google Places API`);
+      if (isFromCache) {
+        console.log(`Received ${response.data.cookieSpots.length} cookie spots from cache`);
+      } else {
+        console.log(`Fetched ${response.data.cookieSpots.length} cookie spots from Google Places API`);
+      }
       
       // Return both the cookie spots and the viewport information
       return {
         cookieSpots: response.data.cookieSpots,
         viewport: response.data.viewport || null,
-        search_metadata: response.data.search_metadata || null
+        search_metadata: response.data.search_metadata || null,
+        fromCache: isFromCache
       };
     }
     
-    return { cookieSpots: [], viewport: null, search_metadata: null };
+    return { cookieSpots: [], viewport: null, search_metadata: null, fromCache: false };
   } catch (error) {
     console.error('Error fetching from Google Places API:', error);
     if (error.response) {
@@ -57,7 +69,7 @@ export const fetchFromAllSources = async (params = {}) => {
       // Something happened in setting up the request
       console.error('Error message:', error.message);
     }
-    return { cookieSpots: [], viewport: null, search_metadata: null };
+    return { cookieSpots: [], viewport: null, search_metadata: null, fromCache: false };
   }
 };
 
@@ -165,9 +177,17 @@ export const getAllSourceCookieSpots = async (location) => {
       rawResult.search_metadata || null
     );
     
+    // Add the fromCache flag to the result
+    result.fromCache = rawResult.fromCache || false;
+    
     // Log the search metadata if available
     if (result.search_metadata) {
       console.log('Search metadata received:', result.search_metadata);
+    }
+    
+    // If results were from cache, log it clearly
+    if (result.fromCache) {
+      console.log('✓ Results were served from cache - no external API calls were made');
     }
     
     return result;

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useLayoutEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { Loader } from '@googlemaps/js-api-loader';
+import { loadGoogleMaps } from '../utils/googleMapsLoader';
 
 // Fix default marker icon issue in Leaflet
 // This is a common issue with Leaflet in React applications
@@ -161,13 +161,8 @@ const Map = ({
     
     const loadGoogleMapsAPI = async () => {
       try {
-        const loader = new Loader({
-          apiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
-          version: 'weekly',
-          libraries: ['places', 'geometry']
-        });
-        
-        const google = await loader.load();
+        // Use the shared loader instead of creating a new one
+        const google = await loadGoogleMaps();
         setGoogleApi(google);
         
         // Determine initial zoom from searchMetadata or use the provided zoom

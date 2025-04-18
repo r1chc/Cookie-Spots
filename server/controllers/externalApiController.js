@@ -38,11 +38,13 @@ const externalApiController = {
       if (cachedResults) {
         console.log(`Using cached results for ${cacheKey}`);
         if (cachedResults.cookieSpots && Array.isArray(cachedResults.cookieSpots)) {
-          console.log(`Returning ${cachedResults.cookieSpots.length} cached spots`);
+          console.log(`*** CACHE HIT: Returning ${cachedResults.cookieSpots.length} cached spots from server cache ***`);
           return res.json({
             success: true,
             cookieSpots: cachedResults.cookieSpots,
-            viewport: cachedResults.viewport
+            viewport: cachedResults.viewport,
+            fromCache: true,
+            search_metadata: cachedResults.search_metadata || null
           });
         } else {
           console.log('Cached results found but invalid format, fetching fresh data');
@@ -63,7 +65,7 @@ const externalApiController = {
       // Only fetch from Google Places API now
       const result = await fetchFromGoogle(searchParams);
       
-      console.log(`Found: Google (${result.cookieSpots.length})`);
+      console.log(`*** FRESH DATA: Found ${result.cookieSpots.length} results from Google Places API ***`);
       
       // No need to combine results anymore since we only use Google
       const uniqueSpots = result.cookieSpots;
@@ -71,13 +73,19 @@ const externalApiController = {
       // Cache the complete results object including viewport
       apiCache.set(cacheKey, { 
         cookieSpots: uniqueSpots, 
-        viewport: result.viewport 
+        viewport: result.viewport,
+        search_metadata: result.search_metadata || null
       });
+      
+      console.log(`Cached results for future use with key: ${cacheKey}`);
       
       return res.json({
         success: true,
         cookieSpots: uniqueSpots,
-        viewport: result.viewport
+        viewport: result.viewport,
+        fromCache: false,
+        search_metadata: result.search_metadata || null,
+        message: 'Fresh data from Google Places API'
       });
     } catch (error) {
       console.error('Error fetching from Google Places API:', error);

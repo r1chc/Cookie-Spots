@@ -113,7 +113,7 @@ export const searchCookieSpots = async (locationQuery) => {
  */
 export const fetchAllSourceCookieSpots = async (location) => {
   try {
-    console.log('Fetching cookie spots from Google Places API for location:', location);
+    console.log('Fetching cookie spots from external sources for location:', location);
     
     // Make sure we have a valid location
     if (!location) {
@@ -133,13 +133,19 @@ export const fetchAllSourceCookieSpots = async (location) => {
     
     // Log the response details
     if (cookieSpots.spots) {
-      console.log(`Found ${cookieSpots.spots.length} cookie spots from Google Places API`);
+      if (cookieSpots.fromCache) {
+        console.log(`✓ Retrieved ${cookieSpots.spots.length} cookie spots from CACHE - No external API calls`);
+      } else {
+        console.log(`Found ${cookieSpots.spots.length} cookie spots from Google Places API`);
+      }
+      
       if (cookieSpots.spots.length === 0) {
-        console.log('No results received from Google Places API');
+        console.log('No results received from sources');
       } else {
         console.log('First result example:', cookieSpots.spots[0].name);
         console.log('Has viewport:', !!cookieSpots.viewport);
         console.log('Has search metadata:', !!cookieSpots.search_metadata);
+        console.log('From cache:', !!cookieSpots.fromCache);
       }
       
       // Validate coordinates for each spot
@@ -175,7 +181,8 @@ export const fetchAllSourceCookieSpots = async (location) => {
       return { 
         spots: validatedSpots, 
         viewport: cookieSpots.viewport,
-        search_metadata: cookieSpots.search_metadata || null
+        search_metadata: cookieSpots.search_metadata || null,
+        fromCache: cookieSpots.fromCache || false
       };
     } else {
       console.error('Invalid response format from getAllSourceCookieSpots:', cookieSpots);

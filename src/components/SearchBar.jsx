@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Loader } from '@googlemaps/js-api-loader'
+import { loadGoogleMaps } from '../utils/googleMapsLoader'
 
 const SearchBar = ({ onSearch }) => {
   const [searchTerm, setSearchTerm] = useState('')
@@ -11,7 +11,7 @@ const SearchBar = ({ onSearch }) => {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const wrapperRef = useRef(null)
   
-  // Load Google Maps API using the official Loader
+  // Load Google Maps API using the shared loader
   useEffect(() => {
     const loadGoogleMapsAPI = async () => {
       try {
@@ -26,14 +26,8 @@ const SearchBar = ({ onSearch }) => {
         
         console.log("Initializing Google Maps loader...")
         
-        const loader = new Loader({
-          apiKey,
-          version: 'weekly',
-          libraries: ['places']
-        })
-        
-        // Load the API
-        await loader.load()
+        // Use the shared loader instead of creating a new one
+        await loadGoogleMaps()
         console.log("Google Maps API loaded successfully")
         
         // Create session token and autocomplete service
