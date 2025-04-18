@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useLayoutEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -26,17 +26,30 @@ const highlightedIcon = new L.Icon({
 // Component to update map view when viewport changes
 const MapUpdater = ({ viewport, bounds, shouldPreserveView }) => {
   const map = useMap();
+  const appliedViewportRef = useRef(null);
+  const appliedBoundsRef = useRef(null);
   
   useEffect(() => {
     if (shouldPreserveView) return;
     
-    if (viewport) {
+    // Check if we've already applied this exact viewport/bounds to prevent loops
+    const viewportChanged = viewport && 
+      (!appliedViewportRef.current || 
+       JSON.stringify(viewport) !== JSON.stringify(appliedViewportRef.current));
+       
+    const boundsChanged = bounds && 
+      (!appliedBoundsRef.current || 
+       JSON.stringify(bounds) !== JSON.stringify(appliedBoundsRef.current));
+    
+    if (viewportChanged) {
       map.setView([viewport.center.lat, viewport.center.lng], viewport.zoom);
-    } else if (bounds) {
+      appliedViewportRef.current = viewport;
+    } else if (boundsChanged) {
       map.fitBounds([
         [bounds.south, bounds.west],
         [bounds.north, bounds.east]
       ]);
+      appliedBoundsRef.current = bounds;
     }
   }, [map, viewport, bounds, shouldPreserveView]);
   
@@ -177,8 +190,37 @@ const Map = ({
         setMapInstance(map);
         setGoogleLoaded(true);
         
+        // Use a more robust debounce mechanism to prevent update loops
+        let boundsChangeTimeout = null;
+        let lastUpdateTime = 0;
+        const DEBOUNCE_DELAY = 200; // 200ms debounce
+        const MIN_UPDATE_INTERVAL = 500; // Minimum 500ms between updates
+        
         // Listen for map movements to update viewport/bounds
         map.addListener('bounds_changed', () => {
+          // Clear any pending timeout
+          if (boundsChangeTimeout) {
+            clearTimeout(boundsChangeTimeout);
+          }
+          
+          const now = Date.now();
+          
+          // If an update just happened, always use debounce to prevent rapid sequential updates
+          if (now - lastUpdateTime < MIN_UPDATE_INTERVAL) {
+            boundsChangeTimeout = setTimeout(() => {
+              handleBoundsChanged();
+              lastUpdateTime = Date.now();
+            }, DEBOUNCE_DELAY);
+            return;
+          }
+          
+          // Otherwise process immediately and reset the timer
+          handleBoundsChanged();
+          lastUpdateTime = now;
+        });
+        
+        // Extract bounds changed handling logic to a separate function
+        const handleBoundsChanged = () => {
           const newBounds = map.getBounds();
           if (!newBounds) return;
           
@@ -190,17 +232,30 @@ const Map = ({
             zoom: map.getZoom()
           };
           
-          setViewport(newViewport);
-          setBounds({
-            north: newBounds.getNorthEast().lat(),
-            east: newBounds.getNorthEast().lng(),
-            south: newBounds.getSouthWest().lat(),
-            west: newBounds.getSouthWest().lng()
-          });
-          
-          if (onViewportChange) onViewportChange(newViewport);
-          if (onBoundsChange) onBoundsChange(newBounds);
-        });
+          // Only update if there's a significant change to avoid loops
+          const hasSignificantViewportChange = 
+            !currentViewport || 
+            Math.abs(newViewport.center.lat - currentViewport.center?.lat) > 0.0001 ||
+            Math.abs(newViewport.center.lng - currentViewport.center?.lng) > 0.0001 ||
+            newViewport.zoom !== currentViewport.zoom;
+            
+          if (hasSignificantViewportChange) {
+            const newBoundsObj = {
+              north: newBounds.getNorthEast().lat(),
+              east: newBounds.getNorthEast().lng(),
+              south: newBounds.getSouthWest().lat(),
+              west: newBounds.getSouthWest().lng()
+            };
+            
+            // Update internal state
+            setViewport(newViewport);
+            setBounds(newBoundsObj);
+            
+            // Notify parent components
+            if (onViewportChange) onViewportChange(newViewport);
+            if (onBoundsChange) onBoundsChange(newBoundsObj);
+          }
+        };
         
         // Apply bounds if available from search results
         if (bounds && google) {
@@ -228,7 +283,7 @@ const Map = ({
         markersRef.current = {};
       }
     };
-  }, [mapType, mapContainerRef, center, zoom, onViewportChange, onBoundsChange, googleLoaded, bounds, searchMetadata]);
+  }, [mapType, mapContainerRef, center, zoom, onViewportChange, onBoundsChange, googleLoaded, bounds, searchMetadata, currentViewport]);
 
   // Update Google Map markers when spots change
   useEffect(() => {
@@ -337,8 +392,6 @@ const Map = ({
   }, [hoveredSpot, mapType, mapInstance, googleApi]);
 
   useEffect(() => {
-    console.log('Map: Viewport or bounds changed, props:', { viewport: currentViewport, bounds: currentBounds });
-    
     if (!mapInstance) return;
     
     try {
@@ -356,27 +409,82 @@ const Map = ({
         return;
       }
       
-      if (currentViewport && mapType === 'google') {
-        // Update Google Maps view
+      // IMPORTANT: Only update if the viewport/bounds came from external props, not from internal state changes
+      // This prevents infinite update loops
+      if (viewport && viewport !== currentViewport && mapType === 'google') {
+        // Update Google Maps view with external viewport prop
         mapInstance.setCenter({ 
-          lat: currentViewport.center.lat, 
-          lng: currentViewport.center.lng 
+          lat: viewport.center.lat, 
+          lng: viewport.center.lng 
         });
-        mapInstance.setZoom(currentViewport.zoom || zoom);
-      } else if (currentBounds && mapType === 'google') {
-        // Update Google Maps bounds
+        mapInstance.setZoom(viewport.zoom || zoom);
+      } else if (bounds && bounds !== currentBounds && mapType === 'google') {
+        // Update Google Maps bounds with external bounds prop
         if (googleApi) {
-          const bounds = new googleApi.maps.LatLngBounds(
-            new googleApi.maps.LatLng(currentBounds.south, currentBounds.west),
-            new googleApi.maps.LatLng(currentBounds.north, currentBounds.east)
+          const googleBounds = new googleApi.maps.LatLngBounds(
+            new googleApi.maps.LatLng(bounds.south, bounds.west),
+            new googleApi.maps.LatLng(bounds.north, bounds.east)
           );
-          mapInstance.fitBounds(bounds);
+          mapInstance.fitBounds(googleBounds);
         }
       }
     } catch (error) {
       console.error('Error updating map viewport:', error);
     }
-  }, [currentViewport, currentBounds, mapInstance, filters, mapType, zoom, googleApi]);
+  }, [viewport, bounds, mapInstance, filters, mapType, zoom, googleApi]);
+
+  // Add a new useEffect to handle prop changes properly
+  useEffect(() => {
+    // Only update state from props when there's a significant change
+    // This prevents unnecessary re-renders
+    if (viewport) {
+      const hasSignificantChange = 
+        !currentViewport || 
+        !currentViewport.center ||
+        Math.abs(viewport.center.lat - currentViewport.center.lat) > 0.0001 ||
+        Math.abs(viewport.center.lng - currentViewport.center.lng) > 0.0001 ||
+        viewport.zoom !== currentViewport.zoom;
+        
+      if (hasSignificantChange) {
+        setViewport(viewport);
+      }
+    }
+    
+    if (bounds) {
+      const hasSignificantChange =
+        !currentBounds ||
+        Math.abs(bounds.north - currentBounds.north) > 0.0001 ||
+        Math.abs(bounds.south - currentBounds.south) > 0.0001 ||
+        Math.abs(bounds.east - currentBounds.east) > 0.0001 ||
+        Math.abs(bounds.west - currentBounds.west) > 0.0001;
+        
+      if (hasSignificantChange) {
+        setBounds(bounds);
+      }
+    }
+  }, [viewport, bounds]);
+
+  // Use a useLayoutEffect to immediately handle initial bounds/viewport
+  useLayoutEffect(() => {
+    if (mapType === 'leaflet') return; // Not needed for Leaflet
+    
+    if (!mapInstance || !googleApi) return;
+    
+    // This runs once after map is initialized to properly set the initial bounds or viewport
+    if (bounds) {
+      const googleBounds = new googleApi.maps.LatLngBounds(
+        new googleApi.maps.LatLng(bounds.south, bounds.west),
+        new googleApi.maps.LatLng(bounds.north, bounds.east)
+      );
+      mapInstance.fitBounds(googleBounds);
+    } else if (viewport) {
+      mapInstance.setCenter({ 
+        lat: viewport.center.lat, 
+        lng: viewport.center.lng 
+      });
+      mapInstance.setZoom(viewport.zoom || zoom);
+    }
+  }, [mapInstance, googleApi, mapType]);
 
   // Component display based on map type
   if (mapType === 'google') {
