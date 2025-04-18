@@ -82,8 +82,14 @@ const SearchResultsPage = () => {
   const [searchViewport, setSearchViewport] = useState(null);
   const [searchMetadata, setSearchMetadata] = useState(null);
   
+  // Track if we should show no results message (with a delay)
+  const [showNoResults, setShowNoResults] = useState(false);
+  
   // Store the caching status in state
   const [isFromCache, setIsFromCache] = useState(false);
+  
+  // Add a ref to track the previous search to prevent duplicates
+  const previousSearchRef = useRef(null);
   
   // Force white background
   useEffect(() => {
@@ -111,6 +117,9 @@ const SearchResultsPage = () => {
     const searchParams = new URLSearchParams(location.search);
     const initialFilters = {};
     
+    // Set search state immediately
+    setIsLoadingExternal(true);
+    
     if (searchParams.has('location')) {
       initialFilters.search = searchParams.get('location');
     } else if (searchParams.has('search')) {
@@ -133,8 +142,16 @@ const SearchResultsPage = () => {
       initialFilters.order = searchParams.get('order');
     }
     
+    // Reset the previousSearchRef when location.search changes
+    previousSearchRef.current = null;
+    
     if (Object.keys(initialFilters).length > 0) {
       updateFilters(initialFilters);
+      console.log('Initial filters set:', initialFilters);
+    } else {
+      // If no filters in URL, but we still need to load
+      console.log('No initial filters, loading default cookie spots');
+      loadCookieSpots(1);
     }
     setIsInitialLoad(false);
   }, [location.search]);
@@ -143,8 +160,6 @@ const SearchResultsPage = () => {
   useEffect(() => {
     const loadExternalResults = async () => {
       try {
-        setIsLoadingExternal(true);
-        
         // Get search parameters from URL
         const searchParams = new URLSearchParams(location.search);
         const locationQuery = searchParams.get('location') || searchParams.get('search');
@@ -156,6 +171,23 @@ const SearchResultsPage = () => {
           return;
         }
         
+        // Create a search signature for comparison
+        const searchSignature = `${locationQuery || ''}-${lat || ''}-${lng || ''}`;
+        
+        // If this is the same search as before, don't duplicate the request
+        if (previousSearchRef.current === searchSignature) {
+          console.log('Skipping duplicate search request for:', searchSignature);
+          return;
+        }
+        
+        // Set loading state and store search reference
+        setIsLoadingExternal(true);
+        previousSearchRef.current = searchSignature;
+        
+        // Important: Reset both combined results and "no results" flag
+        setCombinedResults([]);
+        setShowNoResults(false);
+        
         // Prepare search parameters
         let searchLocation;
         if (lat && lng) {
@@ -166,81 +198,86 @@ const SearchResultsPage = () => {
         
         console.log('Fetching external results for:', searchLocation);
         
-        // Fetch from external APIs
         try {
+          // Fetch external API results
           const result = await fetchAllSourceCookieSpots(searchLocation);
           const externalSpots = result.spots || [];
-          setExternalResults(externalSpots);
           
-          // Store search metadata if available
-          if (result.search_metadata) {
-            setSearchMetadata(result.search_metadata);
-            console.log('Received search metadata:', result.search_metadata);
-          }
-          
-          // Add debug logs
-          console.log('External API results:', {
-            totalSpots: externalSpots.length,
-            hasViewport: !!result.viewport,
-            firstSpot: externalSpots.length > 0 ? externalSpots[0].name : 'none',
-            hasSearchMetadata: !!result.search_metadata,
-            fromCache: result.fromCache
-          });
-          
-          // Store the caching status in state
-          if (result.fromCache) {
-            setIsFromCache(true);
-            console.log('%c✓ Results were served from server cache - No Google Places API calls were made', 'color: green; font-weight: bold');
-          } else {
-            setIsFromCache(false);
-            console.log('%c⚠ Fresh results from Google Places API', 'color: orange');
-          }
-          
-          // Store viewport information for map centering
-          if (result.viewport) {
-            setSearchViewport(result.viewport);
-            console.log('Setting map viewport from search:', result.viewport);
-          }
-          
-          // Combine with database results (cookieSpots from context)
-          const combined = [...cookieSpots];
-          const seenIds = new Set(cookieSpots.map(spot => spot._id));
-          const seenNames = new Map();
-          
-          // Create a map of existing names/addresses for deduplication
-          cookieSpots.forEach(spot => {
-            const key = `${(spot.name || '').toLowerCase()}|${(spot.address || '').toLowerCase()}`;
-            seenNames.set(key, true);
-          });
-          
-          // Add external results that aren't duplicates
-          externalSpots.forEach(spot => {
-            if (spot._id && seenIds.has(spot._id)) return;
+          // If we got results, store them
+          if (externalSpots && externalSpots.length > 0) {
+            setExternalResults(externalSpots);
             
-            const key = `${(spot.name || '').toLowerCase()}|${(spot.address || '').toLowerCase()}`;
-            if (seenNames.has(key)) return;
+            // Store metadata if available
+            if (result.search_metadata) {
+              setSearchMetadata(result.search_metadata);
+            }
             
-            combined.push(spot);
-            seenNames.set(key, true);
-          });
-          
-          // Update log message to be more accurate about data source
-          if (result.fromCache) {
-            console.log(`Combined ${cookieSpots.length} database results with ${externalSpots.length} results from server cache for a total of ${combined.length} unique spots`);
+            // Store viewport information
+            if (result.viewport) {
+              setSearchViewport(result.viewport);
+            }
+            
+            // Track if results came from cache
+            setIsFromCache(result.fromCache || false);
+            
+            // Combine with database results
+            const combined = [...cookieSpots];
+            const seenIds = new Set(cookieSpots.map(spot => spot._id));
+            const seenNames = new Map();
+            
+            // Create lookup for existing spots
+            cookieSpots.forEach(spot => {
+              if (spot && spot.name && spot.address) {
+                const key = `${spot.name.toLowerCase()}|${spot.address.toLowerCase()}`;
+                seenNames.set(key, true);
+              }
+            });
+            
+            // Add external results that aren't duplicates
+            externalSpots.forEach(spot => {
+              if (spot._id && seenIds.has(spot._id)) return;
+              
+              if (spot && spot.name && spot.address) {
+                const key = `${spot.name.toLowerCase()}|${spot.address.toLowerCase()}`;
+                if (seenNames.has(key)) return;
+                
+                combined.push(spot);
+                seenNames.set(key, true);
+              }
+            });
+            
+            // Update state with combined results and ensure we don't show "no results"
+            setCombinedResults(combined);
+            setShowNoResults(false);
           } else {
-            console.log(`Combined ${cookieSpots.length} database results with ${externalSpots.length} external API results for a total of ${combined.length} unique spots`);
+            // If no external results, just use the MongoDB results
+            setCombinedResults(cookieSpots);
+            
+            // Only show "no results" if both sources returned nothing
+            if (cookieSpots.length === 0) {
+              // Wait a bit to be sure rendering is complete
+              setTimeout(() => {
+                setShowNoResults(true);
+              }, 1000);
+            }
           }
-          
-          // Update state with combined results
-          setCombinedResults(combined);
         } catch (error) {
           console.error('Error fetching from external sources:', error);
-          setCombinedResults([]);
+          // On error, use whatever MongoDB results we have
+          setCombinedResults(cookieSpots);
+          
+          // Only show "no results" if MongoDB returned nothing
+          if (cookieSpots.length === 0) {
+            setTimeout(() => {
+              setShowNoResults(true);
+            }, 1000);
+          }
         }
       } catch (error) {
         console.error('Error in loadExternalResults:', error);
-        setCombinedResults([]);
+        setCombinedResults(cookieSpots);
       } finally {
+        // Always ensure loading state is cleared
         setIsLoadingExternal(false);
       }
     };
@@ -249,7 +286,7 @@ const SearchResultsPage = () => {
     if (!loading && !isInitialLoad) {
       loadExternalResults();
     }
-  }, [location.search, cookieSpots, loading, isInitialLoad]);
+  }, [location.search, isInitialLoad, cookieSpots]);
 
   // Calculate map bounds based on all spots
   useEffect(() => {
@@ -402,6 +439,16 @@ const SearchResultsPage = () => {
   // Get all spots to display (combined results or just cookieSpots)
   const spotsToDisplay = combinedResults.length > 0 ? combinedResults : cookieSpots;
   
+  // Force "no results" to false when loading
+  if (loading || isLoadingExternal) {
+    if (showNoResults) setShowNoResults(false);
+  }
+  
+  // Reset showNoResults when a new search starts
+  useEffect(() => {
+    setShowNoResults(false);
+  }, [location.search]);
+  
   return (
     <div className="min-h-screen bg-white" style={{ backgroundColor: 'white !important' }}>
       <div className="container mx-auto px-4 py-8">
@@ -501,17 +548,28 @@ const SearchResultsPage = () => {
           {/* Results - Middle Column */}
           <div className="lg:w-2/5 px-3">
             <div className="bg-white rounded-lg shadow-md">
-              {/* Show loading state when either internal or external results are loading */}
-              {(loading || isLoadingExternal) ? (
+              {/* Initial loading state */}
+              {loading ? (
                 <div className="flex justify-center items-center h-64">
                   <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+                  <div className="ml-4">
+                    <h3 className="text-lg font-medium text-gray-900">Loading from database...</h3>
+                  </div>
+                </div>
+              ) : isLoadingExternal ? (
+                <div className="flex justify-center items-center h-64">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+                  <div className="ml-4">
+                    <h3 className="text-lg font-medium text-gray-900">Searching external sources...</h3>
+                    <p className="text-gray-600">We're searching for cookie spots near "{filters.search}"</p>
+                  </div>
                 </div>
               ) : error ? (
                 <div className="p-6 text-center">
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Error loading results</h3>
                   <p className="text-gray-600">{error}</p>
                 </div>
-              ) : spotsToDisplay.length === 0 ? (
+              ) : spotsToDisplay.length === 0 && showNoResults ? (
                 <div className="p-6 text-center">
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No cookie spots found</h3>
                   <p className="text-gray-600 mb-4">
@@ -536,20 +594,30 @@ const SearchResultsPage = () => {
                 </div>
               ) : (
                 <div className="p-4">
-                  <div className="grid grid-cols-1 gap-4">
-                    {/* Display combined results */}
-                    {spotsToDisplay.map((cookieSpot, index) => (
-                      cookieSpot ? (
-                        <div 
-                          key={cookieSpot._id || `spot-${index}`}
-                          onMouseEnter={() => handleCardHover(cookieSpot)}
-                          onMouseLeave={handleCardUnhover}
-                        >
-                          <CookieSpotCard cookieSpot={cookieSpot} />
-                        </div>
-                      ) : null
-                    ))}
-                  </div>
+                  {spotsToDisplay.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-4">
+                      {/* Display combined results */}
+                      {spotsToDisplay.map((cookieSpot, index) => (
+                        cookieSpot ? (
+                          <div 
+                            key={cookieSpot._id || `spot-${index}`}
+                            onMouseEnter={() => handleCardHover(cookieSpot)}
+                            onMouseLeave={handleCardUnhover}
+                          >
+                            <CookieSpotCard cookieSpot={cookieSpot} />
+                          </div>
+                        ) : null
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex justify-center items-center h-64">
+                      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+                      <div className="ml-4">
+                        <h3 className="text-lg font-medium text-gray-900">Processing results...</h3>
+                        <p className="text-gray-600">Almost there</p>
+                      </div>
+                    </div>
+                  )}
                   
                   {/* Pagination - only show for database results */}
                   {pagination && pagination.totalPages > 1 && (
@@ -603,8 +671,8 @@ const SearchResultsPage = () => {
                     <div className="mt-4 text-center text-sm text-gray-500">
                       <p>
                         {isFromCache ? 
-                          'Results include data from our database and cached external sources' :
-                          'Results include data from our database and external API calls'}
+                          `Results include ${cookieSpots.length > 0 ? 'MongoDB data and ' : ''}cookie spots from our server cache` :
+                          `Results include ${cookieSpots.length > 0 ? 'MongoDB data and ' : ''}cookie spots from Google Places API`}
                       </p>
                     </div>
                   )}

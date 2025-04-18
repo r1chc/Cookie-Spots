@@ -24,6 +24,20 @@ const SearchBar = ({ onSearch }) => {
           return
         }
         
+        // Skip initialization if already loaded
+        if (window.google && window.google.maps && window.google.maps.places) {
+          console.log("Google Maps API already loaded, skipping initialization")
+          setIsApiLoaded(true)
+          
+          // Create session token and autocomplete service if not already created
+          if (!autocompleteService.current) {
+            sessionToken.current = new google.maps.places.AutocompleteSessionToken()
+            autocompleteService.current = new google.maps.places.AutocompleteService()
+            console.log("Autocomplete service initialized")
+          }
+          return
+        }
+        
         console.log("Initializing Google Maps loader...")
         
         // Use the shared loader instead of creating a new one

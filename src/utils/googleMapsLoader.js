@@ -15,9 +15,20 @@ const loader = new Loader({
   libraries: ['places', 'geometry'],
 });
 
+// Track whether the API has been loaded already
+let isLoaded = false;
+
 // Function to load Google Maps once and return a promise
 const loadGoogleMaps = () => {
-  return loader.load();
+  if (isLoaded && window.google && window.google.maps) {
+    // If already loaded, return a resolved promise
+    return Promise.resolve();
+  }
+  
+  return loader.load().then(() => {
+    isLoaded = true;
+    return Promise.resolve();
+  });
 };
 
 export { loadGoogleMaps }; 

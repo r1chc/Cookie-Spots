@@ -41,9 +41,9 @@ export const fetchFromAllSources = async (params = {}) => {
     
     if (response.data && response.data.cookieSpots) {
       if (isFromCache) {
-        console.log(`Received ${response.data.cookieSpots.length} cookie spots from cache`);
+        console.log(`Received ${response.data.cookieSpots.length} cookie spots from server cache of external APIs`);
       } else {
-        console.log(`Fetched ${response.data.cookieSpots.length} cookie spots from Google Places API`);
+        console.log(`Fetched ${response.data.cookieSpots.length} cookie spots from Google Places API (fresh call)`);
       }
       
       // Return both the cookie spots and the viewport information

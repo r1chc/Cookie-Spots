@@ -53,12 +53,12 @@ export const fetchCookieSpotsByLocation = async (location = null) => {
       const cachedResults = await searchCookieSpots(searchQuery);
       
       if (cachedResults && cachedResults.length > 0) {
-        console.log(`Found ${cachedResults.length} cached results for "${searchQuery}"`);
+        console.log(`Found ${cachedResults.length} cookie spots in MongoDB for "${searchQuery}"`);
         return cachedResults;
       }
       
       // If no cached results, get from external APIs
-      console.log(`No cached results for "${searchQuery}", fetching from external APIs`);
+      console.log(`No cookie spots in MongoDB for "${searchQuery}" - fetching from external APIs (or server cache)`);
       return await fetchAllSourceCookieSpots(searchQuery);
     }
     
@@ -93,11 +93,11 @@ export const searchCookieSpots = async (locationQuery) => {
       limit: 50
     });
     
-    if (response && response.data && response.data.cookieSpots) {
-      console.log(`Found ${response.data.cookieSpots.length} cached results in MongoDB for "${locationQuery}"`);
+    if (response && response.data && response.data.cookieSpots && response.data.cookieSpots.length > 0) {
+      console.log(`✓ Found ${response.data.cookieSpots.length} cookie spots in MongoDB for "${locationQuery}"`);
       return response.data.cookieSpots;
     } else {
-      console.log(`No cached results found in MongoDB for "${locationQuery}"`);
+      console.log(`No cookie spots found in MongoDB for "${locationQuery}" - will check external sources`);
       return [];
     }
   } catch (error) {

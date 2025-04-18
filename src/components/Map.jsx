@@ -162,8 +162,15 @@ const Map = ({
     const loadGoogleMapsAPI = async () => {
       try {
         // Use the shared loader instead of creating a new one
-        const google = await loadGoogleMaps();
-        setGoogleApi(google);
+        await loadGoogleMaps();
+        
+        // After loading, check if Google Maps is available in the window object
+        if (!window.google || !window.google.maps) {
+          throw new Error('Google Maps API not available after loading');
+        }
+        
+        // Store the Google API reference
+        setGoogleApi(window.google);
         
         // Determine initial zoom from searchMetadata or use the provided zoom
         let initialZoom = zoom;
@@ -171,7 +178,7 @@ const Map = ({
           initialZoom = calculateZoomForRadius(searchMetadata.search_radius);
         }
         
-        const map = new google.maps.Map(mapContainerRef.current, {
+        const map = new window.google.maps.Map(mapContainerRef.current, {
           center: center || { lat: 37.7749, lng: -122.4194 }, // Default to San Francisco
           zoom: initialZoom,
           mapId: import.meta.env.VITE_GOOGLE_MAP_ID || '',
@@ -253,10 +260,10 @@ const Map = ({
         };
         
         // Apply bounds if available from search results
-        if (bounds && google) {
-          const googleBounds = new google.maps.LatLngBounds(
-            new google.maps.LatLng(bounds.south, bounds.west),
-            new google.maps.LatLng(bounds.north, bounds.east)
+        if (bounds && window.google) {
+          const googleBounds = new window.google.maps.LatLngBounds(
+            new window.google.maps.LatLng(bounds.south, bounds.west),
+            new window.google.maps.LatLng(bounds.north, bounds.east)
           );
           map.fitBounds(googleBounds);
         }
@@ -282,7 +289,7 @@ const Map = ({
 
   // Update Google Map markers when spots change
   useEffect(() => {
-    if (mapType !== 'google' || !mapInstance || !googleApi || !spots || spots.length === 0) return;
+    if (mapType !== 'google' || !mapInstance || !window.google || !spots || spots.length === 0) return;
     
     // Build an index of current spots by ID for quick lookup
     const currentSpotIds = {};
@@ -324,23 +331,23 @@ const Map = ({
         
         // Update animation based on hover state
         if (hoveredSpot && hoveredSpot._id === spot._id) {
-          existingMarker.setAnimation(googleApi.maps.Animation.BOUNCE);
+          existingMarker.setAnimation(window.google.maps.Animation.BOUNCE);
         } else {
           existingMarker.setAnimation(null);
         }
       } else {
         // Create new marker
-        const marker = new googleApi.maps.Marker({
+        const marker = new window.google.maps.Marker({
           position,
           map: mapInstance,
           title: spot.name,
           animation: hoveredSpot && hoveredSpot._id === spot._id ? 
-            googleApi.maps.Animation.BOUNCE : null,
+            window.google.maps.Animation.BOUNCE : null,
           optimized: true
         });
         
         // Create info window with spot details
-        const infoWindow = new googleApi.maps.InfoWindow({
+        const infoWindow = new window.google.maps.InfoWindow({
           content: `
             <div>
               <h3 style="font-weight: bold; margin-bottom: 5px;">${spot.name}</h3>
@@ -354,7 +361,7 @@ const Map = ({
               </a>
             </div>
           `,
-          pixelOffset: new googleApi.maps.Size(0, -30)
+          pixelOffset: new window.google.maps.Size(0, -30)
         });
         
         // Add click listener to show info window
@@ -370,21 +377,21 @@ const Map = ({
     // Store the current spots index for future comparison
     spotIndexRef.current = currentSpotIds;
     
-  }, [mapType, mapInstance, spots, hoveredSpot, googleApi]);
+  }, [mapType, mapInstance, spots, hoveredSpot]);
 
   // Handle hover state changes for Google Maps markers
   useEffect(() => {
-    if (mapType !== 'google' || !mapInstance || !googleApi) return;
+    if (mapType !== 'google' || !mapInstance || !window.google) return;
     
     // Update animation for all markers
     Object.entries(markersRef.current).forEach(([spotId, marker]) => {
       if (hoveredSpot && hoveredSpot._id === spotId) {
-        marker.setAnimation(googleApi.maps.Animation.BOUNCE);
+        marker.setAnimation(window.google.maps.Animation.BOUNCE);
       } else {
         marker.setAnimation(null);
       }
     });
-  }, [hoveredSpot, mapType, mapInstance, googleApi]);
+  }, [hoveredSpot, mapType, mapInstance]);
 
   useEffect(() => {
     if (!mapInstance) return;
@@ -415,10 +422,10 @@ const Map = ({
         mapInstance.setZoom(viewport.zoom || zoom);
       } else if (bounds && bounds !== currentBounds && mapType === 'google') {
         // Update Google Maps bounds with external bounds prop
-        if (googleApi) {
-          const googleBounds = new googleApi.maps.LatLngBounds(
-            new googleApi.maps.LatLng(bounds.south, bounds.west),
-            new googleApi.maps.LatLng(bounds.north, bounds.east)
+        if (window.google) {
+          const googleBounds = new window.google.maps.LatLngBounds(
+            new window.google.maps.LatLng(bounds.south, bounds.west),
+            new window.google.maps.LatLng(bounds.north, bounds.east)
           );
           mapInstance.fitBounds(googleBounds);
         }
@@ -426,7 +433,7 @@ const Map = ({
     } catch (error) {
       console.error('Error updating map viewport:', error);
     }
-  }, [viewport, bounds, mapInstance, filters, mapType, zoom, googleApi]);
+  }, [viewport, bounds, mapInstance, filters, mapType, zoom]);
 
   // Add a new useEffect to handle prop changes properly
   useEffect(() => {
@@ -463,13 +470,13 @@ const Map = ({
   useLayoutEffect(() => {
     if (mapType === 'leaflet') return; // Not needed for Leaflet
     
-    if (!mapInstance || !googleApi) return;
+    if (!mapInstance || !window.google) return;
     
     // This runs once after map is initialized to properly set the initial bounds or viewport
     if (bounds) {
-      const googleBounds = new googleApi.maps.LatLngBounds(
-        new googleApi.maps.LatLng(bounds.south, bounds.west),
-        new googleApi.maps.LatLng(bounds.north, bounds.east)
+      const googleBounds = new window.google.maps.LatLngBounds(
+        new window.google.maps.LatLng(bounds.south, bounds.west),
+        new window.google.maps.LatLng(bounds.north, bounds.east)
       );
       mapInstance.fitBounds(googleBounds);
     } else if (viewport) {
@@ -479,7 +486,7 @@ const Map = ({
       });
       mapInstance.setZoom(viewport.zoom || zoom);
     }
-  }, [mapInstance, googleApi, mapType]);
+  }, [mapInstance, mapType]);
 
   // Component display based on map type
   if (mapType === 'google') {

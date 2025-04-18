@@ -64,9 +64,12 @@ export const CookieSpotProvider = ({ children }) => {
       if (filters.cookieType) params.cookie_type = filters.cookieType;
       if (filters.dietaryOption) params.dietary_option = filters.dietaryOption;
       
+      console.log('Loading cookie spots from MongoDB with params:', params);
+      
       const res = await cookieSpotApi.getAllCookieSpots(params);
       
       if (res && res.data) {
+        console.log(`MongoDB API response: found ${res.data.cookieSpots?.length || 0} spots, page ${res.data.currentPage || 0} of ${res.data.totalPages || 0}`);
         setCookieSpots(res.data.cookieSpots || []);
         setPagination({
           currentPage: res.data.currentPage || 1,
@@ -74,6 +77,7 @@ export const CookieSpotProvider = ({ children }) => {
           total: res.data.total || 0
         });
       } else {
+        console.log('MongoDB API response: no cookie spots found');
         setCookieSpots([]);
         setPagination({
           currentPage: 1,

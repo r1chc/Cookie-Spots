@@ -6,6 +6,15 @@ import FilterButtons from '../components/FilterButtons'
 import { getCurrentLocation, reverseGeocode, getDefaultLocation } from '../utils/geolocation'
 import { fetchCookieSpotsByLocation, fetchAllSourceCookieSpots } from '../utils/cookieSpotService'
 
+// In-memory cache for the homepage to avoid duplicate API calls
+const homePageCache = {
+  featuredSpots: null,
+  userLocation: null,
+  timestamp: null,
+  // Cache expiration in milliseconds (15 minutes)
+  expirationTime: 15 * 60 * 1000
+};
+
 const HomePage = ({ onSearch }) => {
   const [featuredSpots, setFeaturedSpots] = useState([]);
   const [userLocation, setUserLocation] = useState(null);
@@ -18,6 +27,23 @@ const HomePage = ({ onSearch }) => {
       try {
         setIsLoading(true);
         
+        // Check if we have valid cached data
+        const now = Date.now();
+        if (homePageCache.featuredSpots && 
+            homePageCache.userLocation && 
+            homePageCache.timestamp && 
+            (now - homePageCache.timestamp < homePageCache.expirationTime)) {
+          
+          console.log('Using cached homepage data from previous visit');
+          setFeaturedSpots(homePageCache.featuredSpots);
+          setUserLocation(homePageCache.userLocation);
+          setIsLoading(false);
+          return;
+        }
+        
+        // If no cache or expired, get new data
+        console.log('No valid cache found, fetching new location and spots data');
+        
         // Try to get the user's current location
         const coords = await getCurrentLocation();
         
@@ -25,15 +51,17 @@ const HomePage = ({ onSearch }) => {
         const locationData = await reverseGeocode(coords);
         
         // Set the user's location
-        setUserLocation({
+        const userLocationData = {
           ...locationData,
           latitude: coords.latitude,
           longitude: coords.longitude
-        });
+        };
+        
+        setUserLocation(userLocationData);
         
         try {
           // Fetch cookie spots based on the user's location
-          const spots = await fetchCookieSpotsByLocation(locationData);
+          const spots = await fetchCookieSpotsByLocation(userLocationData);
           // Check if spots is an array or an object with spots property
           const spotsArray = Array.isArray(spots) ? spots : (spots?.spots || []);
           
@@ -44,6 +72,11 @@ const HomePage = ({ onSearch }) => {
             ).slice(0, 5);
             
             setFeaturedSpots(sortedSpots);
+            
+            // Update the cache
+            homePageCache.featuredSpots = sortedSpots;
+            homePageCache.userLocation = userLocationData;
+            homePageCache.timestamp = Date.now();
           } else {
             setFeaturedSpots([]);
           }
@@ -73,6 +106,11 @@ const HomePage = ({ onSearch }) => {
             ).slice(0, 5);
             
             setFeaturedSpots(sortedSpots);
+            
+            // Update the cache even for default location
+            homePageCache.featuredSpots = sortedSpots;
+            homePageCache.userLocation = defaultLocation;
+            homePageCache.timestamp = Date.now();
           } else {
             setFeaturedSpots([]);
           }
