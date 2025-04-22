@@ -10,6 +10,20 @@ const SearchBar = ({ onSearch }) => {
   const [suggestions, setSuggestions] = useState([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const wrapperRef = useRef(null)
+  const inputRef = useRef(null)
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 })
+  
+  // Update dropdown position when suggestions change
+  useEffect(() => {
+    if (showSuggestions && suggestions.length > 0 && inputRef.current) {
+      const rect = inputRef.current.getBoundingClientRect()
+      setDropdownPosition({
+        top: rect.bottom + 8, // 8px below input
+        left: rect.left,
+        width: rect.width
+      })
+    }
+  }, [showSuggestions, suggestions])
   
   // Load Google Maps API using the shared loader
   useEffect(() => {
@@ -260,10 +274,10 @@ const SearchBar = ({ onSearch }) => {
   }
   
   const suggestionsContainerStyle = {
-    position: 'absolute',
-    top: 'calc(100% + 8px)',
-    left: 0,
-    right: 0,
+    position: 'fixed',
+    top: `${dropdownPosition.top}px`,
+    left: `${dropdownPosition.left}px`,
+    width: `${dropdownPosition.width}px`,
     maxHeight: '300px',
     overflowY: 'auto',
     backgroundColor: 'white',
@@ -285,6 +299,7 @@ const SearchBar = ({ onSearch }) => {
     <div style={searchContainerStyle} ref={wrapperRef}>
       <form onSubmit={handleSubmit} className="relative">
         <input
+          ref={inputRef}
           type="text"
           style={inputStyle}
           placeholder="Search for city, region, or zipcode"
