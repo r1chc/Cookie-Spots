@@ -179,7 +179,7 @@ export const processExternalCookieSpots = (cookieSpots = [], viewport = null, se
       dietary_options: spot.dietary_options || [],
       features: spot.features || [],
       average_rating: spot.average_rating || spot.rating || 0,
-      review_count: spot.review_count || 0,
+      review_count: spot.review_count || spot.user_ratings_total || 0,
       source: spot.source || 'google',
       source_id: spot.source_id || id,
       // Include any search metadata at the spot level if present
