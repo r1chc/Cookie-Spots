@@ -80,7 +80,14 @@ const MarkersList = ({ spots, hoveredSpot }) => {
             <Popup>
               <div>
                 <h3 className="font-bold">{spot.name}</h3>
-                <p>{spot.address}</p>
+                {spot.description ? 
+                  <p>{spot.description}</p> : 
+                  <p>
+                    {spot.address || ''}
+                    {spot.city ? (spot.address ? ', ' : '') + spot.city : ''}
+                    {spot.state_province ? (spot.city ? ', ' : '') + spot.state_province : ''}
+                  </p>
+                }
                 <a 
                   href={`/cookie-spot/${spot._id}`} 
                   className="text-primary-600 hover:text-primary-800"
@@ -290,17 +297,28 @@ const Map = ({
           // For debugging
           console.log('Marker clicked:', { spotId: validSpot._id, isExternalSpot });
           
+          // Create Google Maps URL for external spots
+          const googleMapsUrl = validSpot.place_id 
+            ? `https://www.google.com/maps/place/?q=place_id:${validSpot.place_id}`
+            : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                validSpot.name + ' ' + (validSpot.address || '') + ' ' + (validSpot.city || '')
+              )}`;
+          
           // Create info window content with direct display instead of a link for external spots
           const contentString = `
             <div style="min-width: 200px; padding: 8px;">
               <h3 style="font-weight: bold; margin-bottom: 4px;">${validSpot.name}</h3>
-              <p style="margin: 0 0 8px;">${validSpot.address || ''}</p>
-              <p style="margin: 0 0 8px;">${validSpot.city || ''}${validSpot.state_province ? ', ' + validSpot.state_province : ''}</p>
+              ${validSpot.description ? 
+                `<p style="margin: 0 0 8px;">${validSpot.description}</p>` : 
+                `<p style="margin: 0 0 8px;">${validSpot.address || ''}
+                 ${validSpot.city ? (validSpot.address ? ', ' : '') + validSpot.city : ''}
+                 ${validSpot.state_province ? (validSpot.city ? ', ' : '') + validSpot.state_province : ''}</p>`
+              }
               ${validSpot.phone ? `<p style="margin: 0 0 8px;">${validSpot.phone}</p>` : ''}
               ${validSpot.rating ? `<p style="margin: 0 0 8px;">Rating: ${validSpot.rating.toFixed(1)} ⭐ (${validSpot.user_ratings_total || '0'} reviews)</p>` : ''}
               ${validSpot.website ? `<p style="margin: 0 0 8px;"><a href="${validSpot.website}" target="_blank" style="color: #1F75CB;">Visit Website</a></p>` : ''}
               ${isExternalSpot ? 
-                `<p style="color: #4c7ef3; margin-top: 8px;">Google Maps location</p>` : 
+                `<p style="margin-top: 8px;"><a href="${googleMapsUrl}" target="_blank" style="color: #4c7ef3; text-decoration: none;">View on Google Maps</a></p>` : 
                 `<a 
                   href="/cookie-spot/${validSpot._id}" 
                   style="color: #1F75CB; text-decoration: none; font-weight: 500;"

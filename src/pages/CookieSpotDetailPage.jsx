@@ -663,8 +663,17 @@ const CookieSpotDetailPage = () => {
                     <Popup>
                       <div>
                         <strong>{cookieSpot.name}</strong><br />
-                        {cookieSpot.address}<br />
-                        {cookieSpot.city}, {cookieSpot.state_province} {cookieSpot.postal_code}
+                        {cookieSpot.description ? 
+                          cookieSpot.description : 
+                          <>
+                            {cookieSpot.address || ''}<br />
+                            {cookieSpot.city && cookieSpot.city}
+                            {cookieSpot.state_province && cookieSpot.city && ', '}
+                            {cookieSpot.state_province && cookieSpot.state_province} 
+                            {cookieSpot.postal_code && ' '}
+                            {cookieSpot.postal_code && cookieSpot.postal_code}
+                          </>
+                        }
                       </div>
                     </Popup>
                   </Marker>
