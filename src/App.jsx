@@ -42,7 +42,7 @@ function App() {
       <CookieSpotProvider>
         <div className="flex flex-col min-h-screen">
           <Header />
-          <main className="flex-grow pt-16">
+          <main className="flex-grow bg-white">
             <ScrollToTop />
             <Routes>
               <Route path="/" element={<HomePage onSearch={handleSearch} />} />
