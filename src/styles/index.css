@@ -25,7 +25,7 @@ body {
 }
 
 .hero-section {
-  background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('/images/cookies-hero.jpg');
+  background-image: url('/images/cookies-hero.jpg');
   background-size: cover;
   background-position: center;
   height: 500px;
@@ -126,6 +126,12 @@ img {
   border: none;
   cursor: pointer;
   color: var(--primary-color);
+}
+
+/* Ensure search suggestions dropdown isn't cutoff */
+.search-suggestions-dropdown {
+  position: absolute;
+  overflow: visible !important;
 }
 
 /* Add these to prevent blue background on search page */

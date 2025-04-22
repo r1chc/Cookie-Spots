@@ -151,10 +151,9 @@ const HomePage = ({ onSearch }) => {
       {/* Hero Section */}
       <section className="hero-section">
         <div className="hero-bg"></div>
-        <div className="hero-overlay"></div>
         <div className="container mx-auto px-4 text-center hero-content">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 text-white">Find Cookie Spots Nearby</h1>
-          <p className="text-xl mb-8 text-white">Discover the best cookies in your area</p>
+          <h1 className="text-4xl md:text-5xl font-bold mb-4 text-white" style={{textShadow: '2px 2px 4px rgba(0, 0, 0, 0.5)'}}>Find Cookie Spots Nearby</h1>
+          <p className="text-xl mb-8 text-white" style={{textShadow: '1px 1px 3px rgba(0, 0, 0, 0.5)'}}>Discover the best cookies in your area</p>
           <SearchBar onSearch={handleSearch} />
         </div>
       </section>

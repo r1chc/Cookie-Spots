@@ -227,7 +227,8 @@ const SearchBar = ({ onSearch }) => {
     width: '100%',
     maxWidth: '600px',
     margin: '0 auto',
-    position: 'relative'
+    position: 'relative',
+    zIndex: 5 // Add a z-index to establish a stacking context
   }
 
   const inputStyle = {
@@ -268,8 +269,9 @@ const SearchBar = ({ onSearch }) => {
     backgroundColor: 'white',
     borderRadius: '8px',
     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
-    zIndex: 50,
-    border: '1px solid rgba(250, 121, 33, 0.3)'  // Light orange border
+    zIndex: 1000,  // Much higher z-index to ensure it's above everything
+    border: '1px solid rgba(250, 121, 33, 0.3)',  // Light orange border
+    transform: 'translateZ(0)'  // Force GPU acceleration and create a new stacking context
   }
   
   const suggestionItemStyle = {
@@ -308,9 +310,9 @@ const SearchBar = ({ onSearch }) => {
         </div>
       )}
       
-      {/* Suggestions dropdown */}
+      {/* Suggestions dropdown - Using portal to avoid parent overflow issues */}
       {showSuggestions && suggestions.length > 0 && (
-        <div style={suggestionsContainerStyle}>
+        <div style={suggestionsContainerStyle} className="search-suggestions-dropdown">
           {suggestions.map((suggestion, index) => (
             <div
               key={suggestion.place_id || index}
