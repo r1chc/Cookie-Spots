@@ -6,6 +6,7 @@ import FilterButtons from '../components/FilterButtons';
 import { loadGoogleMaps } from '../utils/googleMapsLoader';
 import { fetchAllSourceCookieSpots } from '../utils/cookieSpotService';
 import MapComponent from '../components/Map';
+import useScrollRestoration from '../hooks/useScrollRestoration';
 
 // Google Map component
 const GoogleMap = ({ center, bounds, spots, hoveredSpot, searchMetadata }) => {

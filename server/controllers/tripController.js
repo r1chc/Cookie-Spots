@@ -360,3 +360,43 @@ exports.reorderTripCookieSpots = async (req, res) => {
     res.status(500).send('Server error');
   }
 };
+
+// @desc    Share a trip
+// @route   POST /api/trips/:id/share
+// @access  Private
+exports.shareTrip = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const trip = await Trip.findById(req.params.id);
+    
+    if (!trip) {
+      return res.status(404).json({ msg: 'Trip not found' });
+    }
+    
+    // Check ownership
+    if (trip.user_id.toString() !== req.user.id) {
+      return res.status(401).json({ msg: 'Not authorized to share this trip' });
+    }
+    
+    const { email } = req.body;
+    
+    // In a real application, you would implement email sending functionality here
+    // For now, we'll just return a success message
+    
+    // You could use a library like nodemailer to send emails
+    // const shareLink = `${process.env.CLIENT_URL}/trips/${trip._id}/shared`;
+    // await sendEmail(email, 'Trip Shared With You', `Check out this trip: ${shareLink}`);
+    
+    res.json({ msg: `Trip shared with ${email}` });
+  } catch (err) {
+    console.error(err.message);
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ msg: 'Trip not found' });
+    }
+    res.status(500).send('Server error');
+  }
+};
