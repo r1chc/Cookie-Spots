@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../styles/BlogPage.css';
 import useScrollRestoration from '../hooks/useScrollRestoration';
+import SearchButton from '../components/SearchButton';
 
 const BlogPage = () => {
   // Use the scroll restoration hook
@@ -18,7 +19,7 @@ const BlogPage = () => {
   const [sortedPosts, setSortedPosts] = useState([]);
   const [popularTags, setPopularTags] = useState([]);
   const [currentCategoryIndex, setCurrentCategoryIndex] = useState(0);
-  const totalPages = Math.ceil(posts.length / postsPerPage);
+  const totalPages = Math.ceil((posts.length - 1) / postsPerPage);
   const navigate = useNavigate();
 
   // Force scroll to top when component mounts
@@ -370,24 +371,15 @@ const BlogPage = () => {
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
-    // Update displayPages to show current page in the middle
-    if (page > displayPages[1]) {
-      // Moving forward
-      if (page + 1 <= totalPages) {
-        setDisplayPages([page - 1, page, page + 1]);
-      } else {
-        // If we're at the last page, show the last three pages
-        setDisplayPages([totalPages - 2, totalPages - 1, totalPages]);
-      }
-    } else if (page < displayPages[1]) {
-      // Moving backward
-      if (page > 1) {
-        setDisplayPages([page - 1, page, page + 1]);
-      } else {
-        // If we're at the first page, show the first three pages
-        setDisplayPages([1, 2, 3]);
-      }
+    // Update display pages to show current page and adjacent pages
+    if (page <= 2) {
+      setDisplayPages([1, 2, 3]);
+    } else if (page >= totalPages - 1) {
+      setDisplayPages([totalPages - 2, totalPages - 1, totalPages]);
+    } else {
+      setDisplayPages([page - 1, page, page + 1]);
     }
+    // Scroll to the Latest Recipes section
     scrollToLatestRecipes();
   };
 
@@ -448,7 +440,7 @@ const BlogPage = () => {
   }
 
   return (
-    <div className="blog-container">
+    <div className="min-h-screen bg-gradient-to-b from-primary-50 to-white">
       {/* Hero Section */}
       <section className="blog-hero">
         <img 
@@ -723,6 +715,7 @@ const BlogPage = () => {
           </div>
         </aside>
       </div>
+      <SearchButton />
     </div>
   );
 };

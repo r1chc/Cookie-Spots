@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import '../styles/BlogPage.css';
 import '../styles/BlogSearch.css';
 import useScrollRestoration from '../hooks/useScrollRestoration';
+import SearchButton from '../components/SearchButton';
 
 const BlogSearch = () => {
   const location = useLocation();
@@ -16,9 +17,9 @@ const BlogSearch = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [postsPerPage, setPostsPerPage] = useState(6);
+  const [postsPerPage, setPostsPerPage] = useState(4);
   const [displayPages, setDisplayPages] = useState([1, 2, 3]);
-  const [sortOrder, setSortOrder] = useState('relevance');
+  const [sortOrder, setSortOrder] = useState('newest');
   const [lastUpdateTime, setLastUpdateTime] = useState(null);
   const [mostViewedArticles, setMostViewedArticles] = useState([]);
 
@@ -83,9 +84,41 @@ const BlogSearch = () => {
 
   // Handle sort change
   const handleSortChange = (e) => {
-    setSortOrder(e.target.value);
+    const newSortOrder = e.target.value;
+    setSortOrder(newSortOrder);
     setCurrentPage(1);
     setDisplayPages([1, 2, 3]);
+
+    // Create a date parser function
+    const parseDate = (dateStr) => {
+      const [month, day, year] = dateStr.replace(',', '').split(' ');
+      const monthMap = {
+        'January': 0, 'February': 1, 'March': 2, 'April': 3, 
+        'May': 4, 'June': 5, 'July': 6, 'August': 7, 
+        'September': 8, 'October': 9, 'November': 10, 'December': 11
+      };
+      return new Date(parseInt(year), monthMap[month], parseInt(day));
+    };
+
+    // Sort the posts
+    const newSortedResults = [...searchResults].sort((a, b) => {
+      switch (newSortOrder) {
+        case 'newest':
+          return parseDate(b.date).getTime() - parseDate(a.date).getTime();
+        case 'oldest':
+          return parseDate(a.date).getTime() - parseDate(b.date).getTime();
+        case 'alphabetical':
+          return a.title.localeCompare(b.title, 'en', { sensitivity: 'base' });
+        case 'most_viewed':
+          return b.views - a.views;
+        case 'least_viewed':
+          return a.views - b.views;
+        default:
+          return 0;
+      }
+    });
+
+    setSearchResults(newSortedResults);
   };
 
   // Pagination handlers
@@ -385,37 +418,11 @@ const BlogSearch = () => {
   }, []);
 
   return (
-    <div className="blog-search-page">
-      <div className="blog-search-container">
-        {/* Mobile view: Search bar at top */}
-        <div className="blog-search-bar-section mobile-only">
-          <h3 className="blog-sidebar-title">Search Bar</h3>
-          <form className="blog-search-form" onSubmit={handleSearchSubmit}>
-            <input
-              type="search"
-              name="search"
-              placeholder="Search recipes..."
-              defaultValue={query}
-            />
-            <button type="submit">
-              <i className="fas fa-search"></i>
-            </button>
-          </form>
-          {query && (
-            <div className="search-keywords">
-              <h4>Search Keywords:</h4>
-              <div className="blog-tags-cloud">
-                {query.split(' ').map((keyword, index) => (
-                  <span key={index} className="blog-tag">{keyword}</span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Desktop view: Left column with search bar and navigation */}
-        <aside className="blog-search-sidebar desktop-only">
-          <div className="blog-search-bar-section">
+    <div className="min-h-screen bg-gradient-to-b from-primary-50 to-white">
+      <div className="blog-search-page">
+        <div className="blog-search-container">
+          {/* Mobile view: Search bar at top */}
+          <div className="blog-search-bar-section mobile-only">
             <h3 className="blog-sidebar-title">Search Bar</h3>
             <form className="blog-search-form" onSubmit={handleSearchSubmit}>
               <input
@@ -440,201 +447,235 @@ const BlogSearch = () => {
             )}
           </div>
 
-          <div className="blog-sidebar-section">
-            <h3 className="blog-sidebar-title">Popular Recipes</h3>
-            <ul className="blog-popular-posts">
-              {mostViewedArticles.map(post => (
-                <li key={post.id} className="blog-popular-post">
-                  <img
-                    src={post.image}
-                    alt={post.title}
-                    className="blog-popular-post-image"
-                  />
-                  <div className="blog-popular-post-content">
-                    <h4>
-                      <Link to={`/article/${post.id}`}>{post.title}</Link>
-                    </h4>
-                    <div>
-                      <span className="blog-popular-post-date">{new Date(post.publishedAt).toLocaleDateString()}</span>
-                      <span className="blog-popular-post-views">
-                        <i className="fas fa-eye"></i> {post.views}
-                      </span>
-                    </div>
+          {/* Desktop view: Left column with search bar and navigation */}
+          <aside className="blog-search-sidebar desktop-only">
+            <div className="blog-search-bar-section">
+              <h3 className="blog-sidebar-title">Search Bar</h3>
+              <form className="blog-search-form" onSubmit={handleSearchSubmit}>
+                <input
+                  type="search"
+                  name="search"
+                  placeholder="Search recipes..."
+                  defaultValue={query}
+                />
+                <button type="submit">
+                  <i className="fas fa-search"></i>
+                </button>
+              </form>
+              {query && (
+                <div className="search-keywords">
+                  <h4>Search Keywords:</h4>
+                  <div className="blog-tags-cloud">
+                    {query.split(' ').map((keyword, index) => (
+                      <span key={index} className="blog-tag">{keyword}</span>
+                    ))}
                   </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="blog-sidebar-section">
-            <h3 className="blog-sidebar-title">Categories</h3>
-            <ul className="blog-categories-list">
-              {categories.map(category => (
-                <li key={category.name}>
-                  <Link to={category.path}>
-                    {category.name}
-                    <span className="count">
-                      {searchResults.filter(post => post.category === category.name).length}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </aside>
-
-        {/* Main content - Search results */}
-        <main className="blog-search-main">
-          <div className="blog-search-header">
-            <h2 className="blog-section-title">Search Results for "{query}"</h2>
-            <div className="blog-posts-controls">
-              <div className="posts-per-page-selector">
-                <label>Show:</label>
-                <select
-                  className="posts-per-page-dropdown"
-                  value={postsPerPage}
-                  onChange={handlePostsPerPageChange}
-                >
-                  <option value="6">6</option>
-                  <option value="12">12</option>
-                  <option value="24">24</option>
-                </select>
-              </div>
-              <div className="posts-sort-selector">
-                <label>Sort by:</label>
-                <select
-                  className="posts-sort-dropdown"
-                  value={sortOrder}
-                  onChange={handleSortChange}
-                >
-                  <option value="relevance">Relevance</option>
-                  <option value="newest">Newest</option>
-                  <option value="oldest">Oldest</option>
-                  <option value="most_viewed">Most Viewed</option>
-                </select>
-              </div>
+                </div>
+              )}
             </div>
-          </div>
 
-          {loading ? (
-            <div className="loading-spinner">Loading...</div>
-          ) : (
-            <>
-              <div className="blog-posts-grid">
-                {currentPosts.map(post => (
-                  <article key={post.id} className="blog-post">
-                    <div className="blog-post-image">
-                      <img src={post.image} alt={post.title} />
-                      <span className="blog-post-category-badge">{post.category}</span>
-                    </div>
-                    <div className="blog-post-content">
-                      <div className="blog-post-meta">
-                        <span className="blog-post-date">{post.date}</span>
-                        <span className="blog-post-views">
+            <div className="blog-sidebar-section">
+              <h3 className="blog-sidebar-title">Popular Recipes</h3>
+              <ul className="blog-popular-posts">
+                {mostViewedArticles.map(post => (
+                  <li key={post.id} className="blog-popular-post">
+                    <img
+                      src={post.image}
+                      alt={post.title}
+                      className="blog-popular-post-image"
+                    />
+                    <div className="blog-popular-post-content">
+                      <h4>
+                        <Link to={`/article/${post.id}`}>{post.title}</Link>
+                      </h4>
+                      <div>
+                        <span className="blog-popular-post-date">{new Date(post.publishedAt).toLocaleDateString()}</span>
+                        <span className="blog-popular-post-views">
                           <i className="fas fa-eye"></i> {post.views}
                         </span>
                       </div>
-                      <h3 className="blog-post-title">
-                        <Link to={`/article/${post.id}`}>{post.title}</Link>
-                      </h3>
-                      <p className="blog-post-excerpt">{post.excerpt}</p>
-                      <Link to={`/article/${post.id}`} className="blog-read-more">
-                        Read More <i className="fas fa-arrow-right"></i>
-                      </Link>
                     </div>
-                  </article>
+                  </li>
                 ))}
-              </div>
+              </ul>
+            </div>
 
-              <div className="blog-pagination">
-                <button
-                  className="blog-pagination-button"
-                  onClick={handleDoubleChevronLeft}
-                  disabled={currentPage === 1}
-                >
-                  <i className="fas fa-angle-double-left"></i>
-                </button>
-                <button
-                  className="blog-pagination-button"
-                  onClick={handleSingleChevronLeft}
-                  disabled={currentPage === 1}
-                >
-                  <i className="fas fa-angle-left"></i>
-                </button>
-                {displayPages.map(page => (
-                  <button
-                    key={page}
-                    className={`blog-pagination-button ${currentPage === page ? 'active' : ''}`}
-                    onClick={() => handlePageChange(page)}
-                    disabled={page > totalPages}
-                  >
-                    {page}
-                  </button>
-                ))}
-                <button
-                  className="blog-pagination-button"
-                  onClick={handleSingleChevronRight}
-                  disabled={currentPage === totalPages}
-                >
-                  <i className="fas fa-angle-right"></i>
-                </button>
-                <button
-                  className="blog-pagination-button"
-                  onClick={handleDoubleChevronRight}
-                  disabled={currentPage === totalPages}
-                >
-                  <i className="fas fa-angle-double-right"></i>
-                </button>
-              </div>
-            </>
-          )}
-        </main>
-
-        {/* Mobile view: Popular recipes and categories at bottom */}
-        <div className="mobile-only">
-          <div className="blog-sidebar-section">
-            <h3 className="blog-sidebar-title">Popular Recipes</h3>
-            <ul className="blog-popular-posts">
-              {mostViewedArticles.map(post => (
-                <li key={post.id} className="blog-popular-post">
-                  <img
-                    src={post.image}
-                    alt={post.title}
-                    className="blog-popular-post-image"
-                  />
-                  <div className="blog-popular-post-content">
-                    <h4>
-                      <Link to={`/article/${post.id}`}>{post.title}</Link>
-                    </h4>
-                    <div>
-                      <span className="blog-popular-post-date">{new Date(post.publishedAt).toLocaleDateString()}</span>
-                      <span className="blog-popular-post-views">
-                        <i className="fas fa-eye"></i> {post.views}
+            <div className="blog-sidebar-section">
+              <h3 className="blog-sidebar-title">Categories</h3>
+              <ul className="blog-categories-list">
+                {categories.map(category => (
+                  <li key={category.name}>
+                    <Link to={category.path}>
+                      {category.name}
+                      <span className="count">
+                        {searchResults.filter(post => post.category === category.name).length}
                       </span>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </aside>
 
-          <div className="blog-sidebar-section">
-            <h3 className="blog-sidebar-title">Categories</h3>
-            <ul className="blog-categories-list">
-              {categories.map(category => (
-                <li key={category.name}>
-                  <Link to={category.path}>
-                    {category.name}
-                    <span className="count">
-                      {searchResults.filter(post => post.category === category.name).length}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+          {/* Main content - Search results */}
+          <main className="blog-search-main">
+            <div className="blog-search-header">
+              <h2 className="blog-section-title">Search Results for "{query}"</h2>
+              <div className="blog-posts-controls">
+                <div className="posts-per-page-selector">
+                  <label htmlFor="postsPerPage">Show:</label>
+                  <select 
+                    id="postsPerPage" 
+                    value={postsPerPage} 
+                    onChange={handlePostsPerPageChange}
+                    className="posts-per-page-dropdown"
+                  >
+                    <option value={2}>2 per page</option>
+                    <option value={4}>4 per page</option>
+                    <option value={6}>6 per page</option>
+                    <option value={8}>8 per page</option>
+                    <option value={searchResults.length}>All</option>
+                  </select>
+                </div>
+                <div className="posts-sort-selector">
+                  <label htmlFor="sortOrder">Sort by:</label>
+                  <select 
+                    id="sortOrder" 
+                    value={sortOrder} 
+                    onChange={handleSortChange}
+                    className="posts-sort-dropdown"
+                  >
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="most_viewed">Most Viewed</option>
+                    <option value="least_viewed">Least Viewed</option>
+                    <option value="alphabetical">Alphabetical</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="loading-spinner">Loading...</div>
+            ) : (
+              <>
+                <div className="blog-posts-grid">
+                  {currentPosts.map(post => (
+                    <article key={post.id} className="blog-post">
+                      <div className="blog-post-image">
+                        <img src={post.image} alt={post.title} />
+                        <span className="blog-post-category-badge">{post.category}</span>
+                      </div>
+                      <div className="blog-post-content">
+                        <div className="blog-post-meta">
+                          <span className="blog-post-date">{post.date}</span>
+                          <span className="blog-post-views">
+                            <i className="fas fa-eye"></i> {post.views}
+                          </span>
+                        </div>
+                        <h3 className="blog-post-title">
+                          <Link to={`/article/${post.id}`}>{post.title}</Link>
+                        </h3>
+                        <p className="blog-post-excerpt">{post.excerpt}</p>
+                        <Link to={`/article/${post.id}`} className="blog-read-more">
+                          Read More <i className="fas fa-arrow-right"></i>
+                        </Link>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="blog-pagination">
+                  <button
+                    className="blog-pagination-button"
+                    onClick={handleDoubleChevronLeft}
+                    disabled={currentPage === 1}
+                  >
+                    <i className="fas fa-angle-double-left"></i>
+                  </button>
+                  <button
+                    className="blog-pagination-button"
+                    onClick={handleSingleChevronLeft}
+                    disabled={currentPage === 1}
+                  >
+                    <i className="fas fa-angle-left"></i>
+                  </button>
+                  {displayPages.map(page => (
+                    <button
+                      key={page}
+                      className={`blog-pagination-button ${currentPage === page ? 'active' : ''}`}
+                      onClick={() => handlePageChange(page)}
+                      disabled={page > totalPages}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  <button
+                    className="blog-pagination-button"
+                    onClick={handleSingleChevronRight}
+                    disabled={currentPage === totalPages}
+                  >
+                    <i className="fas fa-angle-right"></i>
+                  </button>
+                  <button
+                    className="blog-pagination-button"
+                    onClick={handleDoubleChevronRight}
+                    disabled={currentPage === totalPages}
+                  >
+                    <i className="fas fa-angle-double-right"></i>
+                  </button>
+                </div>
+              </>
+            )}
+          </main>
+
+          {/* Mobile view: Popular recipes and categories at bottom */}
+          <div className="mobile-only">
+            <div className="blog-sidebar-section">
+              <h3 className="blog-sidebar-title">Popular Recipes</h3>
+              <ul className="blog-popular-posts">
+                {mostViewedArticles.map(post => (
+                  <li key={post.id} className="blog-popular-post">
+                    <img
+                      src={post.image}
+                      alt={post.title}
+                      className="blog-popular-post-image"
+                    />
+                    <div className="blog-popular-post-content">
+                      <h4>
+                        <Link to={`/article/${post.id}`}>{post.title}</Link>
+                      </h4>
+                      <div>
+                        <span className="blog-popular-post-date">{new Date(post.publishedAt).toLocaleDateString()}</span>
+                        <span className="blog-popular-post-views">
+                          <i className="fas fa-eye"></i> {post.views}
+                        </span>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="blog-sidebar-section">
+              <h3 className="blog-sidebar-title">Categories</h3>
+              <ul className="blog-categories-list">
+                {categories.map(category => (
+                  <li key={category.name}>
+                    <Link to={category.path}>
+                      {category.name}
+                      <span className="count">
+                        {searchResults.filter(post => post.category === category.name).length}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
       </div>
+      <SearchButton />
     </div>
   );
 };
