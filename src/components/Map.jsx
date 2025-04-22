@@ -140,6 +140,7 @@ const Map = ({
   const markersRef = useRef({});
   const spotIndexRef = useRef({});
   const boundsChangeTimeoutRef = useRef(null);
+  const infoWindowRef = useRef(null); // Add reference for active InfoWindow
 
   // Create a debounced bounds change handler at the component level
   const handleBoundsChanged = useCallback(() => {
@@ -245,6 +246,11 @@ const Map = ({
     
     const currentSpotIds = new Set();
     
+    // Create infoWindow if it doesn't exist yet
+    if (!infoWindowRef.current) {
+      infoWindowRef.current = new window.google.maps.InfoWindow();
+    }
+    
     spots.forEach(spot => {
       const validSpot = validateSpotCoordinates(spot);
       if (!validSpot || !validSpot._id) return;
@@ -271,7 +277,46 @@ const Map = ({
         });
         
         marker.addListener('click', () => {
-          if (onSpotClick) onSpotClick(validSpot);
+          // Determine if this is a MongoDB spot or an external API spot
+          // External spots typically have one of these source properties, 
+          // don't have a MongoDB ObjectId format, or include external IDs
+          const isExternalSpot = 
+            validSpot.source === 'google' || 
+            validSpot.source_id || 
+            validSpot.place_id ||
+            (validSpot._id && typeof validSpot._id === 'string' && 
+              (!validSpot._id.match(/^[0-9a-f]{24}$/i) || validSpot._id.includes('-')));
+          
+          // For debugging
+          console.log('Marker clicked:', { spotId: validSpot._id, isExternalSpot });
+          
+          // Create info window content with direct display instead of a link for external spots
+          const contentString = `
+            <div style="min-width: 200px; padding: 8px;">
+              <h3 style="font-weight: bold; margin-bottom: 4px;">${validSpot.name}</h3>
+              <p style="margin: 0 0 8px;">${validSpot.address || ''}</p>
+              <p style="margin: 0 0 8px;">${validSpot.city || ''}${validSpot.state_province ? ', ' + validSpot.state_province : ''}</p>
+              ${validSpot.phone ? `<p style="margin: 0 0 8px;">${validSpot.phone}</p>` : ''}
+              ${validSpot.rating ? `<p style="margin: 0 0 8px;">Rating: ${validSpot.rating.toFixed(1)} ⭐ (${validSpot.user_ratings_total || '0'} reviews)</p>` : ''}
+              ${validSpot.website ? `<p style="margin: 0 0 8px;"><a href="${validSpot.website}" target="_blank" style="color: #1F75CB;">Visit Website</a></p>` : ''}
+              ${isExternalSpot ? 
+                `<p style="color: #4c7ef3; margin-top: 8px;">Google Maps location</p>` : 
+                `<a 
+                  href="/cookie-spot/${validSpot._id}" 
+                  style="color: #1F75CB; text-decoration: none; font-weight: 500;"
+                >
+                  View Details
+                </a>`
+              }
+            </div>
+          `;
+          
+          infoWindowRef.current.setContent(contentString);
+          infoWindowRef.current.open(mapInstance, marker);
+          
+          if (onSpotClick && !isExternalSpot) {
+            onSpotClick(validSpot);
+          }
         });
         
         markersRef.current[validSpot._id] = marker;
@@ -411,6 +456,22 @@ const Map = ({
       mapInstance.setZoom(viewport.zoom || zoom);
     }
   }, [mapInstance, mapType]);
+
+  // Clean up function when component unmounts
+  useEffect(() => {
+    return () => {
+      // Close any open info windows
+      if (infoWindowRef.current) {
+        infoWindowRef.current.close();
+      }
+      
+      // Clear any markers
+      Object.values(markersRef.current).forEach(marker => {
+        if (marker) marker.setMap(null);
+      });
+      markersRef.current = {};
+    };
+  }, []);
 
   // Component display based on map type
   if (mapType === 'google') {

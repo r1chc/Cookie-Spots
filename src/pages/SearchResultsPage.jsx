@@ -13,6 +13,7 @@ const GoogleMap = ({ center, bounds, spots, hoveredSpot, searchMetadata }) => {
   const mapInstanceRef = useRef(null);
   const googleRef = useRef(null);
   const markersRef = useRef({});
+  const navigate = useNavigate();
   
   useEffect(() => {
     loadGoogleMapsAPI();
@@ -37,6 +38,29 @@ const GoogleMap = ({ center, bounds, spots, hoveredSpot, searchMetadata }) => {
     }
   };
   
+  // Handle spot click - navigate to the cookie spot detail page
+  const handleSpotClick = (spot) => {
+    if (spot && spot._id) {
+      // Check if this is an external spot (from Google Places API)
+      // External spots typically have one of these source properties,
+      // don't have a MongoDB ObjectId format, or include external IDs
+      const isExternalSpot = 
+        spot.source === 'google' || 
+        spot.source_id || 
+        spot.place_id ||
+        (spot._id && typeof spot._id === 'string' && 
+          (!spot._id.match(/^[0-9a-f]{24}$/i) || spot._id.includes('-')));
+      
+      console.log('Clicked spot:', { id: spot._id, isExternalSpot });
+      
+      if (!isExternalSpot) {
+        navigate(`/cookie-spot/${spot._id}`);
+      }
+      // For external spots, we don't navigate - the InfoWindow will
+      // display all the needed information
+    }
+  };
+  
   // Use our Map component instead of direct Google Maps implementation
   return (
     <MapComponent
@@ -51,6 +75,7 @@ const GoogleMap = ({ center, bounds, spots, hoveredSpot, searchMetadata }) => {
       hoveredSpot={hoveredSpot}
       mapType="google"
       searchMetadata={searchMetadata}
+      onSpotClick={handleSpotClick}
     />
   );
 };
