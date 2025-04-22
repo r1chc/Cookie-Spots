@@ -81,6 +81,9 @@ const GoogleMap = ({ center, bounds, spots, hoveredSpot, searchMetadata }) => {
 };
 
 const SearchResultsPage = () => {
+  // Use the scroll restoration hook
+  useScrollRestoration();
+
   const location = useLocation();
   const navigate = useNavigate();
   const { 

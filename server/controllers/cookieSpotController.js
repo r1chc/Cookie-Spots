@@ -54,6 +54,15 @@ exports.getAllCookieSpots = async (req, res) => {
     // Only show active spots
     query.status = 'active';
     
+    // Validate sort field
+    const validSortFields = ['name', 'average_rating', 'created_at', 'updated_at'];
+    if (!validSortFields.includes(sort)) {
+      return res.status(400).json({ 
+        error: 'Invalid sort field', 
+        validFields: validSortFields 
+      });
+    }
+    
     // Set up sort options
     const sortOptions = {};
     sortOptions[sort] = order === 'desc' ? -1 : 1;
@@ -63,24 +72,19 @@ exports.getAllCookieSpots = async (req, res) => {
       sortOptions.score = { $meta: 'textScore' };
     }
     
-    const options = {
-      page: parseInt(page),
-      limit: parseInt(limit),
-      sort: sortOptions,
-      populate: [
-        { path: 'cookie_types', select: 'name' },
-        { path: 'dietary_options', select: 'name' }
-      ]
-    };
+    // Calculate skip value
+    const skip = (parseInt(page) - 1) * parseInt(limit);
     
+    // Get total count
+    const total = await CookieSpot.countDocuments(query);
+    
+    // Get paginated results
     const cookieSpots = await CookieSpot.find(query)
       .sort(sortOptions)
-      .skip((parseInt(page) - 1) * parseInt(limit))
+      .skip(skip)
       .limit(parseInt(limit))
       .populate('cookie_types', 'name')
       .populate('dietary_options', 'name');
-    
-    const total = await CookieSpot.countDocuments(query);
     
     res.json({
       cookieSpots,
@@ -89,8 +93,11 @@ exports.getAllCookieSpots = async (req, res) => {
       total
     });
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
+    console.error('Error in getAllCookieSpots:', err);
+    res.status(500).json({ 
+      error: 'Server error',
+      message: err.message 
+    });
   }
 };
 

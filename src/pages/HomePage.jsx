@@ -5,6 +5,8 @@ import CookieSpotCard from '../components/CookieSpotCard'
 import FilterButtons from '../components/FilterButtons'
 import { getCurrentLocation, reverseGeocode, getDefaultLocation } from '../utils/geolocation'
 import { fetchCookieSpotsByLocation, fetchAllSourceCookieSpots } from '../utils/cookieSpotService'
+import useScrollRestoration from '../hooks/useScrollRestoration'
+import '../styles/HomePage.css'
 
 // In-memory cache for the homepage to avoid duplicate API calls
 const homePageCache = {
@@ -16,6 +18,8 @@ const homePageCache = {
 };
 
 const HomePage = ({ onSearch }) => {
+  useScrollRestoration();
+  
   const [featuredSpots, setFeaturedSpots] = useState([]);
   const [userLocation, setUserLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
@@ -146,9 +150,11 @@ const HomePage = ({ onSearch }) => {
     <div>
       {/* Hero Section */}
       <section className="hero-section">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Find Cookie Spots Nearby</h1>
-          <p className="text-xl mb-8">Discover the best cookies in your area</p>
+        <div className="hero-bg"></div>
+        <div className="hero-overlay"></div>
+        <div className="container mx-auto px-4 text-center hero-content">
+          <h1 className="text-4xl md:text-5xl font-bold mb-4 text-white">Find Cookie Spots Nearby</h1>
+          <p className="text-xl mb-8 text-white">Discover the best cookies in your area</p>
           <SearchBar onSearch={handleSearch} />
         </div>
       </section>

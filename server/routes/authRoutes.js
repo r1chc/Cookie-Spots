@@ -2,13 +2,12 @@ const express = require('express');
 const router = express.Router();
 const { check } = require('express-validator');
 const authController = require('../controllers/authController');
-const auth = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 
 // @route   POST /api/auth/register
 // @desc    Register a user
 // @access  Public
-router.post(
-  '/register',
+router.post('/register',
   [
     check('username', 'Username is required').not().isEmpty(),
     check('email', 'Please include a valid email').isEmail(),
@@ -20,8 +19,7 @@ router.post(
 // @route   POST /api/auth/login
 // @desc    Authenticate user & get token
 // @access  Public
-router.post(
-  '/login',
+router.post('/login',
   [
     check('email', 'Please include a valid email').isEmail(),
     check('password', 'Password is required').exists()

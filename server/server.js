@@ -4,6 +4,13 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const config = require('./config/config');
+const cron = require('node-cron');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const mongoSanitize = require('express-mongo-sanitize');
+const xss = require('xss-clean');
+const hpp = require('hpp');
+const axios = require('axios');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
@@ -19,10 +26,23 @@ const cookieSpots = require('./routes/cookieSpots');
 
 const app = express();
 
+// Security Middleware
+app.use(helmet()); // Set security HTTP headers
+app.use(mongoSanitize()); // Sanitize data against NoSQL query injection
+app.use(xss()); // Sanitize data against XSS attacks
+app.use(hpp()); // Prevent parameter pollution
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+});
+app.use('/api/', limiter);
+
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: true }));
 
 // MongoDB Atlas connection
 let isConnecting = false;
@@ -125,22 +145,28 @@ if (process.env.NODE_ENV === 'production') {
 
 // Create uploads directory if it doesn't exist
 const fs = require('fs');
-const uploadsDir = path.join(__dirname, config.uploadDir);
+const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
 // Serve uploaded files
-app.use(`/${config.uploadDir}`, express.static(uploadsDir));
+app.use('/uploads', express.static(uploadsDir));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).send({ message: 'Server error', error: err.message });
+  res.status(500).json({
+    status: 'error',
+    message: 'Something went wrong!',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
 });
 
 const PORT = process.env.PORT || config.port;
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
 
 module.exports = app;

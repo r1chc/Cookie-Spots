@@ -9,7 +9,6 @@ const Footer = () => {
           {/* Column 1: Logo and About */}
           <div>
             <Link to="/" className="flex items-center mb-4">
-              <img src="/images/cookie-spots-logo-white.svg" alt="Cookie Spots Logo" className="h-10 w-10 mr-2" />
               <span className="text-xl font-bold text-white">CookieSpots</span>
             </Link>
             <p className="text-gray-300 text-sm">
