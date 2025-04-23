@@ -58,7 +58,24 @@ const MapUpdater = ({ viewport, bounds, shouldPreserveView }) => {
 };
 
 // Component for rendering markers to prevent their disappearance
-const MarkersList = ({ spots, hoveredSpot }) => {
+const MarkersList = ({ spots, hoveredSpot, clickedSpot }) => {
+  const map = useMap();
+  const leafletPopupRef = useRef({});
+  
+  // Effect to handle clicked spot in Leaflet
+  useEffect(() => {
+    if (!clickedSpot) return;
+    
+    spots.forEach(spot => {
+      if (spot._id === clickedSpot._id) {
+        // If we have a reference to this popup, open it
+        if (leafletPopupRef.current[spot._id]) {
+          leafletPopupRef.current[spot._id].openPopup();
+        }
+      }
+    });
+  }, [clickedSpot, spots]);
+  
   return (
     <>
       {spots.map(spot => {
@@ -76,6 +93,12 @@ const MarkersList = ({ spots, hoveredSpot }) => {
             key={spot._id} 
             position={position}
             icon={isHovered ? highlightedIcon : new L.Icon.Default()}
+            ref={(ref) => {
+              if (ref) {
+                // Store reference to the popup in the ref
+                leafletPopupRef.current[spot._id] = ref;
+              }
+            }}
           >
             <Popup>
               <div>
@@ -132,6 +155,7 @@ const Map = ({
   onViewportChange, 
   onBoundsChange,
   hoveredSpot,
+  clickedSpot,
   mapType = 'leaflet', // 'leaflet' or 'google'
   searchMetadata = null, // Added parameter for search metadata
   onSpotClick
@@ -402,6 +426,85 @@ const Map = ({
     });
   }, [hoveredSpot, mapType, mapInstance]);
 
+  // Handle clicked spot for Google Maps markers - show the popup
+  useEffect(() => {
+    if (mapType !== 'google' || !mapInstance || !window.google || !clickedSpot) return;
+    
+    const marker = markersRef.current[clickedSpot._id];
+    if (marker) {
+      // Set marker to bounce
+      marker.setAnimation(window.google.maps.Animation.BOUNCE);
+      
+      // Check if we have an info window reference
+      if (infoWindowRef.current) {
+        // Create the content for the info window
+        const validSpot = validateSpotCoordinates(clickedSpot);
+        if (!validSpot) return;
+        
+        // Determine if this is an external spot
+        const isExternalSpot = 
+          validSpot.source === 'google' || 
+          validSpot.source_id || 
+          validSpot.place_id ||
+          (validSpot._id && typeof validSpot._id === 'string' && 
+            (!validSpot._id.match(/^[0-9a-f]{24}$/i) || validSpot._id.includes('-')));
+        
+        // Create Google Maps URL for external spots
+        const googleMapsUrl = (() => {
+          if (validSpot.place_id) {
+            return `https://www.google.com/maps/place/?q=place_id:${validSpot.place_id}`;
+          }
+          
+          if (validSpot.source_id && typeof validSpot.source_id === 'string' && 
+              validSpot.source_id.length > 20) {
+            return `https://www.google.com/maps/place/?q=place_id:${validSpot.source_id}`;
+          }
+          
+          if (validSpot.location && validSpot.location.coordinates) {
+            return `https://www.google.com/maps/search/${encodeURIComponent(validSpot.name)}/@${
+              validSpot.location.coordinates[1]
+            },${
+              validSpot.location.coordinates[0]
+            },17z`;
+          }
+          
+          return `https://www.google.com/maps/search/${encodeURIComponent(
+            validSpot.name + ' ' + (validSpot.address || '') + ' ' + (validSpot.city || '')
+          )}`;
+        })();
+        
+        // Create info window content
+        const contentString = `
+          <div style="min-width: 200px; padding: 8px;">
+            <h3 style="font-weight: bold; margin-bottom: 4px;">${validSpot.name}</h3>
+            ${validSpot.description ? 
+              `<p style="margin: 0 0 8px;">${validSpot.description}</p>` : 
+              `<p style="margin: 0 0 8px;">${validSpot.address || ''}
+               ${validSpot.city ? (validSpot.address ? ', ' : '') + validSpot.city : ''}
+               ${validSpot.state_province ? (validSpot.city ? ', ' : '') + validSpot.state_province : ''}</p>`
+            }
+            ${validSpot.phone ? `<p style="margin: 0 0 8px;">${validSpot.phone}</p>` : ''}
+            ${validSpot.rating ? `<p style="margin: 0 0 8px;">Rating: ${validSpot.rating.toFixed(1)} ⭐ (${validSpot.user_ratings_total || '0'} reviews)</p>` : ''}
+            ${validSpot.website ? `<p style="margin: 0 0 8px;"><a href="${validSpot.website}" target="_blank" style="color: #1F75CB;">Visit Website</a></p>` : ''}
+            ${isExternalSpot ? 
+              `<p style="margin-top: 8px;"><a href="${googleMapsUrl}" target="_blank" style="color: #4c7ef3; text-decoration: none;">View on Google Maps</a></p>` : 
+              `<a 
+                href="/cookie-spot/${validSpot._id}" 
+                style="color: #1F75CB; text-decoration: none; font-weight: 500;"
+              >
+                View Details
+              </a>`
+            }
+          </div>
+        `;
+        
+        // Set the content and open the info window
+        infoWindowRef.current.setContent(contentString);
+        infoWindowRef.current.open(mapInstance, marker);
+      }
+    }
+  }, [clickedSpot, mapType, mapInstance]);
+
   useEffect(() => {
     if (!mapInstance) return;
     
@@ -540,7 +643,7 @@ const Map = ({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       
-      <MarkersList spots={spots} hoveredSpot={hoveredSpot} />
+      <MarkersList spots={spots} hoveredSpot={hoveredSpot} clickedSpot={clickedSpot} />
       
       <MapUpdater 
         viewport={currentViewport} 
