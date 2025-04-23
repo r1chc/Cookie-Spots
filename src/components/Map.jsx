@@ -298,13 +298,33 @@ const Map = ({
           console.log('Marker clicked:', { spotId: validSpot._id, isExternalSpot });
           
           // Create Google Maps URL for external spots
-          const googleMapsUrl = validSpot.place_id 
-            ? `https://www.google.com/maps/place/?q=place_id:${validSpot.place_id}`
-            : validSpot.location && validSpot.location.coordinates
-              ? `https://www.google.com/maps/search/?api=1&query=${validSpot.location.coordinates[1]},${validSpot.location.coordinates[0]}`
-              : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                  validSpot.name + ' ' + (validSpot.address || '') + ' ' + (validSpot.city || '')
-                )}`;
+          const googleMapsUrl = (() => {
+            // If we have a place_id (preferred option), use it for a direct link to the specific business
+            if (validSpot.place_id) {
+              return `https://www.google.com/maps/place/?q=place_id:${validSpot.place_id}`;
+            }
+            
+            // If we have a source_id that looks like a place_id, use that
+            if (validSpot.source_id && typeof validSpot.source_id === 'string' && 
+                validSpot.source_id.length > 20) {
+              return `https://www.google.com/maps/place/?q=place_id:${validSpot.source_id}`;
+            }
+            
+            // For spots with location but no place_id, create a more specific search
+            // This won't be a direct link to the business page, but will be more specific than just coordinates
+            if (validSpot.location && validSpot.location.coordinates) {
+              return `https://www.google.com/maps/search/${encodeURIComponent(validSpot.name)}/@${
+                validSpot.location.coordinates[1]
+              },${
+                validSpot.location.coordinates[0]
+              },17z`;  // 17z is a zoom level that's good for businesses
+            }
+            
+            // Last resort - just search for the business by name and address
+            return `https://www.google.com/maps/search/${encodeURIComponent(
+              validSpot.name + ' ' + (validSpot.address || '') + ' ' + (validSpot.city || '')
+            )}`;
+          })();
           
           // Create info window content with direct display instead of a link for external spots
           const contentString = `
