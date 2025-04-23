@@ -300,9 +300,11 @@ const Map = ({
           // Create Google Maps URL for external spots
           const googleMapsUrl = validSpot.place_id 
             ? `https://www.google.com/maps/place/?q=place_id:${validSpot.place_id}`
-            : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                validSpot.name + ' ' + (validSpot.address || '') + ' ' + (validSpot.city || '')
-              )}`;
+            : validSpot.location && validSpot.location.coordinates
+              ? `https://www.google.com/maps/search/?api=1&query=${validSpot.location.coordinates[1]},${validSpot.location.coordinates[0]}`
+              : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                  validSpot.name + ' ' + (validSpot.address || '') + ' ' + (validSpot.city || '')
+                )}`;
           
           // Create info window content with direct display instead of a link for external spots
           const contentString = `
