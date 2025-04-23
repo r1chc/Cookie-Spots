@@ -10,7 +10,7 @@ exports.getAllCookieSpots = async (req, res) => {
   try {
     const { 
       page = 1, 
-      limit = 10, 
+      limit = 20, 
       sort = 'average_rating', 
       order = 'desc',
       cookie_type,
@@ -353,7 +353,7 @@ exports.getNearbyCookieSpots = async (req, res) => {
       lat, 
       lng, 
       distance = 5000, // Default 5km
-      limit = 10 
+      limit = 20 
     } = req.query;
     
     if (!lat || !lng) {
