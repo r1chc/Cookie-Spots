@@ -1,8 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../styles/BlogPage.css';
 import useScrollRestoration from '../hooks/useScrollRestoration';
 import SearchButton from '../components/SearchButton';
+import Slider from 'react-slick';
+import 'slick-carousel/slick/slick.css';
+import 'slick-carousel/slick/slick-theme.css';
+import { mockArticles } from '../data/mockArticles';
 
 const BlogPage = () => {
   // Use the scroll restoration hook
@@ -19,8 +23,15 @@ const BlogPage = () => {
   const [sortedPosts, setSortedPosts] = useState([]);
   const [popularTags, setPopularTags] = useState([]);
   const [currentCategoryIndex, setCurrentCategoryIndex] = useState(0);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 480);
+  const [isTablet, setIsTablet] = useState(window.innerWidth <= 770 && window.innerWidth > 480);
+  const [isLargeTablet, setIsLargeTablet] = useState(window.innerWidth <= 992 && window.innerWidth > 770);
+  const [categoryCount, setCategoryCount] = useState({});
   const totalPages = Math.ceil((posts.length - 1) / postsPerPage);
   const navigate = useNavigate();
+  const [sliderPosition, setSliderPosition] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const sliderRef = useRef(null);
 
   // Force scroll to top when component mounts
   useEffect(() => {
@@ -28,6 +39,35 @@ const BlogPage = () => {
     requestAnimationFrame(() => {
       window.scrollTo(0, 0);
     });
+  }, []);
+
+  // Calculate category counts when posts change
+  useEffect(() => {
+    const counts = {};
+    categories.forEach(category => {
+      const count = mockArticles.filter(post => {
+        const categoryName = category.name.toLowerCase();
+        return post.title.toLowerCase().includes(categoryName) ||
+               post.category.toLowerCase().includes(categoryName) ||
+               post.excerpt.toLowerCase().includes(categoryName) ||
+               (post.tags && post.tags.some(tag => tag.toLowerCase().includes(categoryName)));
+      }).length;
+      counts[category.name] = count;
+    });
+    setCategoryCount(counts);
+  }, []);
+
+  // Update resize listener
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      setIsMobile(width <= 480);
+      setIsTablet(width <= 770 && width > 480);
+      setIsLargeTablet(width <= 992 && width > 770);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   // Categories data
@@ -145,170 +185,113 @@ const BlogPage = () => {
     return new Date(parseInt(year), monthMap[month], parseInt(day));
   };
 
+  const getVisibleItems = () => {
+    if (isMobile) return 1;
+    if (isTablet) return 2;
+    if (isLargeTablet) return 3;
+    return 5;
+  };
+
   const handleCategoryNavigation = (direction) => {
     if (direction === 'next') {
-      setCurrentCategoryIndex((prev) => (prev + 1) % categories.length);
+      setCurrentCategoryIndex(prev => 
+        prev + 1 >= categories.length - getVisibleItems() + 1 ? prev : prev + 1
+      );
     } else {
-      setCurrentCategoryIndex((prev) => (prev - 1 + categories.length) % categories.length);
+      setCurrentCategoryIndex(prev => 
+        prev - 1 < 0 ? 0 : prev - 1
+      );
     }
   };
 
-  useEffect(() => {
-    // In a real application, this would fetch from your API
-    // For now, we'll use mock data
-    const mockPosts = [
-      {
-        id: 1,
-        title: "Classic Chocolate Chip Cookies with Brown Butter",
-        excerpt: "Elevate the classic chocolate chip cookie with the nutty depth of brown butter. These cookies have crispy edges, chewy centers and rich flavor that will impress everyone.",
-        date: "March 15, 2025",
-        category: "Chocolate",
-        image: "/images/cookie-types/chocolate-chip.webp",
-        isFeatured: true,
-        views: 1250,
-        tags: ["Chocolate", "Easy", "Classic", "Brown Butter"]
-      },
-      {
-        id: 2,
-        title: "Almond Flour Sugar Cookies with Citrus Glaze",
-        excerpt: "These gluten-free sugar cookies made with almond flour have a wonderful tender texture and delightful citrus glaze that makes them irresistible.",
-        date: "March 14, 2025",
-        category: "Gluten-Free",
-        image: "/images/cookie-types/sugar-cookie.webp",
-        views: 980,
-        tags: ["Gluten-Free", "Vegan", "Holiday", "Citrus"]
-      },
-      {
-        id: 3,
-        title: "No-Bake Chocolate Oatmeal Cookies",
-        excerpt: "Perfect for hot summer days, these no-bake chocolate oatmeal cookies come together in minutes and satisfy your cookie cravings without turning on the oven.",
-        date: "March 13, 2025",
-        category: "No-Bake",
-        image: "/images/cookie-types/oatmeal-raisin.webp",
-        views: 1560,
-        tags: ["No-Bake", "Chocolate", "Easy", "Quick"]
-      },
-      {
-        id: 4,
-        title: "Peanut Butter Chocolate Chip Cookies",
-        excerpt: "A perfect combination of peanut butter and chocolate in these soft and chewy cookies that will satisfy any sweet tooth.",
-        date: "March 12, 2025",
-        category: "Chocolate",
-        image: "/images/cookie-types/peanut-butter.webp",
-        views: 1420,
-        tags: ["Chocolate", "Peanut Butter", "Easy", "Kids"]
-      },
-      {
-        id: 5,
-        title: "Classic Snickerdoodle Cookies",
-        excerpt: "Soft and chewy cinnamon sugar cookies that are perfect for any occasion. These classic cookies are always a crowd favorite.",
-        date: "March 11, 2025",
-        category: "Classic",
-        image: "/images/cookie-types/snickerdoodle.webp",
-        views: 1100,
-        tags: ["Classic", "Cinnamon", "Holiday", "Easy"]
-      },
-      {
-        id: 6,
-        title: "French Macarons with Raspberry Filling",
-        excerpt: "Delicate French macarons with a sweet raspberry filling. These elegant cookies are perfect for special occasions.",
-        date: "March 10, 2025",
-        category: "Specialty",
-        image: "/images/cookie-types/macaron.webp",
-        views: 980
-      },
-      {
-        id: 7,
-        title: "Lemon Glazed Shortbread Cookies",
-        excerpt: "Buttery shortbread cookies with a tangy lemon glaze that adds the perfect balance of sweetness and citrus.",
-        date: "March 9, 2025",
-        category: "Classic",
-        image: "/images/cookie-types/lemon-glazed.webp",
-        views: 950
-      },
-      {
-        id: 8,
-        title: "Double Chocolate Cookies",
-        excerpt: "Rich and decadent double chocolate cookies that are perfect for chocolate lovers. These cookies are packed with chocolate chips and cocoa powder.",
-        date: "March 8, 2025",
-        category: "Chocolate",
-        image: "/images/cookie-types/double-chocolate.webp",
-        views: 1200
-      },
-      {
-        id: 9,
-        title: "Red Velvet Cookies with Cream Cheese Frosting",
-        excerpt: "Soft and chewy red velvet cookies topped with a rich cream cheese frosting. Perfect for Valentine's Day or any special occasion.",
-        date: "March 7, 2025",
-        category: "Specialty",
-        image: "/images/cookie-types/red-velvet.webp",
-        views: 1300
-      },
-      {
-        id: 10,
-        title: "Gingerbread Cookies with Royal Icing",
-        excerpt: "Classic gingerbread cookies with warm spices and molasses. Perfect for the holiday season or any time you want a cozy treat.",
-        date: "March 6, 2025",
-        category: "Seasonal",
-        image: "/images/cookie-types/gingerbread.webp",
-        views: 1100
-      },
-      {
-        id: 11,
-        title: "White Chocolate Cranberry Cookies",
-        excerpt: "Soft and chewy cookies packed with white chocolate chips and dried cranberries. A perfect balance of sweet and tart.",
-        date: "March 5, 2025",
-        category: "Chocolate",
-        image: "/images/cookie-types/white-chocolate.webp",
-        views: 1000
-      },
-      {
-        id: 12,
-        title: "Pumpkin Spice Cookies",
-        excerpt: "Warm and cozy pumpkin spice cookies that are perfect for fall. These cookies are packed with pumpkin and warm spices.",
-        date: "March 4, 2025",
-        category: "Seasonal",
-        image: "/images/cookie-types/pumpkin-spice.webp",
-        views: 1200
-      },
-      {
-        id: 13,
-        title: "Salted Caramel Chocolate Cookies",
-        excerpt: "Rich chocolate cookies with a gooey salted caramel center. These cookies are the perfect combination of sweet and salty.",
-        date: "March 3, 2025",
-        category: "Chocolate",
-        image: "/images/cookie-types/salted-caramel.webp",
-        views: 1350
-      },
-      {
-        id: 14,
-        title: "Almond Biscotti",
-        excerpt: "Crunchy almond biscotti that are perfect for dipping in coffee or tea. These Italian cookies are twice-baked for extra crispiness.",
-        date: "March 2, 2025",
-        category: "Specialty",
-        image: "/images/cookie-types/almond-biscotti.webp",
-        views: 950
-      },
-      {
-        id: 15,
-        title: "Matcha Green Tea Cookies",
-        excerpt: "Delicate and flavorful matcha green tea cookies that are perfect with a cup of tea. These cookies have a beautiful green color and unique flavor.",
-        date: "March 1, 2025",
-        category: "Specialty",
-        image: "/images/cookie-types/matcha-green.webp",
-        views: 1050
-      }
-    ];
+  const handleCategoryClick = (categoryName) => {
+    navigate(`/blogsearch?q=${encodeURIComponent(categoryName)}`);
+  };
 
+  const handleSliderClick = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percentage = x / rect.width;
+    const maxScroll = categories.length - getVisibleItems();
+    const newPosition = Math.round(percentage * maxScroll);
+    setCurrentCategoryIndex(Math.max(0, Math.min(newPosition, maxScroll)));
+  };
+
+  const handleSliderDragStart = (e) => {
+    setIsDragging(true);
+    document.addEventListener('mousemove', handleSliderDragMove);
+    document.addEventListener('mouseup', handleSliderDragEnd);
+  };
+
+  const handleSliderDragMove = (e) => {
+    if (!isDragging || !sliderRef.current) return;
+    const rect = sliderRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percentage = Math.max(0, Math.min(1, x / rect.width));
+    const maxScroll = categories.length - getVisibleItems();
+    const newPosition = Math.round(percentage * maxScroll);
+    setCurrentCategoryIndex(Math.max(0, Math.min(newPosition, maxScroll)));
+  };
+
+  const handleSliderDragEnd = () => {
+    setIsDragging(false);
+    document.removeEventListener('mousemove', handleSliderDragMove);
+    document.removeEventListener('mouseup', handleSliderDragEnd);
+  };
+
+  // Calculate slider position and width
+  const calculateSliderStyle = () => {
+    const maxScroll = categories.length - getVisibleItems();
+    const percentage = currentCategoryIndex / maxScroll;
+    const handlePosition = `${percentage * 100}%`;
+    const trackWidth = `${(getVisibleItems() / categories.length) * 100}%`;
+    const trackPosition = `${(currentCategoryIndex / categories.length) * 100}%`;
+    
+    return {
+      handle: { left: handlePosition },
+      track: { left: trackPosition, width: trackWidth }
+    };
+  };
+
+  const sliderSettings = {
+    dots: false,
+    infinite: false,
+    speed: 500,
+    slidesToShow: 4,
+    slidesToScroll: 1,
+    arrows: true,
+    responsive: [
+      {
+        breakpoint: 1024,
+        settings: {
+          slidesToShow: 3,
+        }
+      },
+      {
+        breakpoint: 768,
+        settings: {
+          slidesToShow: 2,
+        }
+      },
+      {
+        breakpoint: 480,
+        settings: {
+          slidesToShow: 1,
+        }
+      }
+    ]
+  };
+
+  useEffect(() => {
     // Sort posts by views for popular tags
-    const sortedByViews = [...mockPosts].sort((a, b) => b.views - a.views);
+    const sortedByViews = [...mockArticles].sort((a, b) => b.views - a.views);
     
     // Calculate popular tags
     const tags = calculatePopularTags(sortedByViews);
     setPopularTags(tags);
 
     // Sort posts by newest first
-    const sortedByNewest = [...mockPosts].sort((a, b) => {
+    const sortedByNewest = [...mockArticles].sort((a, b) => {
       return parseDate(b.date).getTime() - parseDate(a.date).getTime();
     });
 
@@ -319,11 +302,41 @@ const BlogPage = () => {
     setLoading(false);
 
     const initialLoadingStates = {};
-    mockPosts.forEach(post => {
+    mockArticles.forEach(post => {
       initialLoadingStates[post.id] = true;
     });
     setImageLoadingStates(initialLoadingStates);
   }, []);
+
+  // Listen for view updates
+  useEffect(() => {
+    const handleViewsUpdate = (e) => {
+      const { articleId, views } = e.detail;
+      setOriginalPosts(prevPosts => 
+        prevPosts.map(post => 
+          post.id === articleId 
+            ? { ...post, views: views } 
+            : post
+        )
+      );
+      
+      // Re-sort if currently sorting by views
+      if (sortOrder === 'most_viewed' || sortOrder === 'least_viewed') {
+        setSortedPosts(prevPosts => 
+          [...prevPosts].sort((a, b) => 
+            sortOrder === 'most_viewed' 
+              ? b.views - a.views 
+              : a.views - b.views
+          )
+        );
+      }
+    };
+
+    window.addEventListener('articleViewsUpdated', handleViewsUpdate);
+    return () => {
+      window.removeEventListener('articleViewsUpdated', handleViewsUpdate);
+    };
+  }, [sortOrder]);
 
   const handleNewsletterSubmit = (e) => {
     e.preventDefault();
@@ -435,11 +448,36 @@ const BlogPage = () => {
     }
   };
 
+  const formatDate = (dateString) => {
+    try {
+      // Split the date string into components
+      const [month, day, year] = dateString.split(' ');
+      // Remove any commas
+      const cleanDay = day.replace(',', '');
+      // Get month number (1-12)
+      const monthMap = {
+        'January': 1, 'February': 2, 'March': 3, 'April': 4,
+        'May': 5, 'June': 6, 'July': 7, 'August': 8,
+        'September': 9, 'October': 10, 'November': 11, 'December': 12
+      };
+      // Format as M/DD/YYYY
+      return `${monthMap[month]}/${cleanDay}/${year}`;
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return dateString;
+    }
+  };
+
+  const formatViews = (views) => {
+    return views.toLocaleString('en-US');
+  };
+
   if (loading) {
     return <div className="blog-container">Loading...</div>;
   }
 
   return (
+    <div className="blog-page-wrapper">
     <div className="min-h-screen bg-gradient-to-b from-primary-50 to-white">
       {/* Hero Section */}
       <section className="blog-hero">
@@ -466,35 +504,22 @@ const BlogPage = () => {
           {/* Featured Categories */}
           <section className="blog-featured-categories">
             <h3 className="blog-section-title">Featured Categories</h3>
-            <div className="blog-categories-grid">
-              <div 
-                className="blog-categories-slider"
-                style={{ transform: `translateX(-${currentCategoryIndex * 25}%)` }}
-              >
+              <Slider {...sliderSettings} className="category-slider">
                 {categories.map((category, index) => (
-                  <Link key={category.name} to={category.path} className="blog-category-card">
-                    <img src={category.image} alt={category.name} className="blog-category-image" />
-                    <div className="blog-category-text">{category.name}</div>
-              </Link>
+                  <div key={index} className="category-card-wrapper">
+                    <div
+                      className="category-card"
+                      onClick={() => handleCategoryClick(category.name)}
+                    >
+                      <img src={category.image} alt={category.name} />
+                      <h3>{category.name}</h3>
+                      <span className="category-count">
+                        {categoryCount[category.name] || 0} Articles
+                      </span>
+                    </div>
+                  </div>
                 ))}
-              </div>
-            </div>
-            <div className="category-navigation">
-              <button 
-                className="category-nav-button"
-                onClick={() => handleCategoryNavigation('prev')}
-                disabled={currentCategoryIndex === 0}
-              >
-                <i className="fas fa-chevron-left"></i>
-              </button>
-              <button 
-                className="category-nav-button"
-                onClick={() => handleCategoryNavigation('next')}
-                disabled={currentCategoryIndex + 4 >= categories.length}
-              >
-                <i className="fas fa-chevron-right"></i>
-              </button>
-            </div>
+              </Slider>
           </section>
 
           {/* Blog Posts */}
@@ -666,17 +691,21 @@ const BlogPage = () => {
         {/* Sidebar */}
         <aside className="blog-sidebar">
           <div className="blog-sidebar-section pb-6">
-            <h3 className="blog-sidebar-title">Search Bar</h3>
+              <h3 className="blog-sidebar-title">Search Recipes</h3>
             <form className="blog-search-form mb-3" onSubmit={handleSearchSubmit}>
-              <input type="text" placeholder="Search recipes..." name="search" />
+                <input type="text" placeholder="Search Recipes..." name="search" />
               <button type="submit" className="text-blue-500"><i className="fas fa-search"></i></button>
             </form>
             <h4 className="blog-sidebar-subtitle text-sm mb-2">Popular Tags:</h4>
             <div className="blog-tags-cloud">
               {popularTags.map((tag, index) => (
-                <Link key={index} to={`/tag/${tag.toLowerCase()}`} className="blog-tag text-sm py-1 px-2">
+                  <button
+                    key={index}
+                    onClick={() => navigate(`/blogsearch?q=${encodeURIComponent(tag)}`)}
+                    className="blog-tag text-sm py-1 px-2"
+                  >
                   {tag}
-                </Link>
+                  </button>
               ))}
             </div>
           </div>
@@ -684,18 +713,35 @@ const BlogPage = () => {
           <div className="blog-sidebar-section">
             <h3 className="blog-sidebar-title">Popular Recipes</h3>
             <ul className="blog-popular-posts">
-              {[...posts] // Create a copy of the posts array
-                .sort((a, b) => b.views - a.views) // Sort by views only for the sidebar
+                {[...posts]
+                  .sort((a, b) => b.views - a.views)
                 .slice(0, 3)
                 .map(post => (
                   <li key={post.id} className="blog-popular-post">
-                    <img src={post.image} alt={post.title} className="blog-popular-post-image" />
+                      <Link to={`/article/${post.id}`}>
+                        <img 
+                          src={post.image} 
+                          alt={post.title} 
+                          className="blog-popular-post-image"
+                          loading="eager"
+                          onLoad={() => handleImageLoad(post.id)}
+                          onError={(e) => handleImageError(post.id, e)}
+                          crossOrigin="anonymous"
+                        />
+                      </Link>
                 <div className="blog-popular-post-content">
-                      <h4><Link to={`/article/${post.id}`}>{post.title}</Link></h4>
-                      <span className="blog-popular-post-date">{post.date}</span>
+                        <h4>
+                          <Link to={`/article/${post.id}`}>{post.title}</Link>
+                        </h4>
+                        <div>
+                          <span className="blog-popular-post-date">
+                            {formatDate(post.date)}
+                          </span>
                       <span className="blog-popular-post-views">
-                        <i className="fas fa-eye"></i> {post.views.toLocaleString()} views
+                            <i className="fas fa-eye"></i>
+                            {formatViews(post.views)}
                       </span>
+                        </div>
                 </div>
               </li>
                 ))}
@@ -705,15 +751,28 @@ const BlogPage = () => {
           <div className="blog-sidebar-section">
             <h3 className="blog-sidebar-title">Categories</h3>
             <ul className="blog-categories-list">
-              <li><Link to="/category/chocolate-chip">Chocolate Chip <span className="count">12</span></Link></li>
-              <li><Link to="/category/oatmeal">Oatmeal <span className="count">8</span></Link></li>
-              <li><Link to="/category/sugar">Sugar Cookies <span className="count">10</span></Link></li>
-              <li><Link to="/category/shortbread">Shortbread <span className="count">6</span></Link></li>
-              <li><Link to="/category/gluten-free">Gluten-Free <span className="count">15</span></Link></li>
-              <li><Link to="/category/vegan">Vegan <span className="count">7</span></Link></li>
+                {categories.map(category => {
+                  // Use the same filtering logic as search
+                  const categoryName = category.name.toLowerCase();
+                  const count = mockArticles.filter(post => 
+                    post.title.toLowerCase().includes(categoryName) ||
+                    post.category.toLowerCase().includes(categoryName) ||
+                    post.excerpt.toLowerCase().includes(categoryName) ||
+                    (post.tags && post.tags.some(tag => tag.toLowerCase().includes(categoryName)))
+                  ).length;
+                  
+                  return (
+                    <li key={category.name}>
+                      <Link to={`/blogsearch?q=${encodeURIComponent(category.name)}`}>
+                        {category.name} <span className="count">{count}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
             </ul>
           </div>
         </aside>
+        </div>
       </div>
       <SearchButton />
     </div>
