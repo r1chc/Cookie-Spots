@@ -67,7 +67,11 @@ const Header = () => {
   }
 
   const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen)
+    setIsMenuOpen(!isMenuOpen);
+    // Dispatch event for navigation state change
+    window.dispatchEvent(new CustomEvent('navigationStateChange', {
+      detail: { isOpen: !isMenuOpen }
+    }));
   }
 
   return (

@@ -15,6 +15,7 @@ const BlogSearch = () => {
   useScrollRestoration();
 
   const [searchResults, setSearchResults] = useState([]);
+  const [allArticles, setAllArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [postsPerPage, setPostsPerPage] = useState(4);
@@ -22,6 +23,7 @@ const BlogSearch = () => {
   const [sortOrder, setSortOrder] = useState('newest');
   const [lastUpdateTime, setLastUpdateTime] = useState(null);
   const [mostViewedArticles, setMostViewedArticles] = useState([]);
+  const [imageLoadingStates, setImageLoadingStates] = useState({});
 
   // Reuse categories from BlogPage
   const categories = [
@@ -124,37 +126,62 @@ const BlogSearch = () => {
   // Pagination handlers
   const handlePageChange = (page) => {
     setCurrentPage(page);
-    const maxPage = Math.ceil(searchResults.length / postsPerPage);
-    
-    if (page === 1) {
-      setDisplayPages([1, 2, 3]);
-    } else if (page === maxPage) {
-      setDisplayPages([maxPage - 2, maxPage - 1, maxPage]);
-    } else {
-      setDisplayPages([page - 1, page, page + 1]);
-    }
+    // Scroll to top of the search results
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleDoubleChevronRight = () => {
     const maxPage = Math.ceil(searchResults.length / postsPerPage);
-    setCurrentPage(maxPage);
-    setDisplayPages([maxPage - 2, maxPage - 1, maxPage]);
+    const newPages = [...displayPages];
+    if (newPages[2] + 2 <= maxPage) {
+      newPages[0] = newPages[0] + 2;
+      newPages[1] = newPages[1] + 2;
+      newPages[2] = newPages[2] + 2;
+      setDisplayPages(newPages);
+    } else if (newPages[2] < maxPage) {
+      // If there's only one page left to move, move to the last page
+      newPages[0] = maxPage - 2;
+      newPages[1] = maxPage - 1;
+      newPages[2] = maxPage;
+      setDisplayPages(newPages);
+    }
   };
 
   const handleDoubleChevronLeft = () => {
-    setCurrentPage(1);
-    setDisplayPages([1, 2, 3]);
+    const newPages = [...displayPages];
+    if (newPages[0] > 2) {
+      newPages[0] = newPages[0] - 2;
+      newPages[1] = newPages[1] - 2;
+      newPages[2] = newPages[2] - 2;
+      setDisplayPages(newPages);
+    } else if (newPages[0] === 2) {
+      // If there's only one page left to move, move to the first page
+      newPages[0] = 1;
+      newPages[1] = 2;
+      newPages[2] = 3;
+      setDisplayPages(newPages);
+    }
   };
 
   const handleSingleChevronRight = () => {
     const maxPage = Math.ceil(searchResults.length / postsPerPage);
-    const newPage = Math.min(currentPage + 1, maxPage);
-    handlePageChange(newPage);
+    const newPages = [...displayPages];
+    if (newPages[2] + 1 <= maxPage) {
+      newPages[0] = newPages[0] + 1;
+      newPages[1] = newPages[1] + 1;
+      newPages[2] = newPages[2] + 1;
+      setDisplayPages(newPages);
+    }
   };
 
   const handleSingleChevronLeft = () => {
-    const newPage = Math.max(currentPage - 1, 1);
-    handlePageChange(newPage);
+    const newPages = [...displayPages];
+    if (newPages[0] > 1) {
+      newPages[0] = newPages[0] - 1;
+      newPages[1] = newPages[1] - 1;
+      newPages[2] = newPages[2] - 1;
+      setDisplayPages(newPages);
+    }
   };
 
   // Fetch articles from API with fallback to mock data
@@ -352,13 +379,28 @@ const BlogSearch = () => {
     return () => clearInterval(updateInterval);
   }, [lastUpdateTime]);
 
+  // Add this new function to handle category clicks
+  const handleCategoryClick = (categoryName, e) => {
+    e.preventDefault();
+    setCurrentPage(1); // Reset to page 1
+    setDisplayPages([1, 2, 3]); // Reset display pages
+    // Use navigate with replace to prevent building up history
+    navigate(`/blogsearch?q=${encodeURIComponent(categoryName)}`, { replace: true });
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Update useEffect to reset pagination when query changes
   useEffect(() => {
     const fetchSearchResults = async () => {
       setLoading(true);
+      setCurrentPage(1); // Reset to page 1
+      setDisplayPages([1, 2, 3]); // Reset display pages
       
       try {
         // Fetch articles from API
         const articles = await fetchArticles();
+        setAllArticles(articles);
         
         // Filter and sort results based on search query
         const filteredResults = articles.filter(post => {
@@ -392,6 +434,8 @@ const BlogSearch = () => {
 
     if (query) {
       fetchSearchResults();
+      // Scroll to top when query changes
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [query]);
 
@@ -417,19 +461,55 @@ const BlogSearch = () => {
     fetchAndSetMostViewed();
   }, []);
 
+  const handleImageLoad = (id) => {
+    setImageLoadingStates({ ...imageLoadingStates, [id]: false });
+  };
+
+  const handleImageError = (id, e) => {
+    console.error(`Error loading image for post ${id}:`, e);
+    setImageLoadingStates({ ...imageLoadingStates, [id]: false });
+  };
+
+  // Listen for view updates
+  useEffect(() => {
+    const handleViewsUpdate = (e) => {
+      const { articleId, views } = e.detail;
+      setSearchResults(prevResults => 
+        prevResults.map(result => 
+          result.id === articleId 
+            ? { ...result, views: views } 
+            : result
+        )
+      );
+      
+      // Update all articles list as well
+      setAllArticles(prevArticles => 
+        prevArticles.map(article => 
+          article.id === articleId 
+            ? { ...article, views: views } 
+            : article
+        )
+      );
+    };
+
+    window.addEventListener('articleViewsUpdated', handleViewsUpdate);
+    return () => {
+      window.removeEventListener('articleViewsUpdated', handleViewsUpdate);
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary-50 to-white">
       <div className="blog-search-page">
         <div className="blog-search-container">
           {/* Mobile view: Search bar at top */}
           <div className="blog-search-bar-section mobile-only">
-            <h3 className="blog-sidebar-title">Search Bar</h3>
+            <h3 className="blog-sidebar-title">Search Recipes</h3>
             <form className="blog-search-form" onSubmit={handleSearchSubmit}>
               <input
                 type="search"
                 name="search"
-                placeholder="Search recipes..."
-                defaultValue={query}
+                placeholder="Search Recipes..."
               />
               <button type="submit">
                 <i className="fas fa-search"></i>
@@ -450,13 +530,12 @@ const BlogSearch = () => {
           {/* Desktop view: Left column with search bar and navigation */}
           <aside className="blog-search-sidebar desktop-only">
             <div className="blog-search-bar-section">
-              <h3 className="blog-sidebar-title">Search Bar</h3>
+              <h3 className="blog-sidebar-title">Search Recipes</h3>
               <form className="blog-search-form" onSubmit={handleSearchSubmit}>
                 <input
                   type="search"
                   name="search"
-                  placeholder="Search recipes..."
-                  defaultValue={query}
+                  placeholder="Search Recipes..."
                 />
                 <button type="submit">
                   <i className="fas fa-search"></i>
@@ -479,11 +558,13 @@ const BlogSearch = () => {
               <ul className="blog-popular-posts">
                 {mostViewedArticles.map(post => (
                   <li key={post.id} className="blog-popular-post">
-                    <img
-                      src={post.image}
-                      alt={post.title}
-                      className="blog-popular-post-image"
-                    />
+                    <Link to={`/article/${post.id}`}>
+                      <img
+                        src={post.image}
+                        alt={post.title}
+                        className="blog-popular-post-image"
+                      />
+                    </Link>
                     <div className="blog-popular-post-content">
                       <h4>
                         <Link to={`/article/${post.id}`}>{post.title}</Link>
@@ -491,7 +572,7 @@ const BlogSearch = () => {
                       <div>
                         <span className="blog-popular-post-date">{new Date(post.publishedAt).toLocaleDateString()}</span>
                         <span className="blog-popular-post-views">
-                          <i className="fas fa-eye"></i> {post.views}
+                          <i className="fas fa-eye"></i> {post.views.toLocaleString()}
                         </span>
                       </div>
                     </div>
@@ -503,16 +584,26 @@ const BlogSearch = () => {
             <div className="blog-sidebar-section">
               <h3 className="blog-sidebar-title">Categories</h3>
               <ul className="blog-categories-list">
-                {categories.map(category => (
-                  <li key={category.name}>
-                    <Link to={category.path}>
-                      {category.name}
-                      <span className="count">
-                        {searchResults.filter(post => post.category === category.name).length}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
+                {categories.map(category => {
+                  const count = allArticles.filter(post => {
+                    const matchByCategory = post.category.toLowerCase() === category.name.toLowerCase();
+                    const matchByTags = post.tags && post.tags.some(tag => 
+                      tag.toLowerCase() === category.name.toLowerCase()
+                    );
+                    return matchByCategory || matchByTags;
+                  }).length;
+                  
+                  return (
+                    <li key={category.name}>
+                      <a
+                        href={`/blogsearch?q=${encodeURIComponent(category.name)}`}
+                        onClick={(e) => handleCategoryClick(category.name, e)}
+                      >
+                        {category.name} <span className="count">{count}</span>
+                      </a>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           </aside>
@@ -562,15 +653,31 @@ const BlogSearch = () => {
                 <div className="blog-posts-grid">
                   {currentPosts.map(post => (
                     <article key={post.id} className="blog-post">
-                      <div className="blog-post-image">
-                        <img src={post.image} alt={post.title} />
-                        <span className="blog-post-category-badge">{post.category}</span>
+                      <div className={`blog-post-image ${imageLoadingStates[post.id] ? 'loading' : ''}`}>
+                        <Link to={`/article/${post.id}`}>
+                          <img
+                            src={post.image}
+                            alt={post.title}
+                            loading="eager"
+                            onLoad={() => handleImageLoad(post.id)}
+                            onError={(e) => handleImageError(post.id, e)}
+                            crossOrigin="anonymous"
+                          />
+                        </Link>
+                        <div className="blog-post-category-badge">{post.category}</div>
                       </div>
                       <div className="blog-post-content">
                         <div className="blog-post-meta">
-                          <span className="blog-post-date">{post.date}</span>
+                          <span className="blog-post-date">
+                            {new Date(post.publishedAt).toLocaleDateString('en-US', {
+                              month: 'long',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </span>
+                          <span className="blog-post-author">By CookieSpots</span>
                           <span className="blog-post-views">
-                            <i className="fas fa-eye"></i> {post.views}
+                            <i className="fas fa-eye"></i> {post.views.toLocaleString()} views
                           </span>
                         </div>
                         <h3 className="blog-post-title">
@@ -578,7 +685,7 @@ const BlogSearch = () => {
                         </h3>
                         <p className="blog-post-excerpt">{post.excerpt}</p>
                         <Link to={`/article/${post.id}`} className="blog-read-more">
-                          Read More <i className="fas fa-arrow-right"></i>
+                          Read Recipe <i className="fas fa-arrow-right"></i>
                         </Link>
                       </div>
                     </article>
@@ -586,41 +693,42 @@ const BlogSearch = () => {
                 </div>
 
                 <div className="blog-pagination">
-                  <button
+                  <button 
                     className="blog-pagination-button"
                     onClick={handleDoubleChevronLeft}
-                    disabled={currentPage === 1}
+                    disabled={displayPages[0] <= 1}
                   >
                     <i className="fas fa-angle-double-left"></i>
                   </button>
-                  <button
+                  <button 
                     className="blog-pagination-button"
                     onClick={handleSingleChevronLeft}
-                    disabled={currentPage === 1}
+                    disabled={displayPages[0] <= 1}
                   >
                     <i className="fas fa-angle-left"></i>
                   </button>
-                  {displayPages.map(page => (
-                    <button
-                      key={page}
-                      className={`blog-pagination-button ${currentPage === page ? 'active' : ''}`}
-                      onClick={() => handlePageChange(page)}
-                      disabled={page > totalPages}
-                    >
-                      {page}
-                    </button>
+                  {displayPages.map((page) => (
+                    page <= Math.ceil(searchResults.length / postsPerPage) && (
+                      <button
+                        key={page}
+                        className={`blog-pagination-button ${currentPage === page ? 'active' : ''}`}
+                        onClick={() => handlePageChange(page)}
+                      >
+                        {page}
+                      </button>
+                    )
                   ))}
-                  <button
+                  <button 
                     className="blog-pagination-button"
                     onClick={handleSingleChevronRight}
-                    disabled={currentPage === totalPages}
+                    disabled={displayPages[2] >= Math.ceil(searchResults.length / postsPerPage)}
                   >
                     <i className="fas fa-angle-right"></i>
                   </button>
-                  <button
+                  <button 
                     className="blog-pagination-button"
                     onClick={handleDoubleChevronRight}
-                    disabled={currentPage === totalPages}
+                    disabled={displayPages[2] >= Math.ceil(searchResults.length / postsPerPage)}
                   >
                     <i className="fas fa-angle-double-right"></i>
                   </button>
@@ -636,11 +744,13 @@ const BlogSearch = () => {
               <ul className="blog-popular-posts">
                 {mostViewedArticles.map(post => (
                   <li key={post.id} className="blog-popular-post">
-                    <img
-                      src={post.image}
-                      alt={post.title}
-                      className="blog-popular-post-image"
-                    />
+                    <Link to={`/article/${post.id}`}>
+                      <img
+                        src={post.image}
+                        alt={post.title}
+                        className="blog-popular-post-image"
+                      />
+                    </Link>
                     <div className="blog-popular-post-content">
                       <h4>
                         <Link to={`/article/${post.id}`}>{post.title}</Link>
@@ -648,7 +758,7 @@ const BlogSearch = () => {
                       <div>
                         <span className="blog-popular-post-date">{new Date(post.publishedAt).toLocaleDateString()}</span>
                         <span className="blog-popular-post-views">
-                          <i className="fas fa-eye"></i> {post.views}
+                          <i className="fas fa-eye"></i> {post.views.toLocaleString()}
                         </span>
                       </div>
                     </div>
@@ -660,16 +770,26 @@ const BlogSearch = () => {
             <div className="blog-sidebar-section">
               <h3 className="blog-sidebar-title">Categories</h3>
               <ul className="blog-categories-list">
-                {categories.map(category => (
-                  <li key={category.name}>
-                    <Link to={category.path}>
-                      {category.name}
-                      <span className="count">
-                        {searchResults.filter(post => post.category === category.name).length}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
+                {categories.map(category => {
+                  const count = allArticles.filter(post => {
+                    const matchByCategory = post.category.toLowerCase() === category.name.toLowerCase();
+                    const matchByTags = post.tags && post.tags.some(tag => 
+                      tag.toLowerCase() === category.name.toLowerCase()
+                    );
+                    return matchByCategory || matchByTags;
+                  }).length;
+                  
+                  return (
+                    <li key={category.name}>
+                      <a
+                        href={`/blogsearch?q=${encodeURIComponent(category.name)}`}
+                        onClick={(e) => handleCategoryClick(category.name, e)}
+                      >
+                        {category.name} <span className="count">{count}</span>
+                      </a>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           </div>

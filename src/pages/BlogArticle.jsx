@@ -6,63 +6,54 @@ const BlogArticle = () => {
   const { id } = useParams();
   const [article, setArticle] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [nextArticle, setNextArticle] = useState(null);
+  const [prevArticle, setPrevArticle] = useState(null);
+  const [imageError, setImageError] = useState(false);
+  const [imageLoading, setImageLoading] = useState(true);
+
+  // Function to handle image loading errors
+  const handleImageError = (e) => {
+    console.error('Error loading image:', e.target.src);
+    setImageError(true);
+    // Set a fallback image
+    e.target.src = '/images/cookie-types/chocolate-chip.webp';
+  };
+
+  // Function to handle image load success
+  const handleImageLoad = () => {
+    setImageLoading(false);
+  };
 
   useEffect(() => {
-    // In a real application, this would fetch from your API
-    // For now, we'll use mock data
-    const mockArticle = {
-      id: parseInt(id),
-      title: "Classic Chocolate Chip Cookies with Brown Butter",
-      content: `
-        <h2>Introduction</h2>
-        <p>There's nothing quite like the smell of freshly baked chocolate chip cookies wafting through your kitchen. This recipe takes the classic chocolate chip cookie to new heights with the addition of brown butter, which adds a rich, nutty depth of flavor that will make these cookies stand out from the rest.</p>
-
-        <h2>Ingredients</h2>
-        <ul>
-          <li>1 cup (2 sticks) unsalted butter</li>
-          <li>2 1/4 cups all-purpose flour</li>
-          <li>1 teaspoon baking soda</li>
-          <li>1 teaspoon salt</li>
-          <li>1 cup packed brown sugar</li>
-          <li>1/2 cup granulated sugar</li>
-          <li>2 large eggs</li>
-          <li>2 teaspoons vanilla extract</li>
-          <li>2 cups semisweet chocolate chips</li>
-        </ul>
-
-        <h2>Instructions</h2>
-        <ol>
-          <li>Preheat your oven to 375°F (190°C) and line baking sheets with parchment paper.</li>
-          <li>In a medium saucepan, melt the butter over medium heat. Continue cooking, stirring frequently, until the butter turns a deep golden brown and develops a nutty aroma. Remove from heat and let cool slightly.</li>
-          <li>In a medium bowl, whisk together the flour, baking soda, and salt.</li>
-          <li>In a large bowl, beat the brown butter, brown sugar, and granulated sugar until well combined. Add the eggs one at a time, beating well after each addition. Stir in the vanilla.</li>
-          <li>Gradually add the dry ingredients to the wet ingredients, mixing until just combined. Fold in the chocolate chips.</li>
-          <li>Drop rounded tablespoons of dough onto the prepared baking sheets, spacing them about 2 inches apart.</li>
-          <li>Bake for 9 to 11 minutes, or until golden brown. Let cool on the baking sheets for 2 minutes before transferring to wire racks to cool completely.</li>
-        </ol>
-
-        <h2>Tips & Notes</h2>
-        <ul>
-          <li>For extra chewy cookies, slightly underbake them by 1-2 minutes.</li>
-          <li>The brown butter can be made ahead of time and stored in the refrigerator until needed.</li>
-          <li>For best results, use high-quality chocolate chips.</li>
-        </ul>
-      `,
-      date: "April 14, 2025",
-      category: "Chocolate",
-      image: "/images/cookie-types/chocolate-chip.webp",
-      views: 1250,
-      author: "CookieSpots Team",
-      prepTime: "20 minutes",
-      cookTime: "10 minutes",
-      servings: "24 cookies"
+    const fetchArticle = async () => {
+      setLoading(true);
+      setImageLoading(true);
+      setImageError(false);
+      try {
+        // Fetch all articles to determine next/prev
+        const allArticles = await fetchArticles();
+        const currentIndex = allArticles.findIndex(a => a.id === parseInt(id));
+        
+        // Set current article
+        if (currentIndex !== -1) {
+          setArticle(allArticles[currentIndex]);
+          
+          // Set next and previous articles
+          if (currentIndex > 0) {
+            setPrevArticle(allArticles[currentIndex - 1]);
+          }
+          if (currentIndex < allArticles.length - 1) {
+            setNextArticle(allArticles[currentIndex + 1]);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching article:', error);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    // Simulate API call delay
-    setTimeout(() => {
-      setArticle(mockArticle);
-      setLoading(false);
-    }, 500);
+    fetchArticle();
   }, [id]);
 
   const handleSearchSubmit = (e) => {
@@ -89,6 +80,76 @@ const BlogArticle = () => {
 
   return (
     <div className="article-container">
+      {/* Navigation Buttons */}
+      {prevArticle && (
+        <button
+          onClick={() => window.location.href = `/article/${prevArticle.id}`}
+          className="fixed top-4 right-4 p-2 sm:p-3 rounded-full bg-primary-600 text-white shadow-lg transition-all duration-300 border-2 border-white hover:bg-primary-700 hover:scale-110 focus:outline-none z-[9999]"
+          aria-label="Previous article"
+        >
+          <svg
+            className="w-5 h-5 sm:w-6 sm:h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M10 19l-7-7m0 0l7-7m-7 7h18"
+            />
+          </svg>
+        </button>
+      )}
+      {nextArticle && (
+        <button
+          onClick={() => window.location.href = `/article/${nextArticle.id}`}
+          className="fixed top-20 right-4 p-2 sm:p-3 rounded-full bg-primary-600 text-white shadow-lg transition-all duration-300 border-2 border-white hover:bg-primary-700 hover:scale-110 focus:outline-none z-[9999]"
+          aria-label="Next article"
+        >
+          <svg
+            className="w-5 h-5 sm:w-6 sm:h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M14 5l7 7m0 0l-7 7m7-7H3"
+            />
+          </svg>
+        </button>
+      )}
+
+      {/* Back to Blog Button */}
+      <div className="article-floating-nav back">
+        <Link to="/blog" className="floating-nav-button">
+          <i className="fas fa-arrow-left"></i>
+          Back to Blog
+        </Link>
+      </div>
+
+      {/* Next/Previous Navigation */}
+      <div className="article-floating-nav pagination">
+        {nextArticle && (
+          <Link to={`/article/${nextArticle.id}`} className="floating-nav-button">
+            Next Article
+            <i className="fas fa-arrow-right"></i>
+          </Link>
+        )}
+        {prevArticle && (
+          <Link to={`/article/${prevArticle.id}`} className="floating-nav-button">
+            <i className="fas fa-arrow-left"></i>
+            Previous Article
+          </Link>
+        )}
+      </div>
+
       <article className="article-content">
         <header className="article-header">
           <div className="article-meta">
@@ -109,8 +170,18 @@ const BlogArticle = () => {
           </div>
         </header>
 
-        <div className="article-image">
-          <img src={article.image} alt={article.title} />
+        <div className={`article-image ${imageLoading ? 'loading' : ''}`}>
+          <img 
+            src={article?.image} 
+            alt={article?.title}
+            onError={handleImageError}
+            onLoad={handleImageLoad}
+          />
+          {imageLoading && (
+            <div className="image-loading-spinner">
+              <i className="fas fa-spinner fa-spin"></i>
+            </div>
+          )}
         </div>
 
         <div 
@@ -138,21 +209,36 @@ const BlogArticle = () => {
           <h3 className="blog-sidebar-title">Popular Recipes</h3>
           <ul className="blog-popular-posts">
             <li className="blog-popular-post">
-              <img src="/images/cookie-types/peanut-butter.webp" alt="Peanut Butter" className="blog-popular-post-image" />
+              <img 
+                src="/images/cookie-types/peanut-butter.webp" 
+                alt="Peanut Butter"
+                className="blog-popular-post-image"
+                onError={handleImageError}
+              />
               <div className="blog-popular-post-content">
                 <h4><Link to="/article/4">Peanut Butter Chocolate Chip Cookies</Link></h4>
                 <span className="blog-popular-post-date">April 8, 2025</span>
               </div>
             </li>
             <li className="blog-popular-post">
-              <img src="/images/cookie-types/snickerdoodle.webp" alt="Snickerdoodle" className="blog-popular-post-image" />
+              <img 
+                src="/images/cookie-types/snickerdoodle.webp" 
+                alt="Snickerdoodle"
+                className="blog-popular-post-image"
+                onError={handleImageError}
+              />
               <div className="blog-popular-post-content">
                 <h4><Link to="/article/5">Classic Snickerdoodle Cookies</Link></h4>
                 <span className="blog-popular-post-date">April 5, 2025</span>
               </div>
             </li>
             <li className="blog-popular-post">
-              <img src="/images/cookie-types/macaron.webp" alt="Macaron" className="blog-popular-post-image" />
+              <img 
+                src="/images/cookie-types/macaron.webp" 
+                alt="Macaron"
+                className="blog-popular-post-image"
+                onError={handleImageError}
+              />
               <div className="blog-popular-post-content">
                 <h4><Link to="/article/6">French Macarons with Raspberry Filling</Link></h4>
                 <span className="blog-popular-post-date">April 3, 2025</span>
