@@ -195,7 +195,43 @@ export const mockArticles = [
         <li>3 large egg whites, room temperature</li>
         <li>1/4 cup granulated sugar</li>
         <li>1/2 teaspoon vanilla extract</li>
+        <li>Pinch of salt</li>
+        <li>Gel food coloring (pink or red), optional</li>
       </ul>
+      
+      <h2>Raspberry Filling</h2>
+      <ul>
+        <li>1/2 cup fresh raspberries</li>
+        <li>1 tablespoon granulated sugar</li>
+        <li>1/2 cup (1 stick) unsalted butter, softened</li>
+        <li>1 1/2 cups powdered sugar, sifted</li>
+        <li>1 teaspoon vanilla extract</li>
+        <li>Pinch of salt</li>
+      </ul>
+      
+      <h2>Instructions</h2>
+      <ol>
+        <li>Line 2-3 baking sheets with parchment paper or silicone mats.</li>
+        <li>Sift together powdered sugar and almond flour into a large bowl. Discard any large pieces that don't pass through the sifter.</li>
+        <li>In a separate clean, dry bowl, beat egg whites with an electric mixer on medium speed until foamy.</li>
+        <li>Add a pinch of salt, then gradually add granulated sugar while continuing to beat.</li>
+        <li>Increase mixer speed to high and beat until stiff, glossy peaks form (about 5 minutes).</li>
+        <li>Add vanilla extract and food coloring (if using) and beat just until incorporated.</li>
+        <li>Gently fold the dry ingredients into the egg white mixture using a rubber spatula. Do this in 2-3 batches, folding just until no dry streaks remain.</li>
+        <li>Continue to fold the batter until it flows like lava - when you lift the spatula, the batter should fall in a ribbon and the peaks should disappear within about 30 seconds.</li>
+        <li>Transfer batter to a piping bag fitted with a round tip (about 1/2 inch).</li>
+        <li>Pipe 1.5-inch rounds onto prepared baking sheets, spacing them about 1 inch apart.</li>
+        <li>Tap the baking sheets firmly against the counter several times to release air bubbles.</li>
+        <li>Let the piped macarons sit at room temperature for 30-60 minutes until they form a skin (when you touch them lightly, they shouldn't stick to your finger).</li>
+        <li>Preheat oven to 300°F (150°C).</li>
+        <li>Bake one sheet at a time for 15-18 minutes, until macarons have risen with feet and are set but not browned.</li>
+        <li>Let cool completely on the baking sheet before removing.</li>
+        <li>For the filling: In a small saucepan, combine raspberries and 1 tablespoon sugar. Cook over medium heat, stirring and mashing berries, until reduced and thickened (about 5-7 minutes). Strain through a fine-mesh sieve to remove seeds. Let cool completely.</li>
+        <li>Beat butter until creamy, then gradually add powdered sugar, vanilla, and salt. Beat until light and fluffy.</li>
+        <li>Fold in the raspberry reduction until evenly incorporated.</li>
+        <li>Pipe or spread filling onto flat sides of half the macarons, then top with remaining macarons to make sandwiches.</li>
+        <li>Refrigerate macarons in an airtight container for at least 24 hours to soften and develop flavors. Bring to room temperature before serving.</li>
+      </ol>
     `,
     excerpt: "Delicate French macarons with a sweet raspberry filling. These elegant cookies are perfect for special occasions.",
     date: "March 10, 2025",
