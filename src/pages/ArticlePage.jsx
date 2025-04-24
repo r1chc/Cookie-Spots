@@ -97,19 +97,24 @@ const ArticlePage = () => {
   useEffect(() => {
     // Handle periodic refresh of view counts
     const refreshViewCounts = () => {
+      // Just update the articles array with the latest view counts
       const articlesWithUpdatedViews = getArticlesWithUpdatedViewCounts();
       setArticles(articlesWithUpdatedViews);
     };
     
-    // Refresh view counts every 3 seconds
-    const interval = setInterval(refreshViewCounts, 3000);
+    // Initial refresh
+    refreshViewCounts();
+    
+    // Refresh view counts every 2 seconds to match BlogPage
+    const interval = setInterval(refreshViewCounts, 2000);
     
     return () => clearInterval(interval);
   }, []);
 
   const currentArticle = articles.find(article => article.id === currentId);
   if (currentArticle) {
-    currentArticle.views = currentViews; // Update the article's view count with the latest value
+    // Update the article's view count with the latest value but don't trigger increments
+    currentArticle.views = currentViews;
   }
   const currentIndex = articles.findIndex(article => article.id === currentId);
   const prevArticle = currentIndex > 0 ? articles[currentIndex - 1] : null;

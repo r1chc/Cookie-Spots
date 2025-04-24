@@ -325,14 +325,6 @@ const BlogPage = () => {
           const updatedPost = articlesWithUpdatedViews.find(a => a.id === post.id);
           return updatedPost || post;
         });
-        
-        // Re-sort if needed based on current sort order
-        if (sortOrder === 'most_viewed' || sortOrder === 'least_viewed') {
-          return [...updatedPosts].sort((a, b) => 
-            sortOrder === 'most_viewed' ? b.views - a.views : a.views - b.views
-          );
-        }
-        
         return updatedPosts;
       });
       
@@ -343,10 +335,22 @@ const BlogPage = () => {
           return updatedPost || post;
         });
         
-        // Re-sort if needed based on current sort order
+        // Re-sort based on current sort order
         if (sortOrder === 'most_viewed' || sortOrder === 'least_viewed') {
           return [...updatedPosts].sort((a, b) => 
             sortOrder === 'most_viewed' ? b.views - a.views : a.views - b.views
+          );
+        } else if (sortOrder === 'newest') {
+          return [...updatedPosts].sort((a, b) => 
+            parseDate(b.date).getTime() - parseDate(a.date).getTime()
+          );
+        } else if (sortOrder === 'oldest') {
+          return [...updatedPosts].sort((a, b) => 
+            parseDate(a.date).getTime() - parseDate(b.date).getTime()
+          );
+        } else if (sortOrder === 'alphabetical') {
+          return [...updatedPosts].sort((a, b) => 
+            a.title.localeCompare(b.title)
           );
         }
         
@@ -357,8 +361,8 @@ const BlogPage = () => {
     // Initial refresh
     refreshViewCounts();
     
-    // Set up interval for periodic refresh (every 3 seconds)
-    const interval = setInterval(refreshViewCounts, 3000);
+    // Set up interval for periodic refresh (every 2 seconds)
+    const interval = setInterval(refreshViewCounts, 2000);
     
     return () => clearInterval(interval);
   }, [sortOrder]);
@@ -779,6 +783,7 @@ const BlogPage = () => {
                 {categories.map(category => {
                   // Use the same filtering logic as search
                   const categoryName = category.name.toLowerCase();
+                  const articlesWithUpdatedViews = getArticlesWithUpdatedViewCounts();
                   const count = articlesWithUpdatedViews.filter(post => 
                     post.title.toLowerCase().includes(categoryName) ||
                     post.category.toLowerCase().includes(categoryName) ||
