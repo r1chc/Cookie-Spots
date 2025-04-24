@@ -318,31 +318,36 @@ const ArticlePage = () => {
               {articles
                 .sort((a, b) => b.views - a.views)
                 .slice(0, 3)
-                .map((article) => (
-                  <li key={article.id} className="blog-popular-post">
-                    <Link to={`/article/${article.id}`}>
-                      <img
-                        src={article.image}
-                        alt={article.title}
-                        className="blog-popular-post-image"
-                      />
-                    </Link>
-                    <div className="blog-popular-post-content">
-                      <h4>
-                        <Link to={`/article/${article.id}`}>{article.title}</Link>
-                      </h4>
-                      <div>
-                        <span className="blog-popular-post-date">
-                          {formatDate(article.date)}
-                        </span>
-                        <span className="blog-popular-post-views">
-                          <i className="fas fa-eye"></i>
-                          {formatViews(article.views)}
-                        </span>
+                .map((article) => {
+                  // Use the real-time view count when the article is the current one
+                  const displayedViews = article.id === currentId ? currentViews : article.views;
+                  
+                  return (
+                    <li key={article.id} className="blog-popular-post">
+                      <Link to={`/article/${article.id}`}>
+                        <img
+                          src={article.image}
+                          alt={article.title}
+                          className="blog-popular-post-image"
+                        />
+                      </Link>
+                      <div className="blog-popular-post-content">
+                        <h4>
+                          <Link to={`/article/${article.id}`}>{article.title}</Link>
+                        </h4>
+                        <div>
+                          <span className="blog-popular-post-date">
+                            {formatDate(article.date)}
+                          </span>
+                          <span className="blog-popular-post-views">
+                            <i className="fas fa-eye"></i>
+                            {formatViews(displayedViews)}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
             </ul>
           </div>
 

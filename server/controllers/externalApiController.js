@@ -141,14 +141,18 @@ const fetchPlaceDetails = async (placeId, headers) => {
     
     console.log(`Fetching details for place ID: ${placeId}`);
     
+    // Define the specific fields we want to retrieve
+    const fieldMask = 'id,displayName,formattedAddress,location,currentOpeningHours';
+    
+    // Create headers with the correct field mask
+    const requestHeaders = {
+      ...headers,
+      'X-Goog-FieldMask': fieldMask
+    };
+    
     const response = await axios.get(
       `https://places.googleapis.com/v1/places/${placeId}`,
-      {
-        headers,
-        params: {
-          fields: 'id,displayName,formattedAddress,location,currentOpeningHours'
-        }
-      }
+      { headers: requestHeaders }
     );
     
     return response.data;
@@ -342,9 +346,23 @@ async function fetchFromGoogle(params, isDebugMode = false) {
                 console.log(`Text search request for "${query}":`, JSON.stringify(textSearchRequest, null, 2));
               }
               
+              const textSearchFieldMask = [
+                "places.id",
+                "places.displayName",
+                "places.formattedAddress", 
+                "places.location",
+                "places.addressComponents",
+                "places.rating",
+                "places.userRatingCount",
+                "places.priceLevel",
+                "places.websiteUri",
+                "places.internationalPhoneNumber",
+                "places.currentOpeningHours"
+              ].join(',');
+              
               const textSearchHeaders = {
                 'X-Goog-Api-Key': googleApiKey,
-                'X-Goog-FieldMask': '*',
+                'X-Goog-FieldMask': textSearchFieldMask,
                 'Content-Type': 'application/json'
               };
               
@@ -578,27 +596,32 @@ async function fetchFromGoogle(params, isDebugMode = false) {
 
     console.log(`Searching for cookie spots with request:`, JSON.stringify(searchRequest, null, 2));
 
-    // Make the API call with explicit fields to request opening hours
+    // Define the specific fields we want to retrieve
+    const fieldMask = [
+      "places.id",
+      "places.displayName",
+      "places.formattedAddress", 
+      "places.location",
+      "places.addressComponents",
+      "places.rating",
+      "places.userRatingCount",
+      "places.priceLevel",
+      "places.websiteUri",
+      "places.internationalPhoneNumber",
+      "places.currentOpeningHours"
+    ].join(',');
+
+    // Update headers with the correct field mask
+    const requestHeaders = {
+      ...headers,
+      'X-Goog-FieldMask': fieldMask
+    };
+
+    // Make the API call without the fields parameter in the body
     const response = await axios.post(
       'https://places.googleapis.com/v1/places:searchNearby',
-      {
-        ...searchRequest,
-        // Include specific fields we need, including opening hours
-        fields: [
-          "places.id",
-          "places.displayName",
-          "places.formattedAddress", 
-          "places.location",
-          "places.addressComponents",
-          "places.rating",
-          "places.userRatingCount",
-          "places.priceLevel",
-          "places.websiteUri",
-          "places.internationalPhoneNumber",
-          "places.currentOpeningHours" // Explicit request for opening hours
-        ]
-      },
-      { headers }
+      searchRequest,
+      { headers: requestHeaders }
     );
 
     // Process the results
@@ -611,7 +634,7 @@ async function fetchFromGoogle(params, isDebugMode = false) {
       
       if (!place.currentOpeningHours || !place.currentOpeningHours.periods) {
         console.log(`No opening hours for ${place.displayName?.text}, fetching details...`);
-        const details = await fetchPlaceDetails(place.id, headers);
+        const details = await fetchPlaceDetails(place.id, requestHeaders);
         if (details) {
           // Merge the details with the original place data
           detailedPlace = {
@@ -691,9 +714,21 @@ function removeDuplicates(spots) {
 async function testNearbySearch() {
   console.log('\nTesting Nearby Search API');
   try {
+    const googleApiKey = process.env.GOOGLE_PLACES_API_KEY || process.env.VITE_GOOGLE_PLACES_API_KEY;
+    
+    const fieldMask = [
+      "places.id",
+      "places.displayName",
+      "places.formattedAddress", 
+      "places.location",
+      "places.addressComponents",
+      "places.rating",
+      "places.userRatingCount"
+    ].join(',');
+    
     const headers = {
       'X-Goog-Api-Key': googleApiKey,
-      'X-Goog-FieldMask': '*',
+      'X-Goog-FieldMask': fieldMask,
       'Content-Type': 'application/json'
     };
     

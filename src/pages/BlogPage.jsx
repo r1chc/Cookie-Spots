@@ -7,6 +7,7 @@ import Slider from 'react-slick';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
 import { mockArticles } from '../data/mockArticles';
+import { getArticlesWithUpdatedViewCounts } from '../utils/viewCountUtils';
 
 const BlogPage = () => {
   // Use the scroll restoration hook
@@ -44,8 +45,10 @@ const BlogPage = () => {
   // Calculate category counts when posts change
   useEffect(() => {
     const counts = {};
+    // Use the updated view counts
+    const articlesWithUpdatedViews = getArticlesWithUpdatedViewCounts();
     categories.forEach(category => {
-      const count = mockArticles.filter(post => {
+      const count = articlesWithUpdatedViews.filter(post => {
         const categoryName = category.name.toLowerCase();
         return post.title.toLowerCase().includes(categoryName) ||
                post.category.toLowerCase().includes(categoryName) ||
@@ -283,15 +286,18 @@ const BlogPage = () => {
   };
 
   useEffect(() => {
+    // Get articles with updated view counts
+    const articlesWithUpdatedViews = getArticlesWithUpdatedViewCounts();
+    
     // Sort posts by views for popular tags
-    const sortedByViews = [...mockArticles].sort((a, b) => b.views - a.views);
+    const sortedByViews = [...articlesWithUpdatedViews].sort((a, b) => b.views - a.views);
     
     // Calculate popular tags
     const tags = calculatePopularTags(sortedByViews);
     setPopularTags(tags);
 
     // Sort posts by newest first
-    const sortedByNewest = [...mockArticles].sort((a, b) => {
+    const sortedByNewest = [...articlesWithUpdatedViews].sort((a, b) => {
       return parseDate(b.date).getTime() - parseDate(a.date).getTime();
     });
 
@@ -302,40 +308,59 @@ const BlogPage = () => {
     setLoading(false);
 
     const initialLoadingStates = {};
-    mockArticles.forEach(post => {
+    articlesWithUpdatedViews.forEach(post => {
       initialLoadingStates[post.id] = true;
     });
     setImageLoadingStates(initialLoadingStates);
   }, []);
 
-  // Listen for view updates
+  // Add periodic refresh of article view counts
   useEffect(() => {
-    const handleViewsUpdate = (e) => {
-      const { articleId, views } = e.detail;
-      setOriginalPosts(prevPosts => 
-        prevPosts.map(post => 
-          post.id === articleId 
-            ? { ...post, views: views } 
-            : post
-        )
-      );
+    const refreshViewCounts = () => {
+      const articlesWithUpdatedViews = getArticlesWithUpdatedViewCounts();
       
-      // Re-sort if currently sorting by views
-      if (sortOrder === 'most_viewed' || sortOrder === 'least_viewed') {
-        setSortedPosts(prevPosts => 
-          [...prevPosts].sort((a, b) => 
-            sortOrder === 'most_viewed' 
-              ? b.views - a.views 
-              : a.views - b.views
-          )
-        );
-      }
+      // Update the original posts with fresh view counts
+      setOriginalPosts(prevPosts => {
+        const updatedPosts = prevPosts.map(post => {
+          const updatedPost = articlesWithUpdatedViews.find(a => a.id === post.id);
+          return updatedPost || post;
+        });
+        
+        // Re-sort if needed based on current sort order
+        if (sortOrder === 'most_viewed' || sortOrder === 'least_viewed') {
+          return [...updatedPosts].sort((a, b) => 
+            sortOrder === 'most_viewed' ? b.views - a.views : a.views - b.views
+          );
+        }
+        
+        return updatedPosts;
+      });
+      
+      // Update sorted posts with the same logic
+      setSortedPosts(prevPosts => {
+        const updatedPosts = prevPosts.map(post => {
+          const updatedPost = articlesWithUpdatedViews.find(a => a.id === post.id);
+          return updatedPost || post;
+        });
+        
+        // Re-sort if needed based on current sort order
+        if (sortOrder === 'most_viewed' || sortOrder === 'least_viewed') {
+          return [...updatedPosts].sort((a, b) => 
+            sortOrder === 'most_viewed' ? b.views - a.views : a.views - b.views
+          );
+        }
+        
+        return updatedPosts;
+      });
     };
-
-    window.addEventListener('articleViewsUpdated', handleViewsUpdate);
-    return () => {
-      window.removeEventListener('articleViewsUpdated', handleViewsUpdate);
-    };
+    
+    // Initial refresh
+    refreshViewCounts();
+    
+    // Set up interval for periodic refresh (every 3 seconds)
+    const interval = setInterval(refreshViewCounts, 3000);
+    
+    return () => clearInterval(interval);
   }, [sortOrder]);
 
   const handleNewsletterSubmit = (e) => {
@@ -754,7 +779,7 @@ const BlogPage = () => {
                 {categories.map(category => {
                   // Use the same filtering logic as search
                   const categoryName = category.name.toLowerCase();
-                  const count = mockArticles.filter(post => 
+                  const count = articlesWithUpdatedViews.filter(post => 
                     post.title.toLowerCase().includes(categoryName) ||
                     post.category.toLowerCase().includes(categoryName) ||
                     post.excerpt.toLowerCase().includes(categoryName) ||
