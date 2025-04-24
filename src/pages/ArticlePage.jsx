@@ -238,10 +238,19 @@ const ArticlePage = () => {
           
           <h1 className="article-title">{currentArticle.title}</h1>
           
-          <div 
-            className="article-body"
-            dangerouslySetInnerHTML={{ __html: currentArticle.content }}
-          />
+          {currentArticle.content ? (
+            <div 
+              className="article-body"
+              dangerouslySetInnerHTML={{ __html: currentArticle.content }}
+            />
+          ) : (
+            <div className="article-body">
+              <p>{currentArticle.excerpt}</p>
+              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                <p className="text-yellow-700">This article preview only shows the summary. The full article content will be available soon!</p>
+              </div>
+            </div>
+          )}
         </article>
 
         <div className="article-sidebar-components">
