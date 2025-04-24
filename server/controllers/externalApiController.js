@@ -131,6 +131,128 @@ const externalApiController = {
   }
 };
 
+// Helper function to fetch detailed place information
+const fetchPlaceDetails = async (placeId, headers) => {
+  try {
+    if (!placeId) {
+      console.log('No place ID provided for details');
+      return null;
+    }
+    
+    console.log(`Fetching details for place ID: ${placeId}`);
+    
+    const response = await axios.get(
+      `https://places.googleapis.com/v1/places/${placeId}`,
+      {
+        headers,
+        params: {
+          fields: 'id,displayName,formattedAddress,location,currentOpeningHours'
+        }
+      }
+    );
+    
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching place details for ${placeId}:`, error.message);
+    return null;
+  }
+};
+
+// Helper function to format opening hours from Google Places API
+const formatOpeningHours = (currentOpeningHours) => {
+  // Check if we have opening hours data
+  if (!currentOpeningHours || !currentOpeningHours.periods || !Array.isArray(currentOpeningHours.periods)) {
+    console.log('No valid opening hours data:', currentOpeningHours);
+    return {};
+  }
+  
+  console.log('Formatting opening hours from:', JSON.stringify(currentOpeningHours, null, 2));
+  
+  // Initialize hours object with days of the week
+  const formattedHours = {
+    monday: null,
+    tuesday: null,
+    wednesday: null,
+    thursday: null,
+    friday: null,
+    saturday: null,
+    sunday: null
+  };
+  
+  // If we have weekday_text directly, use it (legacy format)
+  if (currentOpeningHours.weekday_text && Array.isArray(currentOpeningHours.weekday_text)) {
+    const daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    currentOpeningHours.weekday_text.forEach((dayHours, index) => {
+      if (index < daysOfWeek.length) {
+        const day = daysOfWeek[index];
+        formattedHours[day] = dayHours.split(': ')[1] || 'Closed';
+      }
+    });
+    console.log('Formatted from weekday_text:', formattedHours);
+    return formattedHours;
+  }
+  
+  // Map day numbers from Google API to our day keys
+  // Google: 0 = Sunday, 1 = Monday, etc.
+  const daysMap = {
+    0: 'sunday',
+    1: 'monday',
+    2: 'tuesday',
+    3: 'wednesday',
+    4: 'thursday',
+    5: 'friday',
+    6: 'saturday'
+  };
+  
+  // Process each period
+  currentOpeningHours.periods.forEach(period => {
+    if (period && period.open) {
+      const dayNum = period.open.day;
+      const day = daysMap[dayNum];
+      
+      if (day) {
+        // Format opening time
+        const openHour = parseInt(period.open.hour || 0);
+        const openMinute = parseInt(period.open.minute || 0);
+        let openTime = '';
+        
+        if (openHour > 12) {
+          openTime = `${openHour - 12}:${openMinute.toString().padStart(2, '0')} PM`;
+        } else if (openHour === 12) {
+          openTime = `12:${openMinute.toString().padStart(2, '0')} PM`;
+        } else if (openHour === 0) {
+          openTime = `12:${openMinute.toString().padStart(2, '0')} AM`;
+        } else {
+          openTime = `${openHour}:${openMinute.toString().padStart(2, '0')} AM`;
+        }
+        
+        // Format closing time if available
+        let closeTime = '';
+        if (period.close) {
+          const closeHour = parseInt(period.close.hour || 0);
+          const closeMinute = parseInt(period.close.minute || 0);
+          
+          if (closeHour > 12) {
+            closeTime = `${closeHour - 12}:${closeMinute.toString().padStart(2, '0')} PM`;
+          } else if (closeHour === 12) {
+            closeTime = `12:${closeMinute.toString().padStart(2, '0')} PM`;
+          } else if (closeHour === 0) {
+            closeTime = `12:${closeMinute.toString().padStart(2, '0')} AM`;
+          } else {
+            closeTime = `${closeHour}:${closeMinute.toString().padStart(2, '0')} AM`;
+          }
+        }
+        
+        // Set formatted hours string
+        formattedHours[day] = closeTime ? `${openTime} - ${closeTime}` : `${openTime} - Open End`;
+      }
+    }
+  });
+  
+  console.log('Formatted from periods:', formattedHours);
+  return formattedHours;
+};
+
 /**
  * Fetch cookie spots from Google Places API
  * @param {Object} params - Search parameters
@@ -269,29 +391,47 @@ async function fetchFromGoogle(params, isDebugMode = false) {
             
             // Process the combined results
             if (allPlaces.length > 0) {
-              const cookieSpots = allPlaces.map(place => ({
-                name: place.displayName?.text,
-                description: place.formattedAddress,
-                address: place.addressComponents?.streetNumber + ' ' + place.addressComponents?.route,
-                city: place.addressComponents?.locality,
-                state_province: place.addressComponents?.administrativeArea,
-                country: place.addressComponents?.country,
-                postal_code: place.addressComponents?.postalCode,
-                location: {
-                  type: 'Point',
-                  coordinates: [place.location.longitude, place.location.latitude]
-                },
-                phone: place.internationalPhoneNumber,
-                website: place.websiteUri,
-                hours_of_operation: place.currentOpeningHours?.periods || [],
-                price_range: place.priceLevel ? '$'.repeat(place.priceLevel) : '$$',
-                rating: place.rating,
-                user_ratings_total: place.userRatingCount,
-                place_id: place.id,
-                search_metadata: search_metadata || {
-                  search_type: 'neighborhood_text',
-                  location: params.location
+              const cookieSpots = await Promise.all(allPlaces.map(async place => {
+                // Check if we have opening hours, if not, fetch detailed place info
+                let detailedPlace = place;
+                
+                if (!place.currentOpeningHours || !place.currentOpeningHours.periods) {
+                  console.log(`No opening hours for ${place.displayName?.text}, fetching details...`);
+                  const details = await fetchPlaceDetails(place.id, headers);
+                  if (details) {
+                    // Merge the details with the original place data
+                    detailedPlace = {
+                      ...place,
+                      currentOpeningHours: details.currentOpeningHours
+                    };
+                  }
                 }
+                
+                return {
+                  name: detailedPlace.displayName?.text,
+                  description: detailedPlace.formattedAddress,
+                  address: detailedPlace.addressComponents?.streetNumber + ' ' + detailedPlace.addressComponents?.route,
+                  city: detailedPlace.addressComponents?.locality,
+                  state_province: detailedPlace.addressComponents?.administrativeArea,
+                  country: detailedPlace.addressComponents?.country,
+                  postal_code: detailedPlace.addressComponents?.postalCode,
+                  location: {
+                    type: 'Point',
+                    coordinates: [detailedPlace.location.longitude, detailedPlace.location.latitude]
+                  },
+                  phone: detailedPlace.internationalPhoneNumber,
+                  website: detailedPlace.websiteUri,
+                  hours_of_operation: formatOpeningHours(detailedPlace.currentOpeningHours),
+                  price_range: detailedPlace.priceLevel ? '$'.repeat(detailedPlace.priceLevel) : '$$',
+                  rating: detailedPlace.rating,
+                  user_ratings_total: detailedPlace.userRatingCount,
+                  place_id: detailedPlace.id,
+                  // Add search metadata to help with UI presentation
+                  search_metadata: search_metadata || {
+                    search_type: 'neighborhood_text',
+                    location: params.location
+                  }
+                };
               }));
               
               console.log(`Mapped ${cookieSpots.length} cookie spots`);
@@ -438,36 +578,71 @@ async function fetchFromGoogle(params, isDebugMode = false) {
 
     console.log(`Searching for cookie spots with request:`, JSON.stringify(searchRequest, null, 2));
 
-    // Make the API call
+    // Make the API call with explicit fields to request opening hours
     const response = await axios.post(
       'https://places.googleapis.com/v1/places:searchNearby',
-      searchRequest,
+      {
+        ...searchRequest,
+        // Include specific fields we need, including opening hours
+        fields: [
+          "places.id",
+          "places.displayName",
+          "places.formattedAddress", 
+          "places.location",
+          "places.addressComponents",
+          "places.rating",
+          "places.userRatingCount",
+          "places.priceLevel",
+          "places.websiteUri",
+          "places.internationalPhoneNumber",
+          "places.currentOpeningHours" // Explicit request for opening hours
+        ]
+      },
       { headers }
     );
 
     // Process the results
     const places = response.data.places || [];
-    const cookieSpots = places.map(place => ({
-      name: place.displayName?.text,
-      description: place.formattedAddress,
-      address: place.addressComponents?.streetNumber + ' ' + place.addressComponents?.route,
-      city: place.addressComponents?.locality,
-      state_province: place.addressComponents?.administrativeArea,
-      country: place.addressComponents?.country,
-      postal_code: place.addressComponents?.postalCode,
-      location: {
-        type: 'Point',
-        coordinates: [place.location.longitude, place.location.latitude]
-      },
-      phone: place.internationalPhoneNumber,
-      website: place.websiteUri,
-      hours_of_operation: place.currentOpeningHours?.periods || [],
-      price_range: place.priceLevel ? '$'.repeat(place.priceLevel) : '$$',
-      rating: place.rating,
-      user_ratings_total: place.userRatingCount,
-      place_id: place.id,
-      // Add search metadata to help with UI presentation
-      search_metadata: search_metadata
+    
+    // Process each place, fetching additional details if needed
+    const cookieSpots = await Promise.all(places.map(async place => {
+      // Check if we have opening hours, if not, fetch detailed place info
+      let detailedPlace = place;
+      
+      if (!place.currentOpeningHours || !place.currentOpeningHours.periods) {
+        console.log(`No opening hours for ${place.displayName?.text}, fetching details...`);
+        const details = await fetchPlaceDetails(place.id, headers);
+        if (details) {
+          // Merge the details with the original place data
+          detailedPlace = {
+            ...place,
+            currentOpeningHours: details.currentOpeningHours
+          };
+        }
+      }
+      
+      return {
+        name: detailedPlace.displayName?.text,
+        description: detailedPlace.formattedAddress,
+        address: detailedPlace.addressComponents?.streetNumber + ' ' + detailedPlace.addressComponents?.route,
+        city: detailedPlace.addressComponents?.locality,
+        state_province: detailedPlace.addressComponents?.administrativeArea,
+        country: detailedPlace.addressComponents?.country,
+        postal_code: detailedPlace.addressComponents?.postalCode,
+        location: {
+          type: 'Point',
+          coordinates: [detailedPlace.location.longitude, detailedPlace.location.latitude]
+        },
+        phone: detailedPlace.internationalPhoneNumber,
+        website: detailedPlace.websiteUri,
+        hours_of_operation: formatOpeningHours(detailedPlace.currentOpeningHours),
+        price_range: detailedPlace.priceLevel ? '$'.repeat(detailedPlace.priceLevel) : '$$',
+        rating: detailedPlace.rating,
+        user_ratings_total: detailedPlace.userRatingCount,
+        place_id: detailedPlace.id,
+        // Add search metadata to help with UI presentation
+        search_metadata: search_metadata
+      };
     }));
 
     // For debugging

@@ -57,6 +57,30 @@ const MapUpdater = ({ viewport, bounds, shouldPreserveView }) => {
   return null;
 };
 
+// Helper function to format business hours
+const formatHours = (hoursObj) => {
+  if (!hoursObj) return null;
+  
+  const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+  const capitalizedDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  
+  let hoursHtml = '<div style="margin-top: 8px; margin-bottom: 8px;">';
+  let hasHours = false;
+  
+  days.forEach((day, index) => {
+    if (hoursObj[day]) {
+      hasHours = true;
+      hoursHtml += `<div style="display: flex; justify-content: space-between; font-size: 12px;">
+        <span style="font-weight: 500;">${capitalizedDays[index]}:</span>
+        <span>${hoursObj[day]}</span>
+      </div>`;
+    }
+  });
+  
+  hoursHtml += '</div>';
+  return hasHours ? hoursHtml : null;
+};
+
 // Component for rendering markers to prevent their disappearance
 const MarkersList = ({ spots, hoveredSpot, clickedSpot }) => {
   const map = useMap();
@@ -111,6 +135,67 @@ const MarkersList = ({ spots, hoveredSpot, clickedSpot }) => {
                     {spot.state_province ? (spot.city ? ', ' : '') + spot.state_province : ''}
                   </p>
                 }
+                
+                {/* Display phone if available */}
+                {spot.phone && (
+                  <p className="mt-1 mb-1">
+                    <a href={`tel:${spot.phone.replace(/\D/g, '')}`} className="text-primary-600 hover:text-primary-800">
+                      {spot.phone}
+                    </a>
+                  </p>
+                )}
+                
+                {/* Display business hours if available */}
+                {spot.hours_of_operation && Object.keys(spot.hours_of_operation).length > 0 && (
+                  <div className="mt-2 mb-2">
+                    <h4 className="font-semibold text-sm mb-1">Business Hours</h4>
+                    <div className="text-xs">
+                      {spot.hours_of_operation.monday && (
+                        <div className="flex justify-between">
+                          <span className="font-medium">Monday:</span>
+                          <span>{spot.hours_of_operation.monday}</span>
+                        </div>
+                      )}
+                      {spot.hours_of_operation.tuesday && (
+                        <div className="flex justify-between">
+                          <span className="font-medium">Tuesday:</span>
+                          <span>{spot.hours_of_operation.tuesday}</span>
+                        </div>
+                      )}
+                      {spot.hours_of_operation.wednesday && (
+                        <div className="flex justify-between">
+                          <span className="font-medium">Wednesday:</span>
+                          <span>{spot.hours_of_operation.wednesday}</span>
+                        </div>
+                      )}
+                      {spot.hours_of_operation.thursday && (
+                        <div className="flex justify-between">
+                          <span className="font-medium">Thursday:</span>
+                          <span>{spot.hours_of_operation.thursday}</span>
+                        </div>
+                      )}
+                      {spot.hours_of_operation.friday && (
+                        <div className="flex justify-between">
+                          <span className="font-medium">Friday:</span>
+                          <span>{spot.hours_of_operation.friday}</span>
+                        </div>
+                      )}
+                      {spot.hours_of_operation.saturday && (
+                        <div className="flex justify-between">
+                          <span className="font-medium">Saturday:</span>
+                          <span>{spot.hours_of_operation.saturday}</span>
+                        </div>
+                      )}
+                      {spot.hours_of_operation.sunday && (
+                        <div className="flex justify-between">
+                          <span className="font-medium">Sunday:</span>
+                          <span>{spot.hours_of_operation.sunday}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
                 <a 
                   href={`/cookie-spot/${spot._id}`} 
                   className="text-primary-600 hover:text-primary-800"
@@ -360,8 +445,10 @@ const Map = ({
                  ${validSpot.city ? (validSpot.address ? ', ' : '') + validSpot.city : ''}
                  ${validSpot.state_province ? (validSpot.city ? ', ' : '') + validSpot.state_province : ''}</p>`
               }
-              ${validSpot.phone ? `<p style="margin: 0 0 8px;">${validSpot.phone}</p>` : ''}
+              ${validSpot.phone ? `<p style="margin: 0 0 8px;"><a href="tel:${validSpot.phone.replace(/\D/g, '')}" style="color: #1F75CB; text-decoration: none;">${validSpot.phone}</a></p>` : ''}
               ${validSpot.rating ? `<p style="margin: 0 0 8px;">Rating: ${validSpot.rating.toFixed(1)} ⭐ (${validSpot.user_ratings_total || '0'} reviews)</p>` : ''}
+              ${validSpot.hours_of_operation && Object.keys(validSpot.hours_of_operation).length > 0 ? 
+                formatHours(validSpot.hours_of_operation) : ''}
               ${validSpot.website ? `<p style="margin: 0 0 8px;"><a href="${validSpot.website}" target="_blank" style="color: #1F75CB;">Visit Website</a></p>` : ''}
               ${isExternalSpot ? 
                 `<p style="margin-top: 8px;"><a href="${googleMapsUrl}" target="_blank" style="color: #4c7ef3; text-decoration: none;">View on Google Maps</a></p>` : 
@@ -483,8 +570,10 @@ const Map = ({
                ${validSpot.city ? (validSpot.address ? ', ' : '') + validSpot.city : ''}
                ${validSpot.state_province ? (validSpot.city ? ', ' : '') + validSpot.state_province : ''}</p>`
             }
-            ${validSpot.phone ? `<p style="margin: 0 0 8px;">${validSpot.phone}</p>` : ''}
+            ${validSpot.phone ? `<p style="margin: 0 0 8px;"><a href="tel:${validSpot.phone.replace(/\D/g, '')}" style="color: #1F75CB; text-decoration: none;">${validSpot.phone}</a></p>` : ''}
             ${validSpot.rating ? `<p style="margin: 0 0 8px;">Rating: ${validSpot.rating.toFixed(1)} ⭐ (${validSpot.user_ratings_total || '0'} reviews)</p>` : ''}
+            ${validSpot.hours_of_operation && Object.keys(validSpot.hours_of_operation).length > 0 ? 
+              formatHours(validSpot.hours_of_operation) : ''}
             ${validSpot.website ? `<p style="margin: 0 0 8px;"><a href="${validSpot.website}" target="_blank" style="color: #1F75CB;">Visit Website</a></p>` : ''}
             ${isExternalSpot ? 
               `<p style="margin-top: 8px;"><a href="${googleMapsUrl}" target="_blank" style="color: #4c7ef3; text-decoration: none;">View on Google Maps</a></p>` : 

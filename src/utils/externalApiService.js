@@ -19,6 +19,105 @@ const api = axios.create({
 const DEBUG_MODE = true;
 
 /**
+ * Helper function to format hours from Google API periods format to our app format
+ * @param {Array|Object} hours - Hours data from Google API
+ * @returns {Object} - Formatted hours in our app format
+ */
+const formatHoursOfOperation = (hours) => {
+  // If we already have the correct format, just return it
+  if (hours && typeof hours === 'object' && !Array.isArray(hours) && 
+      (hours.monday || hours.tuesday || hours.wednesday || hours.thursday || 
+       hours.friday || hours.saturday || hours.sunday)) {
+    return hours;
+  }
+  
+  // Initialize empty hours object
+  const formattedHours = {
+    monday: null,
+    tuesday: null,
+    wednesday: null,
+    thursday: null,
+    friday: null,
+    saturday: null,
+    sunday: null
+  };
+  
+  // If we have weekday_text, use that to format hours (from old Google Places API)
+  if (hours && hours.weekday_text && Array.isArray(hours.weekday_text)) {
+    const daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    hours.weekday_text.forEach((dayHours, index) => {
+      const day = daysOfWeek[index];
+      formattedHours[day] = dayHours.split(': ')[1] || 'Closed';
+    });
+    return formattedHours;
+  }
+  
+  // If we have periods (from new Google Places API), format them
+  if (hours && Array.isArray(hours)) {
+    // GoogleAPI periods are indexed by day of week (0 = Sunday, 1 = Monday, etc.)
+    // We need to map them to our format
+    const daysMap = {
+      0: 'sunday',
+      1: 'monday', 
+      2: 'tuesday', 
+      3: 'wednesday', 
+      4: 'thursday', 
+      5: 'friday', 
+      6: 'saturday'
+    };
+    
+    // For each period, extract opening and closing times
+    hours.forEach(period => {
+      if (period && period.open) {
+        const dayNum = period.open.day;
+        const day = daysMap[dayNum];
+        
+        if (day) {
+          const openHour = parseInt(period.open.hour || 0);
+          const openMinute = parseInt(period.open.minute || 0);
+          let openTime = '';
+          
+          // Format opening time
+          if (openHour > 12) {
+            openTime = `${openHour - 12}:${openMinute.toString().padStart(2, '0')} PM`;
+          } else if (openHour === 12) {
+            openTime = `12:${openMinute.toString().padStart(2, '0')} PM`;
+          } else if (openHour === 0) {
+            openTime = `12:${openMinute.toString().padStart(2, '0')} AM`;
+          } else {
+            openTime = `${openHour}:${openMinute.toString().padStart(2, '0')} AM`;
+          }
+          
+          // Format closing time if available
+          let closeTime = '';
+          if (period.close) {
+            const closeHour = parseInt(period.close.hour || 0);
+            const closeMinute = parseInt(period.close.minute || 0);
+            
+            if (closeHour > 12) {
+              closeTime = `${closeHour - 12}:${closeMinute.toString().padStart(2, '0')} PM`;
+            } else if (closeHour === 12) {
+              closeTime = `12:${closeMinute.toString().padStart(2, '0')} PM`;
+            } else if (closeHour === 0) {
+              closeTime = `12:${closeMinute.toString().padStart(2, '0')} AM`;
+            } else {
+              closeTime = `${closeHour}:${closeMinute.toString().padStart(2, '0')} AM`;
+            }
+          }
+          
+          // Set formatted hours string
+          formattedHours[day] = closeTime ? `${openTime} - ${closeTime}` : `${openTime} - Open End`;
+        }
+      }
+    });
+    
+    return formattedHours;
+  }
+  
+  return formattedHours;
+};
+
+/**
  * Helper function to determine if a business is cookie-related
  * @param {Object} spot - Business spot to check
  * @returns {boolean} - True if the business is likely cookie-related
@@ -139,6 +238,14 @@ export const processExternalCookieSpots = (cookieSpots = [], viewport = null, se
     return { spots: [], viewport, search_metadata };
   }
   
+  console.log('Processing cookie spots with hours data:', 
+    cookieSpots.map(spot => ({
+      name: spot.name,
+      hours_original: spot.hours_of_operation,
+      has_hours: Boolean(spot.hours_of_operation && Object.keys(spot.hours_of_operation).length > 0)
+    }))
+  );
+  
   const processedSpots = cookieSpots.map(spot => {
     // Generate a client-side ID if not present
     const id = spot._id || spot.id || spot.place_id || `cs-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -151,6 +258,21 @@ export const processExternalCookieSpots = (cookieSpots = [], viewport = null, se
         : typeof spot.cookie_types === 'string'
           ? spot.cookie_types.split(',').map(type => type.trim())
           : [];
+    }
+    
+    // Format hours of operation
+    const hours_of_operation = formatHoursOfOperation(spot.hours_of_operation);
+    
+    // Debug log for the specific spot
+    if (DEBUG_MODE) {
+      console.log(`Hours for ${spot.name}:`, 
+        { 
+          original: spot.hours_of_operation,
+          formatted: hours_of_operation,
+          has_original: Boolean(spot.hours_of_operation), 
+          has_formatted: Boolean(hours_of_operation && Object.keys(hours_of_operation).some(day => hours_of_operation[day]))
+        }
+      );
     }
     
     // Return normalized cookie spot
@@ -169,6 +291,7 @@ export const processExternalCookieSpots = (cookieSpots = [], viewport = null, se
       },
       phone: spot.phone || spot.formatted_phone_number || '',
       website: spot.website || spot.url || '',
+      hours_of_operation,
       price_range: spot.price_range || (spot.price_level ? '$'.repeat(spot.price_level) : '$$'),
       has_dine_in: spot.has_dine_in || false,
       has_takeout: spot.has_takeout || true,
