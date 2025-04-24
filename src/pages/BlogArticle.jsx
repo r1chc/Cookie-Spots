@@ -1,15 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import '../styles/BlogArticle.css';
+import { mockArticles } from '../data/mockArticles';
+import useArticleViews from '../hooks/useArticleViews';
+import { getArticlesWithUpdatedViewCounts, getArticleViewCount } from '../utils/viewCountUtils';
 
 const BlogArticle = () => {
   const { id } = useParams();
+  const articleId = parseInt(id);
   const [article, setArticle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [nextArticle, setNextArticle] = useState(null);
   const [prevArticle, setPrevArticle] = useState(null);
   const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
+  const [popularArticles, setPopularArticles] = useState([]);
+  
+  // Get the current view count from our hook
+  const currentViews = useArticleViews(articleId);
+
+  // Function to fetch articles with updated view counts
+  const fetchArticles = async () => {
+    // Use the utility function for consistent view counts across components
+    return getArticlesWithUpdatedViewCounts();
+  };
 
   // Function to handle image loading errors
   const handleImageError = (e) => {
@@ -46,6 +60,10 @@ const BlogArticle = () => {
             setNextArticle(allArticles[currentIndex + 1]);
           }
         }
+        
+        // Set popular articles sorted by view count
+        const sortedByViews = [...allArticles].sort((a, b) => b.views - a.views).slice(0, 3);
+        setPopularArticles(sortedByViews);
       } catch (error) {
         console.error('Error fetching article:', error);
       } finally {
@@ -54,6 +72,20 @@ const BlogArticle = () => {
     };
 
     fetchArticle();
+    
+    // Listen for view count updates from other components
+    const handleViewsUpdate = (e) => {
+      const { articleId: updatedId, views: updatedViews } = e.detail;
+      setPopularArticles(prev => prev.map(article => 
+        article.id === updatedId ? { ...article, views: updatedViews } : article
+      ).sort((a, b) => b.views - a.views));
+    };
+    
+    window.addEventListener('articleViewsUpdated', handleViewsUpdate);
+    
+    return () => {
+      window.removeEventListener('articleViewsUpdated', handleViewsUpdate);
+    };
   }, [id]);
 
   const handleSearchSubmit = (e) => {
@@ -156,7 +188,7 @@ const BlogArticle = () => {
             <span className="article-category">{article.category}</span>
             <span className="article-date">{article.date}</span>
             <span className="article-views">
-              <i className="fas fa-eye"></i> {article.views.toLocaleString()} views
+              <i className="fas fa-eye"></i> {articleId === article.id ? currentViews.toLocaleString() : article.views.toLocaleString()} views
             </span>
           </div>
           <h1 className="article-title">{article.title}</h1>
@@ -208,42 +240,29 @@ const BlogArticle = () => {
         <div className="blog-sidebar-section">
           <h3 className="blog-sidebar-title">Popular Recipes</h3>
           <ul className="blog-popular-posts">
-            <li className="blog-popular-post">
-              <img 
-                src="/images/cookie-types/peanut-butter.webp" 
-                alt="Peanut Butter"
-                className="blog-popular-post-image"
-                onError={handleImageError}
-              />
-              <div className="blog-popular-post-content">
-                <h4><Link to="/article/4">Peanut Butter Chocolate Chip Cookies</Link></h4>
-                <span className="blog-popular-post-date">April 8, 2025</span>
-              </div>
-            </li>
-            <li className="blog-popular-post">
-              <img 
-                src="/images/cookie-types/snickerdoodle.webp" 
-                alt="Snickerdoodle"
-                className="blog-popular-post-image"
-                onError={handleImageError}
-              />
-              <div className="blog-popular-post-content">
-                <h4><Link to="/article/5">Classic Snickerdoodle Cookies</Link></h4>
-                <span className="blog-popular-post-date">April 5, 2025</span>
-              </div>
-            </li>
-            <li className="blog-popular-post">
-              <img 
-                src="/images/cookie-types/macaron.webp" 
-                alt="Macaron"
-                className="blog-popular-post-image"
-                onError={handleImageError}
-              />
-              <div className="blog-popular-post-content">
-                <h4><Link to="/article/6">French Macarons with Raspberry Filling</Link></h4>
-                <span className="blog-popular-post-date">April 3, 2025</span>
-              </div>
-            </li>
+            {popularArticles.map((popularArticle) => (
+              <li key={popularArticle.id} className="blog-popular-post">
+                <Link to={`/article/${popularArticle.id}`}>
+                  <img 
+                    src={popularArticle.image} 
+                    alt={popularArticle.title}
+                    className="blog-popular-post-image"
+                    onError={handleImageError}
+                  />
+                </Link>
+                <div className="blog-popular-post-content">
+                  <h4>
+                    <Link to={`/article/${popularArticle.id}`}>{popularArticle.title}</Link>
+                  </h4>
+                  <div>
+                    <span className="blog-popular-post-date">{popularArticle.date}</span>
+                    <span className="blog-popular-post-views">
+                      <i className="fas fa-eye"></i> {popularArticle.views.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </li>
+            ))}
           </ul>
         </div>
 

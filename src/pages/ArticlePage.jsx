@@ -5,6 +5,7 @@ import useScrollRestoration from '../hooks/useScrollRestoration';
 import SearchButton from '../components/SearchButton';
 import useArticleViews from '../hooks/useArticleViews';
 import { mockArticles } from '../data/mockArticles';
+import { getArticleViewCount, getArticlesWithUpdatedViewCounts } from '../utils/viewCountUtils';
 
 const ArticlePage = () => {
   // Use the scroll restoration hook
@@ -59,11 +60,13 @@ const ArticlePage = () => {
   }, []);
 
   useEffect(() => {
-    // Set search results to all articles
-    setSearchResults(mockArticles);
+    // Set search results to all articles with updated view counts
+    const articlesWithUpdatedViews = getArticlesWithUpdatedViewCounts();
+    setArticles(articlesWithUpdatedViews);
+    setSearchResults(articlesWithUpdatedViews);
     
     // Calculate popular tags
-    const tags = mockArticles.reduce((acc, article) => {
+    const tags = articlesWithUpdatedViews.reduce((acc, article) => {
       if (article.tags) {
         article.tags.forEach(tag => {
           acc[tag] = (acc[tag] || 0) + 1;
@@ -78,7 +81,7 @@ const ArticlePage = () => {
     const counts = {};
     categories.forEach(category => {
       const categoryName = category.name.toLowerCase();
-      const count = mockArticles.filter(post => 
+      const count = articlesWithUpdatedViews.filter(post => 
         post.title.toLowerCase().includes(categoryName) ||
         post.category.toLowerCase().includes(categoryName) ||
         post.excerpt.toLowerCase().includes(categoryName) ||
@@ -90,13 +93,36 @@ const ArticlePage = () => {
     setCategoryCount(counts);
   }, []);
 
+  // Update view counts in popular recipes section periodically
+  useEffect(() => {
+    // Handle periodic refresh of view counts
+    const refreshViewCounts = () => {
+      const articlesWithUpdatedViews = getArticlesWithUpdatedViewCounts();
+      setArticles(articlesWithUpdatedViews);
+    };
+    
+    // Refresh view counts every 3 seconds
+    const interval = setInterval(refreshViewCounts, 3000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
   const currentArticle = articles.find(article => article.id === currentId);
   if (currentArticle) {
-    currentArticle.views = currentViews; // Update the article's view count
+    currentArticle.views = currentViews; // Update the article's view count with the latest value
   }
   const currentIndex = articles.findIndex(article => article.id === currentId);
   const prevArticle = currentIndex > 0 ? articles[currentIndex - 1] : null;
   const nextArticle = currentIndex < articles.length - 1 ? articles[currentIndex + 1] : null;
+
+  // Update article when navigation happens
+  useEffect(() => {
+    if (currentArticle) {
+      document.title = `${currentArticle.title} | Cookie Spots`;
+      // Reset image loading state when article changes
+      setImageLoading(true);
+    }
+  }, [currentId, currentArticle]);
 
   // Handle image loading states
   const handleImageLoad = () => {
@@ -232,7 +258,7 @@ const ArticlePage = () => {
             <span className="article-category">{currentArticle.category}</span>
             <span className="article-date">{currentArticle.date}</span>
             <span className="article-views">
-              <i className="fas fa-eye"></i> {currentArticle.views.toLocaleString()} views
+              <i className="fas fa-eye"></i> {formatViews(currentViews)} views
             </span>
           </div>
           
@@ -289,7 +315,7 @@ const ArticlePage = () => {
           <div className="blog-sidebar-section">
             <h3 className="blog-sidebar-title">Popular Recipes</h3>
             <ul className="blog-popular-posts">
-              {mockArticles
+              {articles
                 .sort((a, b) => b.views - a.views)
                 .slice(0, 3)
                 .map((article) => (

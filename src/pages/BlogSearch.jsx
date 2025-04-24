@@ -4,6 +4,8 @@ import '../styles/BlogPage.css';
 import '../styles/BlogSearch.css';
 import useScrollRestoration from '../hooks/useScrollRestoration';
 import SearchButton from '../components/SearchButton';
+import { mockArticles } from '../data/mockArticles';
+import { getArticlesWithUpdatedViewCounts } from '../utils/viewCountUtils';
 
 const BlogSearch = () => {
   const location = useLocation();
@@ -187,183 +189,35 @@ const BlogSearch = () => {
   // Fetch articles from API with fallback to mock data
   const fetchArticles = async () => {
     try {
+      // Skip real API call to prevent 429 errors
+      /*
       const response = await fetch('/api/articles');
       if (!response.ok) throw new Error('Failed to fetch articles');
       const data = await response.json();
       return data;
+      */
+      throw new Error('Skipping API call');
     } catch (error) {
-      console.error('Error fetching articles:', error);
-      // Fallback to mock data with all blog articles
-      return [
-        {
-          id: 1,
-          title: "Classic Chocolate Chip Cookies with Brown Butter",
-          category: "Chocolate",
-          publishedAt: "2025-03-15T00:00:00Z",
-          views: 1250,
-          image: "/images/cookie-types/chocolate-chip.webp",
-          excerpt: "Elevate the classic chocolate chip cookie with the nutty depth of brown butter. These cookies have crispy edges, chewy centers and rich flavor that will impress everyone.",
-          tags: ["chocolate", "easy", "classic", "brown butter", "baking"]
-        },
-        {
-          id: 2,
-          title: "Almond Flour Sugar Cookies with Citrus Glaze",
-          category: "Gluten-Free",
-          publishedAt: "2025-03-14T00:00:00Z",
-          views: 980,
-          image: "/images/cookie-types/sugar-cookie.webp",
-          excerpt: "These gluten-free sugar cookies made with almond flour have a wonderful tender texture and delightful citrus glaze that makes them irresistible.",
-          tags: ["gluten-free", "vegan", "holiday", "citrus", "almond"]
-        },
-        {
-          id: 3,
-          title: "No-Bake Chocolate Oatmeal Cookies",
-          category: "No-Bake",
-          publishedAt: "2025-03-13T00:00:00Z",
-          views: 1560,
-          image: "/images/cookie-types/oatmeal-raisin.webp",
-          excerpt: "Perfect for hot summer days, these no-bake chocolate oatmeal cookies come together in minutes and satisfy your cookie cravings without turning on the oven.",
-          tags: ["no-bake", "chocolate", "easy", "quick", "oatmeal"]
-        },
-        {
-          id: 4,
-          title: "Peanut Butter Chocolate Chip Cookies",
-          category: "Chocolate",
-          publishedAt: "2025-03-12T00:00:00Z",
-          views: 1420,
-          image: "/images/cookie-types/peanut-butter.webp",
-          excerpt: "A perfect combination of peanut butter and chocolate in these soft and chewy cookies that will satisfy any sweet tooth.",
-          tags: ["chocolate", "peanut butter", "easy", "kids", "classic"]
-        },
-        {
-          id: 5,
-          title: "Classic Snickerdoodle Cookies",
-          category: "Classic",
-          publishedAt: "2025-03-11T00:00:00Z",
-          views: 1100,
-          image: "/images/cookie-types/snickerdoodle.webp",
-          excerpt: "Soft and chewy cinnamon sugar cookies that are perfect for any occasion. These classic cookies are always a crowd favorite.",
-          tags: ["classic", "cinnamon", "holiday", "easy", "baking"]
-        },
-        {
-          id: 6,
-          title: "French Macarons with Raspberry Filling",
-          category: "Specialty",
-          publishedAt: "2025-03-10T00:00:00Z",
-          views: 980,
-          image: "/images/cookie-types/macaron.webp",
-          excerpt: "Delicate French macarons with a sweet raspberry filling. These elegant cookies are perfect for special occasions.",
-          tags: ["french", "macarons", "raspberry", "specialty", "elegant"]
-        },
-        {
-          id: 7,
-          title: "Lemon Glazed Shortbread Cookies",
-          category: "Classic",
-          publishedAt: "2025-03-09T00:00:00Z",
-          views: 950,
-          image: "/images/cookie-types/lemon-glazed.webp",
-          excerpt: "Buttery shortbread cookies with a tangy lemon glaze that adds the perfect balance of sweetness and citrus.",
-          tags: ["classic", "lemon", "shortbread", "citrus", "buttery"]
-        },
-        {
-          id: 8,
-          title: "Double Chocolate Cookies",
-          category: "Chocolate",
-          publishedAt: "2025-03-08T00:00:00Z",
-          views: 1200,
-          image: "/images/cookie-types/double-chocolate.webp",
-          excerpt: "Rich and decadent double chocolate cookies that are perfect for chocolate lovers. These cookies are packed with chocolate chips and cocoa powder.",
-          tags: ["chocolate", "decadent", "rich", "double chocolate", "indulgent"]
-        },
-        {
-          id: 9,
-          title: "Red Velvet Cookies with Cream Cheese Frosting",
-          category: "Specialty",
-          publishedAt: "2025-03-07T00:00:00Z",
-          views: 1300,
-          image: "/images/cookie-types/red-velvet.webp",
-          excerpt: "Soft and chewy red velvet cookies topped with a rich cream cheese frosting. Perfect for Valentine's Day or any special occasion.",
-          tags: ["red velvet", "cream cheese", "specialty", "holiday", "decadent"]
-        },
-        {
-          id: 10,
-          title: "Gingerbread Cookies with Royal Icing",
-          category: "Seasonal",
-          publishedAt: "2025-03-06T00:00:00Z",
-          views: 1100,
-          image: "/images/cookie-types/gingerbread.webp",
-          excerpt: "Classic gingerbread cookies with warm spices and molasses. Perfect for the holiday season or any time you want a cozy treat.",
-          tags: ["gingerbread", "seasonal", "holiday", "spiced", "classic"]
-        },
-        {
-          id: 11,
-          title: "White Chocolate Cranberry Cookies",
-          category: "Chocolate",
-          publishedAt: "2025-03-05T00:00:00Z",
-          views: 1000,
-          image: "/images/cookie-types/white-chocolate.webp",
-          excerpt: "Soft and chewy cookies packed with white chocolate chips and dried cranberries. A perfect balance of sweet and tart.",
-          tags: ["white chocolate", "cranberry", "chocolate", "fruity", "holiday"]
-        },
-        {
-          id: 12,
-          title: "Pumpkin Spice Cookies",
-          category: "Seasonal",
-          publishedAt: "2025-03-04T00:00:00Z",
-          views: 1200,
-          image: "/images/cookie-types/pumpkin-spice.webp",
-          excerpt: "Warm and cozy pumpkin spice cookies that are perfect for fall. These cookies are packed with pumpkin and warm spices.",
-          tags: ["pumpkin", "spice", "seasonal", "fall", "warm"]
-        },
-        {
-          id: 13,
-          title: "Salted Caramel Chocolate Cookies",
-          category: "Chocolate",
-          publishedAt: "2025-03-03T00:00:00Z",
-          views: 1350,
-          image: "/images/cookie-types/salted-caramel.webp",
-          excerpt: "Rich chocolate cookies with a gooey salted caramel center. These cookies are the perfect combination of sweet and salty.",
-          tags: ["chocolate", "caramel", "salted", "decadent", "indulgent"]
-        },
-        {
-          id: 14,
-          title: "Almond Biscotti",
-          category: "Specialty",
-          publishedAt: "2025-03-02T00:00:00Z",
-          views: 950,
-          image: "/images/cookie-types/almond-biscotti.webp",
-          excerpt: "Crunchy almond biscotti that are perfect for dipping in coffee or tea. These Italian cookies are twice-baked for extra crispiness.",
-          tags: ["almond", "biscotti", "italian", "crunchy", "coffee"]
-        },
-        {
-          id: 15,
-          title: "Matcha Green Tea Cookies",
-          category: "Specialty",
-          publishedAt: "2025-03-01T00:00:00Z",
-          views: 1050,
-          image: "/images/cookie-types/matcha-green.webp",
-          excerpt: "Delicate and flavorful matcha green tea cookies that are perfect with a cup of tea. These cookies have a beautiful green color and unique flavor.",
-          tags: ["matcha", "green tea", "japanese", "specialty", "unique"]
-        }
-      ];
+      console.log('Using local article data instead of API');
+      // Use the utility function instead of trying to require mockArticles
+      return getArticlesWithUpdatedViewCounts().map(article => ({
+        ...article,
+        publishedAt: article.date // Map date to publishedAt for compatibility
+      }));
     }
   };
 
   // Check for new articles periodically
   const checkForUpdates = async () => {
-    const articles = await fetchArticles();
-    if (articles.length > 0) {
-      const latestArticle = articles[0];
-      if (!lastUpdateTime || new Date(latestArticle.publishedAt) > new Date(lastUpdateTime)) {
-        setLastUpdateTime(latestArticle.publishedAt);
-        return articles;
-      }
-    }
-    return null;
+    // Skip API call and just use local data
+    return getArticlesWithUpdatedViewCounts().map(article => ({
+      ...article,
+      publishedAt: article.date
+    }));
   };
 
   useEffect(() => {
-    // Set up periodic check for new articles (every 5 minutes)
+    // Reduce periodic check frequency to once every 10 minutes instead of 5
     const updateInterval = setInterval(async () => {
       const newArticles = await checkForUpdates();
       if (newArticles) {
@@ -374,7 +228,7 @@ const BlogSearch = () => {
           return [...uniqueNewArticles, ...prevResults];
         });
       }
-    }, 5 * 60 * 1000); // 5 minutes
+    }, 10 * 60 * 1000); // 10 minutes (doubled from 5)
 
     return () => clearInterval(updateInterval);
   }, [lastUpdateTime]);
@@ -398,8 +252,12 @@ const BlogSearch = () => {
       setDisplayPages([1, 2, 3]); // Reset display pages
       
       try {
-        // Fetch articles from API
-        const articles = await fetchArticles();
+        // Get articles directly from utility function to avoid API calls
+        const articles = getArticlesWithUpdatedViewCounts().map(article => ({
+          ...article,
+          publishedAt: article.date
+        }));
+        
         setAllArticles(articles);
         
         // Filter and sort results based on search query
@@ -455,7 +313,11 @@ const BlogSearch = () => {
   // Add useEffect to fetch and set most viewed articles
   useEffect(() => {
     const fetchAndSetMostViewed = async () => {
-      const articles = await fetchArticles();
+      // Use utility function instead of API call
+      const articles = getArticlesWithUpdatedViewCounts().map(article => ({
+        ...article,
+        publishedAt: article.date
+      }));
       setMostViewedArticles(getMostViewedArticles(articles));
     };
     fetchAndSetMostViewed();
