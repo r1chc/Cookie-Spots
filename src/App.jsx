@@ -54,7 +54,7 @@ function App() {
               <Route path="/add-cookie-spot" element={<AddCookieSpotPage />} />
               <Route path="/blog" element={<BlogPage />} />
               <Route path="/blogsearch" element={<BlogSearch />} />
-              <Route path="/article/:id" element={<ArticlePage />} />
+              <Route path="/article/:slug" element={<ArticlePage />} />
               <Route path="*" element={<div>Page not found</div>} />
             </Routes>
           </main>

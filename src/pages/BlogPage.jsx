@@ -478,32 +478,32 @@ const BlogPage = () => {
 
   return (
     <div className="blog-page-wrapper">
-    <div className="min-h-screen bg-gradient-to-b from-primary-50 to-white">
-      {/* Hero Section */}
-      <section className="blog-hero">
-        <img 
-          src="/images/blog/blog-hero.jpg" 
-          alt="Cookie Blog Hero" 
-          className="blog-hero-image"
-          loading="eager"
-          width="1920"
-          height="500"
-        />
-        <div className="blog-hero-overlay">
-          <h2>CookieSpots Blog</h2>
-          <p>Discover delicious cookie recipes, baking tips, and sweet inspiration for every occasion.</p>
-          <div className="blog-hero-buttons">
-            <button onClick={scrollToLatestRecipes} className="blog-cta-button">Explore Recipes</button>
-            <button onClick={scrollToFeaturedCategories} className="blog-cta-button search-articles">Search Articles</button>
+      <div className="min-h-screen bg-gradient-to-b from-primary-50 to-white">
+        {/* Hero Section */}
+        <section className="blog-hero">
+          <img 
+            src="/images/blog/blog-hero.jpg" 
+            alt="Cookie Blog Hero" 
+            className="blog-hero-image"
+            loading="eager"
+            width="1920"
+            height="500"
+          />
+          <div className="blog-hero-overlay">
+            <h2>CookieSpots Blog</h2>
+            <p>Discover delicious cookie recipes, baking tips, and sweet inspiration for every occasion.</p>
+            <div className="blog-hero-buttons">
+              <button onClick={scrollToLatestRecipes} className="blog-cta-button">Explore Recipes</button>
+              <button onClick={scrollToFeaturedCategories} className="blog-cta-button search-articles">Search Articles</button>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <div className="blog-content-wrapper">
-        <main className="blog-main-content">
-          {/* Featured Categories */}
-          <section className="blog-featured-categories">
-            <h3 className="blog-section-title">Featured Categories</h3>
+        <div className="blog-content-wrapper">
+          <main className="blog-main-content">
+            {/* Featured Categories */}
+            <section className="blog-featured-categories">
+              <h3 className="blog-section-title">Featured Categories</h3>
               <Slider {...sliderSettings} className="category-slider">
                 {categories.map((category, index) => (
                   <div key={index} className="category-card-wrapper">
@@ -520,237 +520,230 @@ const BlogPage = () => {
                   </div>
                 ))}
               </Slider>
-          </section>
+            </section>
 
-          {/* Blog Posts */}
-          <section className="blog-posts">
-            <div className="blog-posts-header">
-            <h3 className="blog-section-title">Latest Recipes</h3>
-              <div className="blog-posts-controls">
-                <div className="posts-per-page-selector">
-                  <label htmlFor="postsPerPage">Show:</label>
-                  <select 
-                    id="postsPerPage" 
-                    value={postsPerPage} 
-                    onChange={handlePostsPerPageChange}
-                    className="posts-per-page-dropdown"
-                  >
-                    <option value={2}>2 per page</option>
-                    <option value={4}>4 per page</option>
-                    <option value={6}>6 per page</option>
-                    <option value={8}>8 per page</option>
-                    <option value={posts.length}>All</option>
-                  </select>
-                </div>
-                <div className="posts-sort-selector">
-                  <label htmlFor="sortOrder">Sort by:</label>
-                  <select 
-                    id="sortOrder" 
-                    value={sortOrder} 
-                    onChange={handleSortChange}
-                    className="posts-sort-dropdown"
-                  >
-                    <option value="newest">Newest First</option>
-                    <option value="oldest">Oldest First</option>
-                    <option value="most_viewed">Most Viewed</option>
-                    <option value="least_viewed">Least Viewed</option>
-                    <option value="alphabetical">Alphabetical</option>
-                  </select>
+            {/* Blog Posts */}
+            <section className="blog-posts">
+              <div className="blog-posts-header">
+                <h3 className="blog-section-title">Latest Recipes</h3>
+                <div className="blog-posts-controls">
+                  <div className="posts-per-page-selector">
+                    <label htmlFor="postsPerPage">Show:</label>
+                    <select 
+                      id="postsPerPage" 
+                      value={postsPerPage} 
+                      onChange={handlePostsPerPageChange}
+                      className="posts-per-page-dropdown"
+                    >
+                      <option value={2}>2 per page</option>
+                      <option value={4}>4 per page</option>
+                      <option value={6}>6 per page</option>
+                      <option value={8}>8 per page</option>
+                      <option value={posts.length}>All</option>
+                    </select>
+                  </div>
+                  <div className="posts-sort-selector">
+                    <label htmlFor="sortOrder">Sort by:</label>
+                    <select 
+                      id="sortOrder" 
+                      value={sortOrder} 
+                      onChange={handleSortChange}
+                      className="posts-sort-dropdown"
+                    >
+                      <option value="newest">Newest First</option>
+                      <option value="oldest">Oldest First</option>
+                      <option value="most_viewed">Most Viewed</option>
+                      <option value="least_viewed">Least Viewed</option>
+                      <option value="alphabetical">Alphabetical</option>
+                    </select>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="blog-posts-grid">
-              {currentPage === 1 && (
-                <article className="blog-post blog-featured-post">
-                  <div className="blog-featured-image">
-                    <Link to={`/article/${sortedPosts[0].id}`}>
-                      <img
-                        src={sortedPosts[0].image}
-                        alt={sortedPosts[0].title}
-                        loading="eager"
-                        onLoad={() => handleImageLoad(sortedPosts[0].id)}
-                        onError={(e) => handleImageError(sortedPosts[0].id, e)}
-                        crossOrigin="anonymous"
-                      />
-                    </Link>
-                    <div className="blog-post-category-badge">{sortedPosts[0].category}</div>
-                  </div>
-                  <div className="blog-featured-content">
-                    <div className="blog-post-meta">
-                      <span className="blog-post-date">{sortedPosts[0].date}</span>
-                      <span className="blog-post-author">By CookieSpots</span>
-                      <span className="blog-post-views">
-                        <i className="fas fa-eye"></i> {sortedPosts[0].views.toLocaleString()} views
-                      </span>
-                    </div>
-                    <h3 className="blog-post-title">
-                      <Link to={`/article/${sortedPosts[0].id}`}>{sortedPosts[0].title}</Link>
-                    </h3>
-                    <p className="blog-post-excerpt">{sortedPosts[0].excerpt}</p>
-                    <Link to={`/article/${sortedPosts[0].id}`} className="blog-read-more">
-                      Read Recipe <i className="fas fa-arrow-right"></i>
-                    </Link>
-                  </div>
-                </article>
-              )}
-
-              {currentPosts
-                .filter((post, index) => currentPage === 1 ? index > 0 : true)
-                .map(post => (
-                <article key={post.id} className="blog-post">
-                    <div className={`blog-post-image ${imageLoadingStates[post.id] ? 'loading' : ''}`}>
-                      <Link to={`/article/${post.id}`}>
+              <div className="blog-posts-grid">
+                {currentPage === 1 && (
+                  <article className="blog-post blog-featured-post">
+                    <div className="blog-featured-image">
+                      <Link to={`/article/${sortedPosts[0].slug}`}>
                         <img
-                          src={post.image}
-                          alt={post.title}
+                          src={sortedPosts[0].image}
+                          alt={sortedPosts[0].title}
                           loading="eager"
-                          onLoad={() => handleImageLoad(post.id)}
-                          onError={(e) => handleImageError(post.id, e)}
+                          onLoad={() => handleImageLoad(sortedPosts[0].id)}
+                          onError={(e) => handleImageError(sortedPosts[0].id, e)}
                           crossOrigin="anonymous"
                         />
                       </Link>
-                    <div className="blog-post-category-badge">{post.category}</div>
-                  </div>
-                  <div className="blog-post-content">
-                    <div className="blog-post-meta">
-                      <span className="blog-post-date">{post.date}</span>
-                      <span className="blog-post-author">By CookieSpots</span>
-                      <span className="blog-post-views">
-                        <i className="fas fa-eye"></i> {post.views.toLocaleString()} views
-                      </span>
+                      <div className="blog-post-category-badge">{sortedPosts[0].category}</div>
                     </div>
-                    <h3 className="blog-post-title">
-                      <Link to={`/article/${post.id}`}>{post.title}</Link>
-                    </h3>
-                    <p className="blog-post-excerpt">{post.excerpt}</p>
-                    <Link to={`/article/${post.id}`} className="blog-read-more">
-                      Read Recipe <i className="fas fa-arrow-right"></i>
-                    </Link>
-                  </div>
-                </article>
-              ))}
-            </div>
+                    <div className="blog-featured-content">
+                      <div className="blog-post-meta">
+                        <span className="blog-post-date">{sortedPosts[0].date}</span>
+                        <span className="blog-post-author">By {sortedPosts[0].author}</span>
+                        <span className="blog-post-views">
+                          <i className="fas fa-eye"></i> {sortedPosts[0].views.toLocaleString()} views
+                        </span>
+                      </div>
+                      <h3 className="blog-post-title">
+                        <Link to={`/article/${sortedPosts[0].slug}`}>{sortedPosts[0].title}</Link>
+                      </h3>
+                      <p className="blog-post-excerpt">{sortedPosts[0].excerpt}</p>
+                      <Link to={`/article/${sortedPosts[0].slug}`} className="blog-read-more">
+                        Read Recipe <i className="fas fa-arrow-right"></i>
+                      </Link>
+                    </div>
+                  </article>
+                )}
 
-            {/* Pagination */}
-            {postsPerPage < posts.length && (
-            <div className="blog-pagination">
-                <button 
-                  className="blog-pagination-button"
-                  onClick={handleDoubleChevronLeft}
-                  disabled={displayPages[0] <= 1}
-                >
-                  <i className="fas fa-angle-double-left"></i>
-                </button>
-                <button 
-                  className="blog-pagination-button"
-                  onClick={handleSingleChevronLeft}
-                  disabled={displayPages[0] <= 1}
-                >
-                  <i className="fas fa-angle-left"></i>
-                </button>
-                {displayPages.map((page) => (
-                  page <= totalPages && (
-                    <button
-                      key={page}
-                      className={`blog-pagination-button ${currentPage === page ? 'active' : ''}`}
-                      onClick={() => handlePageChange(page)}
-                    >
-                      {page}
-                    </button>
-                  )
-                ))}
-                <button 
-                  className="blog-pagination-button"
-                  onClick={handleSingleChevronRight}
-                  disabled={displayPages[2] >= totalPages}
-                >
-                  <i className="fas fa-angle-right"></i>
-              </button>
-                <button 
-                  className="blog-pagination-button"
-                  onClick={handleDoubleChevronRight}
-                  disabled={displayPages[2] >= totalPages}
-                >
-                  <i className="fas fa-angle-double-right"></i>
-              </button>
-            </div>
-            )}
-          </section>
+                {currentPosts
+                  .filter((post, index) => currentPage === 1 ? index > 0 : true)
+                  .map(post => (
+                    <article key={post.id} className="blog-post">
+                      <div className={`blog-post-image ${imageLoadingStates[post.id] ? 'loading' : ''}`}>
+                        <Link to={`/article/${post.slug}`}>
+                          <img
+                            src={post.image}
+                            alt={post.title}
+                            loading="eager"
+                            onLoad={() => handleImageLoad(post.id)}
+                            onError={(e) => handleImageError(post.id, e)}
+                            crossOrigin="anonymous"
+                          />
+                        </Link>
+                        <div className="blog-post-category-badge">{post.category}</div>
+                      </div>
+                      <div className="blog-post-content">
+                        <div className="blog-post-meta">
+                          <span className="blog-post-date">{post.date}</span>
+                          <span className="blog-post-author">By {post.author}</span>
+                          <span className="blog-post-views">
+                            <i className="fas fa-eye"></i> {post.views.toLocaleString()} views
+                          </span>
+                        </div>
+                        <h3 className="blog-post-title">
+                          <Link to={`/article/${post.slug}`}>{post.title}</Link>
+                        </h3>
+                        <p className="blog-post-excerpt">{post.excerpt}</p>
+                        <Link to={`/article/${post.slug}`} className="blog-read-more">
+                          Read Recipe <i className="fas fa-arrow-right"></i>
+                        </Link>
+                      </div>
+                    </article>
+                  ))}
+              </div>
 
-          {/* Newsletter */}
-          <section className="blog-newsletter">
-            <h3>Subscribe to Our Newsletter</h3>
-            <p>Get delicious cookie recipes delivered straight to your inbox every week! No spam, just yummy cookie goodness.</p>
-            <form className="blog-newsletter-form" onSubmit={handleNewsletterSubmit}>
-              <input type="email" placeholder="Your email address" required />
-              <button type="submit">Subscribe</button>
-            </form>
-          </section>
-        </main>
+              {/* Pagination */}
+              {postsPerPage < posts.length && (
+                <div className="blog-pagination">
+                  <button 
+                    className="blog-pagination-button"
+                    onClick={handleDoubleChevronLeft}
+                    disabled={displayPages[0] <= 1}
+                  >
+                    <i className="fas fa-angle-double-left"></i>
+                  </button>
+                  <button 
+                    className="blog-pagination-button"
+                    onClick={handleSingleChevronLeft}
+                    disabled={displayPages[0] <= 1}
+                  >
+                    <i className="fas fa-angle-left"></i>
+                  </button>
+                  {displayPages.map((page) => (
+                    page <= totalPages && (
+                      <button
+                        key={page}
+                        className={`blog-pagination-button ${currentPage === page ? 'active' : ''}`}
+                        onClick={() => handlePageChange(page)}
+                      >
+                        {page}
+                      </button>
+                    )
+                  ))}
+                  <button 
+                    className="blog-pagination-button"
+                    onClick={handleSingleChevronRight}
+                    disabled={displayPages[2] >= totalPages}
+                  >
+                    <i className="fas fa-angle-right"></i>
+                  </button>
+                  <button 
+                    className="blog-pagination-button"
+                    onClick={handleDoubleChevronRight}
+                    disabled={displayPages[2] >= totalPages}
+                  >
+                    <i className="fas fa-angle-double-right"></i>
+                  </button>
+                </div>
+              )}
+            </section>
 
-        {/* Sidebar */}
-        <aside className="blog-sidebar">
-          <div className="blog-sidebar-section pb-6">
+            {/* Newsletter */}
+            <section className="blog-newsletter">
+              <h3>Subscribe to Our Newsletter</h3>
+              <p>Get delicious cookie recipes delivered straight to your inbox every week! No spam, just yummy cookie goodness.</p>
+              <form className="blog-newsletter-form" onSubmit={handleNewsletterSubmit}>
+                <input type="email" placeholder="Your email address" required />
+                <button type="submit">Subscribe</button>
+              </form>
+            </section>
+          </main>
+
+          <aside className="blog-sidebar">
+            <div className="blog-sidebar-section pb-6">
               <h3 className="blog-sidebar-title">Search Recipes</h3>
-            <form className="blog-search-form mb-3" onSubmit={handleSearchSubmit}>
+              <form className="blog-search-form mb-3" onSubmit={handleSearchSubmit}>
                 <input type="text" placeholder="Search Recipes..." name="search" />
-              <button type="submit" className="text-blue-500"><i className="fas fa-search"></i></button>
-            </form>
-            <h4 className="blog-sidebar-subtitle text-sm mb-2">Popular Tags:</h4>
-            <div className="blog-tags-cloud">
-              {popularTags.map((tag, index) => (
+                <button type="submit" className="text-blue-500"><i className="fas fa-search"></i></button>
+              </form>
+              <h4 className="blog-sidebar-subtitle text-sm mb-2">Popular Tags:</h4>
+              <div className="blog-tags-cloud">
+                {popularTags.map((tag, index) => (
                   <button
                     key={index}
                     onClick={() => navigate(`/blogsearch?q=${encodeURIComponent(tag)}`)}
                     className="blog-tag text-sm py-1 px-2"
                   >
-                  {tag}
+                    {tag}
                   </button>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
 
-          <div className="blog-sidebar-section">
-            <h3 className="blog-sidebar-title">Popular Recipes</h3>
-            <ul className="blog-popular-posts">
-                {[...posts]
+            <div className="blog-sidebar-section">
+              <h3 className="blog-sidebar-title">Popular Recipes</h3>
+              <ul className="blog-popular-posts">
+                {posts
                   .sort((a, b) => b.views - a.views)
-                .slice(0, 3)
-                .map(post => (
-                  <li key={post.id} className="blog-popular-post">
-                      <Link to={`/article/${post.id}`}>
-                        <img 
-                          src={post.image} 
-                          alt={post.title} 
+                  .slice(0, 3)
+                  .map(post => (
+                    <li key={post.id} className="blog-popular-post">
+                      <Link to={`/article/${post.slug}`}>
+                        <img
+                          src={post.image}
+                          alt={post.title}
                           className="blog-popular-post-image"
-                          loading="eager"
-                          onLoad={() => handleImageLoad(post.id)}
-                          onError={(e) => handleImageError(post.id, e)}
-                          crossOrigin="anonymous"
                         />
                       </Link>
-                <div className="blog-popular-post-content">
+                      <div className="blog-popular-post-content">
                         <h4>
-                          <Link to={`/article/${post.id}`}>{post.title}</Link>
+                          <Link to={`/article/${post.slug}`}>{post.title}</Link>
                         </h4>
                         <div>
-                          <span className="blog-popular-post-date">
-                            {formatDate(post.date)}
-                          </span>
-                      <span className="blog-popular-post-views">
+                          <span className="blog-popular-post-date">{formatDate(post.date)}</span>
+                          <span className="blog-popular-post-views">
                             <i className="fas fa-eye"></i>
                             {formatViews(post.views)}
-                      </span>
+                          </span>
                         </div>
-                </div>
-              </li>
-                ))}
-            </ul>
-          </div>
+                      </div>
+                    </li>
+                  ))}
+              </ul>
+            </div>
 
-          <div className="blog-sidebar-section">
-            <h3 className="blog-sidebar-title">Categories</h3>
-            <ul className="blog-categories-list">
+            <div className="blog-sidebar-section">
+              <h3 className="blog-sidebar-title">Categories</h3>
+              <ul className="blog-categories-list">
                 {categories.map(category => {
                   // Use the same filtering logic as search
                   const categoryName = category.name.toLowerCase();
@@ -769,9 +762,9 @@ const BlogPage = () => {
                     </li>
                   );
                 })}
-            </ul>
-          </div>
-        </aside>
+              </ul>
+            </div>
+          </aside>
         </div>
       </div>
       <SearchButton />

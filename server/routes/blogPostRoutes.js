@@ -15,7 +15,8 @@ const {
   getPostsByDietaryOption,
   getPostsByLocation,
   getPostsByDate,
-  generateNewPost
+  generateNewPost,
+  getBlogPostBySlug
 } = require('../controllers/blogPostController');
 
 // Schedule blog post generation (every Monday, Tuesday, Thursday at 9 AM)
@@ -36,6 +37,7 @@ router.get('/cookie-type/:cookieType', getPostsByCookieType);
 router.get('/dietary-option/:dietaryOption', getPostsByDietaryOption);
 router.get('/location/:location', getPostsByLocation);
 router.get('/date/:year/:month?', getPostsByDate);
+router.get('/slug/:slug', getBlogPostBySlug);
 router.get('/:id', getBlogPostById);
 
 // Protected routes (require authentication)

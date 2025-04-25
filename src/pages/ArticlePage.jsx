@@ -10,9 +10,11 @@ const ArticlePage = () => {
   // Use the scroll restoration hook
   useScrollRestoration();
 
-  const { id } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
-  const currentId = parseInt(id);
+  const [article, setArticle] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [imageLoading, setImageLoading] = useState(true);
   const [popularTags, setPopularTags] = useState([]);
   const [categoryCount, setCategoryCount] = useState({});
@@ -23,26 +25,41 @@ const ArticlePage = () => {
   const [articles, setArticles] = useState(mockArticles);
 
   // Use the article views hook
-  const currentViews = useArticleViews(currentId);
+  const currentViews = useArticleViews(article?.slug);
 
-  // Listen for view updates from other components
+  // Fetch the current article
   useEffect(() => {
-    const handleViewsUpdate = (e) => {
-      const { articleId, views } = e.detail;
-      setArticles(prevArticles => 
-        prevArticles.map(article => 
-          article.id === articleId 
-            ? { ...article, views: views } 
-            : article
-        )
-      );
+    const fetchArticle = async () => {
+      try {
+        if (!slug) {
+          throw new Error('No article slug provided');
+        }
+
+        // First try to find in mock data since we know API is down
+        const mockArticle = mockArticles.find(post => post.slug === slug);
+        if (mockArticle) {
+          setArticle(mockArticle);
+          setLoading(false);
+          return;
+        }
+
+        // If not in mock data, try API as fallback
+        const response = await fetch(`/api/blog/posts/${slug}`);
+        if (!response.ok) {
+          throw new Error('Article not found');
+        }
+        const data = await response.json();
+        setArticle(data.post);
+      } catch (err) {
+        console.error('Error fetching article:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    window.addEventListener('articleViewsUpdated', handleViewsUpdate);
-    return () => {
-      window.removeEventListener('articleViewsUpdated', handleViewsUpdate);
-    };
-  }, []);
+    fetchArticle();
+  }, [slug]);
 
   // Listen for navigation menu state
   useEffect(() => {
@@ -74,41 +91,40 @@ const ArticlePage = () => {
     
     setPopularTags(Object.keys(tags).sort((a, b) => tags[b] - tags[a]).slice(0, 10));
     
-    // Calculate category counts using the same filtering logic as search
+    // Calculate category counts
     const counts = {};
-    categories.forEach(category => {
-      const categoryName = category.name.toLowerCase();
-      const count = mockArticles.filter(post => 
-        post.title.toLowerCase().includes(categoryName) ||
-        post.category.toLowerCase().includes(categoryName) ||
-        post.excerpt.toLowerCase().includes(categoryName) ||
-        (post.tags && post.tags.some(tag => tag.toLowerCase().includes(categoryName)))
-      ).length;
-      counts[category.name] = count;
+    mockArticles.forEach(article => {
+      counts[article.category] = (counts[article.category] || 0) + 1;
     });
-    
     setCategoryCount(counts);
   }, []);
 
-  const currentArticle = articles.find(article => article.id === currentId);
+  // Sort articles by date (newest first)
+  const sortedArticles = [...mockArticles].sort((a, b) => 
+    new Date(b.publishedAt) - new Date(a.publishedAt)
+  );
+
+  // Find current article and update its views
+  const currentArticle = sortedArticles.find(article => article.slug === slug);
   if (currentArticle) {
-    currentArticle.views = currentViews; // Update the article's view count
+    currentArticle.views = currentViews;
   }
-  const currentIndex = articles.findIndex(article => article.id === currentId);
-  const prevArticle = currentIndex > 0 ? articles[currentIndex - 1] : null;
-  const nextArticle = currentIndex < articles.length - 1 ? articles[currentIndex + 1] : null;
+
+  // Find the current index in the sorted array
+  const currentIndex = sortedArticles.findIndex(article => article.slug === slug);
+  
+  // Get previous and next articles based on the sorted array
+  const prevArticle = currentIndex > 0 ? sortedArticles[currentIndex - 1] : null;
+  const nextArticle = currentIndex < sortedArticles.length - 1 ? sortedArticles[currentIndex + 1] : null;
 
   // Handle image loading states
   const handleImageLoad = () => {
     setImageLoading(false);
-    console.log('Image loaded successfully:', currentArticle?.image);
   };
 
   const handleImageError = (e) => {
+    console.error('Failed to load image:', e);
     setImageLoading(false);
-    console.error('Error loading image:', currentArticle?.image);
-    e.target.onerror = null;
-    e.target.src = "/images/cookie-types/chocolate-chip.webp";
   };
 
   // Categories data - matching BlogPage and BlogSearch
@@ -140,32 +156,33 @@ const ArticlePage = () => {
     navigate(`/blogsearch?q=${encodeURIComponent(categoryName)}`);
   };
 
+  // Format date for display
   const formatDate = (dateString) => {
     try {
-      // Split the date string into components
-      const [month, day, year] = dateString.split(' ');
-      // Remove any commas
-      const cleanDay = day.replace(',', '');
-      // Get month number (1-12)
-      const monthMap = {
-        'January': 1, 'February': 2, 'March': 3, 'April': 4,
-        'May': 5, 'June': 6, 'July': 7, 'August': 8,
-        'September': 9, 'October': 10, 'November': 11, 'December': 12
-      };
-      // Format as M/DD/YYYY
-      return `${monthMap[month]}/${cleanDay}/${year}`;
+      if (!dateString) return 'Invalid date';
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Invalid date';
+      return date.toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      });
     } catch (error) {
       console.error('Error formatting date:', error);
-      return dateString;
+      return 'Invalid date';
     }
   };
 
+  // Format views for display
   const formatViews = (views) => {
-    return views.toLocaleString('en-US');
+    return views?.toLocaleString('en-US') || '0';
   };
 
-  // If article not found, show error
-  if (!currentArticle) {
+  if (loading) {
+    return <div className="loading">Loading...</div>;
+  }
+
+  if (error || !article) {
     return (
       <div className="article-container">
         <div className="article-header">
@@ -189,21 +206,21 @@ const ArticlePage = () => {
     <div className="article-container">
       {/* Navigation Buttons */}
       <div className={`fixed right-6 top-20 flex flex-col gap-4 z-50 transition-opacity duration-300 ${isNavVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-        {currentId > 1 && (
-        <button 
-            onClick={() => navigate(`/article/${currentId - 1}`)}
+        {prevArticle && (
+          <button 
+            onClick={() => navigate(`/article/${prevArticle.slug}`)}
             className="w-28 h-12 rounded-full bg-primary-600 hover:bg-primary-700 transition-colors flex items-center justify-center text-white shadow-lg border-2 border-white gap-2"
             aria-label="Previous article"
-        >
+          >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
             </svg>
             <span className="text-sm font-medium">Previous</span>
-        </button>
+          </button>
         )}
-        {currentId < mockArticles.length && (
+        {nextArticle && (
           <button
-            onClick={() => navigate(`/article/${currentId + 1}`)}
+            onClick={() => navigate(`/article/${nextArticle.slug}`)}
             className="w-28 h-12 rounded-full bg-primary-600 hover:bg-primary-700 transition-colors flex items-center justify-center text-white shadow-lg border-2 border-white gap-2"
             aria-label="Next article"
           >
@@ -217,31 +234,57 @@ const ArticlePage = () => {
       
       <div className="article-layout">
         <article className="article-content">
+          <header className="article-header">
+            <div className="article-meta">
+              <span className="article-category">{article.category}</span>
+              <span className="article-date">{formatDate(article.publishedAt)}</span>
+              <span className="article-views">
+                <i className="fas fa-eye"></i> {formatViews(article.views)} views
+              </span>
+              {article.isAIGenerated && (
+                <span className="article-ai-badge">
+                  <i className="fas fa-robot"></i> AI Generated
+                </span>
+              )}
+            </div>
+            <h1 className="article-title">{article.title}</h1>
+            <div className="article-author">
+              <span>By {article.author || 'Cookie Spots Team'}</span>
+            </div>
+          </header>
+
           <div className={`article-image ${imageLoading ? 'loading' : ''}`}>
             <img 
-              src={currentArticle.image} 
-              alt={currentArticle.title}
-              loading="eager"
-              onLoad={handleImageLoad}
+              src={article.image} 
+              alt={article.title}
               onError={handleImageError}
-              crossOrigin="anonymous"
+              onLoad={handleImageLoad}
             />
+            {imageLoading && (
+              <div className="image-loading-spinner">
+                <i className="fas fa-spinner fa-spin"></i>
+              </div>
+            )}
           </div>
-          
-          <div className="article-meta">
-            <span className="article-category">{currentArticle.category}</span>
-            <span className="article-date">{currentArticle.date}</span>
-            <span className="article-views">
-              <i className="fas fa-eye"></i> {currentArticle.views.toLocaleString()} views
-            </span>
-          </div>
-          
-          <h1 className="article-title">{currentArticle.title}</h1>
           
           <div 
             className="article-body"
-            dangerouslySetInnerHTML={{ __html: currentArticle.content }}
+            dangerouslySetInnerHTML={{ __html: article.content }}
           />
+
+          {article.tags && article.tags.length > 0 && (
+            <div className="article-tags">
+              {article.tags.map(tag => (
+                <Link 
+                  key={tag} 
+                  to={`/blog/tag/${tag.toLowerCase()}`} 
+                  className="article-tag"
+                >
+                  {tag}
+                </Link>
+              ))}
+            </div>
+          )}
         </article>
 
         <div className="article-sidebar-components">
@@ -263,16 +306,16 @@ const ArticlePage = () => {
             </form>
             <div style={{ marginTop: '2rem' }}>
               <h4 className="blog-sidebar-subtitle">Popular Tags:</h4>
-            <div className="blog-tags-cloud">
+              <div className="blog-tags-cloud">
                 {popularTags.map(tag => (
                   <Link
                     key={tag}
                     to={`/blogsearch?q=${encodeURIComponent(tag)}`}
                     className="blog-tag"
                   >
-                  {tag}
-                </Link>
-              ))}
+                    {tag}
+                  </Link>
+                ))}
               </div>
             </div>
           </div>
@@ -285,7 +328,7 @@ const ArticlePage = () => {
                 .slice(0, 3)
                 .map((article) => (
                   <li key={article.id} className="blog-popular-post">
-                    <Link to={`/article/${article.id}`}>
+                    <Link to={`/article/${article.slug}`}>
                       <img
                         src={article.image}
                         alt={article.title}
@@ -294,11 +337,11 @@ const ArticlePage = () => {
                     </Link>
                     <div className="blog-popular-post-content">
                       <h4>
-                        <Link to={`/article/${article.id}`}>{article.title}</Link>
+                        <Link to={`/article/${article.slug}`}>{article.title}</Link>
                       </h4>
                       <div>
                         <span className="blog-popular-post-date">
-                          {formatDate(article.date)}
+                          {formatDate(article.publishedAt)}
                         </span>
                         <span className="blog-popular-post-views">
                           <i className="fas fa-eye"></i>
@@ -314,14 +357,14 @@ const ArticlePage = () => {
           <div className="blog-sidebar-section">
             <h3 className="blog-sidebar-title">Categories</h3>
             <ul className="blog-categories-list">
-              {categories.map(category => (
-                <li key={category.name}>
-                  <a
-                    href={`/blog/search?category=${encodeURIComponent(category.name)}`}
-                    onClick={(e) => handleCategoryClick(category.name, e)}
+              {Object.entries(categoryCount).map(([category, count]) => (
+                <li key={category}>
+                  <Link
+                    to={`/blog/category/${category.toLowerCase()}`}
+                    className="blog-category-link"
                   >
-                    {category.name} <span className="count">{getCategoryCount(category.name)}</span>
-                  </a>
+                    {category} <span className="count">({count})</span>
+                  </Link>
                 </li>
               ))}
             </ul>

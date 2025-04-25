@@ -1,86 +1,91 @@
+// Function to generate slugs from titles
+const generateSlug = (title) => {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+    .trim(); // Remove leading/trailing spaces
+};
+
 // Mock article data - in a real app, this would come from an API
-export const mockArticles = [
+const mockArticles = [
   {
     id: 1,
     title: "Classic Chocolate Chip Cookies with Brown Butter",
+    slug: "classic-chocolate-chip-cookies-with-brown-butter",
     content: `
       <h2>Ingredients</h2>
       <ul>
         <li>2 1/4 cups all-purpose flour</li>
         <li>1 teaspoon baking soda</li>
         <li>1 teaspoon salt</li>
-        <li>1 cup (2 sticks) unsalted butter</li>
+        <li>1 cup (2 sticks) unsalted butter, browned</li>
         <li>3/4 cup granulated sugar</li>
         <li>3/4 cup packed brown sugar</li>
         <li>2 large eggs</li>
         <li>2 teaspoons vanilla extract</li>
         <li>2 cups semisweet chocolate chips</li>
       </ul>
-      
       <h2>Instructions</h2>
       <ol>
         <li>Preheat oven to 375°F (190°C).</li>
-        <li>Brown the butter in a saucepan over medium heat until it turns golden brown and smells nutty.</li>
-        <li>Let the butter cool slightly, then cream together with sugars.</li>
-        <li>Add eggs and vanilla, mix well.</li>
-        <li>Stir in flour, baking soda, and salt.</li>
+        <li>Brown the butter in a saucepan and let cool slightly.</li>
+        <li>Mix flour, baking soda, and salt in a bowl.</li>
+        <li>Cream together browned butter and sugars.</li>
+        <li>Add eggs and vanilla, then mix in dry ingredients.</li>
         <li>Fold in chocolate chips.</li>
-        <li>Drop rounded tablespoons of dough onto baking sheets.</li>
+        <li>Drop rounded tablespoons onto baking sheets.</li>
         <li>Bake for 9-11 minutes until golden brown.</li>
       </ol>
     `,
-    excerpt: "Elevate the classic chocolate chip cookie with the nutty depth of brown butter. These cookies have crispy edges, chewy centers and rich flavor that will impress everyone.",
-    date: "March 15, 2025",
-    category: "Classic",
+    excerpt: "Learn how to make the perfect chocolate chip cookies with a rich, nutty flavor from brown butter.",
+    publishedAt: "2024-03-15T10:00:00Z",
+    category: "Chocolate",
     image: "/images/cookie-types/chocolate-chip.webp",
-    isFeatured: true,
     views: 1250,
-    tags: ["Chocolate", "Easy", "Classic", "Brown Butter"]
+    author: "Sarah Johnson",
+    tags: ["chocolate", "classic", "brown butter", "dessert"]
   },
   {
     id: 2,
     title: "Almond Flour Sugar Cookies with Citrus Glaze",
+    slug: "almond-flour-sugar-cookies-with-citrus-glaze",
     content: `
       <h2>Ingredients</h2>
       <ul>
         <li>2 cups almond flour</li>
-        <li>1/2 cup powdered sugar</li>
-        <li>1/4 teaspoon salt</li>
-        <li>1/4 cup coconut oil, melted</li>
+        <li>1/4 cup coconut flour</li>
+        <li>1/2 cup butter, softened</li>
+        <li>1/2 cup granulated sugar</li>
         <li>1 large egg</li>
         <li>1 teaspoon vanilla extract</li>
-        <li>Zest of 1 lemon</li>
+        <li>1/2 teaspoon almond extract</li>
+        <li>1/4 teaspoon salt</li>
       </ul>
-      
-      <h2>Citrus Glaze</h2>
-      <ul>
-        <li>1 cup powdered sugar</li>
-        <li>2-3 tablespoons fresh lemon juice</li>
-        <li>1 teaspoon lemon zest</li>
-      </ul>
-      
       <h2>Instructions</h2>
       <ol>
         <li>Preheat oven to 350°F (175°C).</li>
-        <li>Mix almond flour, powdered sugar, and salt.</li>
-        <li>Add melted coconut oil, egg, vanilla, and lemon zest.</li>
-        <li>Roll dough between parchment paper.</li>
-        <li>Cut into shapes and place on baking sheet.</li>
-        <li>Bake for 8-10 minutes until edges are golden.</li>
-        <li>For glaze, mix powdered sugar with lemon juice until smooth.</li>
-        <li>Once cookies are cool, drizzle with citrus glaze.</li>
+        <li>Cream together butter and sugar.</li>
+        <li>Add egg and extracts, mix well.</li>
+        <li>Combine dry ingredients and mix into wet ingredients.</li>
+        <li>Roll dough and cut into shapes.</li>
+        <li>Bake for 10-12 minutes.</li>
+        <li>Let cool and drizzle with citrus glaze.</li>
       </ol>
     `,
-    excerpt: "These gluten-free sugar cookies made with almond flour have a wonderful tender texture and delightful citrus glaze that makes them irresistible.",
-    date: "March 14, 2025",
+    excerpt: "A gluten-free twist on classic sugar cookies with a bright citrus glaze.",
+    publishedAt: "2024-03-14T15:30:00Z",
     category: "Gluten-Free",
     image: "/images/cookie-types/sugar-cookie.webp",
     views: 980,
-    tags: ["Gluten-Free", "Vegan", "Holiday", "Citrus"]
+    author: "Michael Chen",
+    tags: ["gluten-free", "sugar cookies", "citrus", "dessert"]
   },
   {
     id: 3,
     title: "No-Bake Chocolate Oatmeal Cookies",
+    slug: "no-bake-chocolate-oatmeal-cookies",
     content: `
       <h2>Ingredients</h2>
       <ul>
@@ -92,7 +97,6 @@ export const mockArticles = [
         <li>1/4 cup cocoa powder</li>
         <li>1 teaspoon vanilla extract</li>
       </ul>
-      
       <h2>Instructions</h2>
       <ol>
         <li>In a saucepan, combine sugar, milk, and butter.</li>
@@ -102,16 +106,18 @@ export const mockArticles = [
         <li>Let cool until firm.</li>
       </ol>
     `,
-    excerpt: "Perfect for hot summer days, these no-bake chocolate oatmeal cookies come together in minutes and satisfy your cookie cravings without turning on the oven.",
-    date: "March 13, 2025",
+    excerpt: "Perfect for hot summer days, these no-bake chocolate oatmeal cookies come together in minutes.",
+    publishedAt: "2024-03-13T09:15:00Z",
     category: "No-Bake",
     image: "/images/cookie-types/oatmeal-raisin.webp",
     views: 1560,
-    tags: ["No-Bake", "Chocolate", "Easy", "Quick"]
+    author: "Emily Rodriguez",
+    tags: ["no-bake", "chocolate", "easy", "quick"]
   },
   {
     id: 4,
     title: "Peanut Butter Chocolate Chip Cookies",
+    slug: "peanut-butter-chocolate-chip-cookies",
     content: `
       <h2>Ingredients</h2>
       <ul>
@@ -126,7 +132,6 @@ export const mockArticles = [
         <li>1 1/2 teaspoons baking soda</li>
         <li>2 cups semi-sweet chocolate chips</li>
       </ul>
-      
       <h2>Instructions</h2>
       <ol>
         <li>Preheat oven to 375°F (190°C).</li>
@@ -139,16 +144,18 @@ export const mockArticles = [
         <li>Bake for 10-12 minutes or until edges are lightly browned.</li>
       </ol>
     `,
-    excerpt: "A perfect combination of peanut butter and chocolate in these soft and chewy cookies that will satisfy any sweet tooth.",
-    date: "March 12, 2025",
+    excerpt: "A perfect combination of peanut butter and chocolate in these soft and chewy cookies.",
+    publishedAt: "2024-03-12T14:45:00Z",
     category: "Chocolate",
     image: "/images/cookie-types/peanut-butter.webp",
     views: 1420,
-    tags: ["Classic", "Peanut Butter", "Easy", "Kids"]
+    author: "David Wilson",
+    tags: ["peanut butter", "chocolate", "classic", "dessert"]
   },
   {
     id: 5,
     title: "Classic Snickerdoodle Cookies",
+    slug: "classic-snickerdoodle-cookies",
     content: `
       <h2>Ingredients</h2>
       <ul>
@@ -163,7 +170,6 @@ export const mockArticles = [
         <li>1/4 cup sugar (for rolling)</li>
         <li>2 teaspoons ground cinnamon (for rolling)</li>
       </ul>
-      
       <h2>Instructions</h2>
       <ol>
         <li>Preheat oven to 375°F (190°C).</li>
@@ -177,16 +183,18 @@ export const mockArticles = [
         <li>Bake for 10-12 minutes or until edges are lightly golden.</li>
       </ol>
     `,
-    excerpt: "Soft and chewy cinnamon sugar cookies that are perfect for any occasion. These classic cookies are always a crowd favorite.",
-    date: "March 11, 2025",
+    excerpt: "Soft and chewy cinnamon sugar cookies that are perfect for any occasion.",
+    publishedAt: "2024-03-11T11:20:00Z",
     category: "Classic",
     image: "/images/cookie-types/snickerdoodle.webp",
     views: 1100,
-    tags: ["Classic", "Cinnamon", "Holiday", "Easy"]
+    author: "Lisa Thompson",
+    tags: ["classic", "cinnamon", "holiday", "dessert"]
   },
   {
     id: 6,
     title: "French Macarons with Raspberry Filling",
+    slug: "french-macarons-with-raspberry-filling",
     content: `
       <h2>Ingredients</h2>
       <ul>
@@ -196,102 +204,380 @@ export const mockArticles = [
         <li>1/4 cup granulated sugar</li>
         <li>1/2 teaspoon vanilla extract</li>
       </ul>
+      <h2>Instructions</h2>
+      <ol>
+        <li>Preheat oven to 300°F (150°C).</li>
+        <li>Sift together powdered sugar and almond flour.</li>
+        <li>Beat egg whites until foamy, then gradually add sugar.</li>
+        <li>Continue beating until stiff peaks form.</li>
+        <li>Gently fold in dry ingredients.</li>
+        <li>Pipe onto baking sheets and let rest for 30 minutes.</li>
+        <li>Bake for 15-18 minutes.</li>
+        <li>Let cool completely before filling with raspberry jam.</li>
+      </ol>
     `,
     excerpt: "Delicate French macarons with a sweet raspberry filling. These elegant cookies are perfect for special occasions.",
-    date: "March 10, 2025",
+    publishedAt: "2024-03-10T16:00:00Z",
     category: "Specialty",
     image: "/images/cookie-types/macaron.webp",
     views: 2100,
-    tags: ["French", "Specialty", "Advanced", "Elegant"]
+    author: "Sophie Martin",
+    tags: ["french", "specialty", "advanced", "elegant"]
   },
   {
     id: 7,
     title: "Lemon Glazed Shortbread Cookies",
+    slug: "lemon-glazed-shortbread-cookies",
+    content: `
+      <h2>Ingredients</h2>
+      <ul>
+        <li>2 cups all-purpose flour</li>
+        <li>1 cup unsalted butter, softened</li>
+        <li>1/2 cup powdered sugar</li>
+        <li>1/4 teaspoon salt</li>
+        <li>1 teaspoon vanilla extract</li>
+      </ul>
+      <h2>Lemon Glaze</h2>
+      <ul>
+        <li>1 cup powdered sugar</li>
+        <li>2-3 tablespoons fresh lemon juice</li>
+        <li>1 teaspoon lemon zest</li>
+      </ul>
+      <h2>Instructions</h2>
+      <ol>
+        <li>Preheat oven to 325°F (165°C).</li>
+        <li>Cream together butter and powdered sugar.</li>
+        <li>Mix in vanilla extract.</li>
+        <li>Gradually add flour and salt.</li>
+        <li>Roll dough into 1/2-inch thickness.</li>
+        <li>Cut into desired shapes.</li>
+        <li>Bake for 12-15 minutes until edges are lightly golden.</li>
+        <li>For glaze, mix powdered sugar with lemon juice and zest.</li>
+        <li>Drizzle over cooled cookies.</li>
+      </ol>
+    `,
     excerpt: "Buttery shortbread cookies with a tangy lemon glaze that adds the perfect balance of sweetness and citrus.",
-    date: "March 9, 2025",
+    publishedAt: "2024-03-09T13:45:00Z",
     category: "Classic",
     image: "/images/cookie-types/lemon-glazed.webp",
     views: 950,
-    tags: ["Classic", "Citrus", "Shortbread"]
+    author: "James Anderson",
+    tags: ["classic", "citrus", "shortbread", "dessert"]
   },
   {
     id: 8,
     title: "Double Chocolate Cookies",
-    excerpt: "Rich and decadent double chocolate cookies that are perfect for chocolate lovers. These cookies are packed with chocolate chips and cocoa powder.",
-    date: "March 8, 2025",
+    slug: "double-chocolate-cookies",
+    content: `
+      <h2>Ingredients</h2>
+      <ul>
+        <li>1 cup unsalted butter, softened</li>
+        <li>1 cup granulated sugar</li>
+        <li>1 cup packed brown sugar</li>
+        <li>2 large eggs</li>
+        <li>2 teaspoons vanilla extract</li>
+        <li>2 1/4 cups all-purpose flour</li>
+        <li>3/4 cup cocoa powder</li>
+        <li>1 teaspoon baking soda</li>
+        <li>1/2 teaspoon salt</li>
+        <li>2 cups semi-sweet chocolate chips</li>
+      </ul>
+      <h2>Instructions</h2>
+      <ol>
+        <li>Preheat oven to 375°F (190°C).</li>
+        <li>Cream together butter and sugars.</li>
+        <li>Beat in eggs and vanilla.</li>
+        <li>Mix in flour, cocoa powder, baking soda, and salt.</li>
+        <li>Fold in chocolate chips.</li>
+        <li>Drop rounded tablespoons onto baking sheets.</li>
+        <li>Bake for 8-10 minutes.</li>
+      </ol>
+    `,
+    excerpt: "Rich and decadent double chocolate cookies that are perfect for chocolate lovers.",
+    publishedAt: "2024-03-08T10:30:00Z",
     category: "Chocolate",
     image: "/images/cookie-types/double-chocolate.webp",
     views: 1200,
-    tags: ["Chocolate", "Rich", "Decadent"]
+    author: "Rachel Green",
+    tags: ["chocolate", "rich", "decadent", "dessert"]
   },
   {
     id: 9,
     title: "Red Velvet Cookies with Cream Cheese Frosting",
-    excerpt: "Soft and chewy red velvet cookies topped with a rich cream cheese frosting. Perfect for Valentine's Day or any special occasion.",
-    date: "March 7, 2025",
+    slug: "red-velvet-cookies-with-cream-cheese-frosting",
+    content: `
+      <h2>Ingredients</h2>
+      <ul>
+        <li>2 1/4 cups all-purpose flour</li>
+        <li>1/2 cup unsweetened cocoa powder</li>
+        <li>1 teaspoon baking soda</li>
+        <li>1/2 teaspoon salt</li>
+        <li>1 cup unsalted butter, softened</li>
+        <li>1 1/2 cups granulated sugar</li>
+        <li>2 large eggs</li>
+        <li>2 teaspoons vanilla extract</li>
+        <li>1 tablespoon red food coloring</li>
+      </ul>
+      <h2>Cream Cheese Frosting</h2>
+      <ul>
+        <li>8 oz cream cheese, softened</li>
+        <li>1/2 cup unsalted butter, softened</li>
+        <li>4 cups powdered sugar</li>
+        <li>1 teaspoon vanilla extract</li>
+      </ul>
+      <h2>Instructions</h2>
+      <ol>
+        <li>Preheat oven to 375°F (190°C).</li>
+        <li>Whisk together flour, cocoa powder, baking soda, and salt.</li>
+        <li>Cream butter and sugar, then add eggs and vanilla.</li>
+        <li>Mix in food coloring.</li>
+        <li>Gradually add dry ingredients.</li>
+        <li>Drop rounded tablespoons onto baking sheets.</li>
+        <li>Bake for 10-12 minutes.</li>
+        <li>For frosting, beat cream cheese and butter, then add sugar and vanilla.</li>
+        <li>Frost cooled cookies.</li>
+      </ol>
+    `,
+    excerpt: "Soft and chewy red velvet cookies topped with a rich cream cheese frosting.",
+    publishedAt: "2024-03-07T15:15:00Z",
     category: "Specialty",
     image: "/images/cookie-types/red-velvet.webp",
     views: 1300,
-    tags: ["Specialty", "Holiday", "Cream Cheese"]
+    author: "Emma Davis",
+    tags: ["specialty", "holiday", "cream cheese", "dessert"]
   },
   {
     id: 10,
     title: "Gingerbread Cookies with Royal Icing",
-    excerpt: "Classic gingerbread cookies with warm spices and molasses. Perfect for the holiday season or any time you want a cozy treat.",
-    date: "March 6, 2025",
+    slug: "gingerbread-cookies-with-royal-icing",
+    content: `
+      <h2>Ingredients</h2>
+      <ul>
+        <li>3 cups all-purpose flour</li>
+        <li>1 teaspoon baking soda</li>
+        <li>1/4 teaspoon salt</li>
+        <li>1 tablespoon ground ginger</li>
+        <li>1 tablespoon ground cinnamon</li>
+        <li>1/4 teaspoon ground cloves</li>
+        <li>3/4 cup unsalted butter, softened</li>
+        <li>3/4 cup packed brown sugar</li>
+        <li>1 large egg</li>
+        <li>1/2 cup molasses</li>
+      </ul>
+      <h2>Royal Icing</h2>
+      <ul>
+        <li>3 cups powdered sugar</li>
+        <li>2 large egg whites</li>
+        <li>1 teaspoon lemon juice</li>
+      </ul>
+      <h2>Instructions</h2>
+      <ol>
+        <li>Preheat oven to 350°F (175°C).</li>
+        <li>Whisk together flour, baking soda, salt, and spices.</li>
+        <li>Cream butter and sugar, then add egg and molasses.</li>
+        <li>Gradually add dry ingredients.</li>
+        <li>Chill dough for 1 hour.</li>
+        <li>Roll out and cut into shapes.</li>
+        <li>Bake for 8-10 minutes.</li>
+        <li>For icing, beat egg whites and lemon juice, then add sugar.</li>
+        <li>Decorate cooled cookies.</li>
+      </ol>
+    `,
+    excerpt: "Classic gingerbread cookies with warm spices and molasses. Perfect for the holiday season.",
+    publishedAt: "2024-03-06T12:00:00Z",
     category: "Seasonal",
     image: "/images/cookie-types/gingerbread.webp",
     views: 1100,
-    tags: ["Seasonal", "Holiday", "Spiced"]
+    author: "Thomas Wilson",
+    tags: ["seasonal", "holiday", "spiced", "dessert"]
   },
   {
     id: 11,
     title: "White Chocolate Cranberry Cookies",
-    excerpt: "Soft and chewy cookies packed with white chocolate chips and dried cranberries. A perfect balance of sweet and tart.",
-    date: "March 5, 2025",
+    slug: "white-chocolate-cranberry-cookies",
+    content: `
+      <h2>Ingredients</h2>
+      <ul>
+        <li>2 1/4 cups all-purpose flour</li>
+        <li>1 teaspoon baking soda</li>
+        <li>1/2 teaspoon salt</li>
+        <li>1 cup unsalted butter, softened</li>
+        <li>3/4 cup granulated sugar</li>
+        <li>3/4 cup packed brown sugar</li>
+        <li>2 large eggs</li>
+        <li>2 teaspoons vanilla extract</li>
+        <li>1 cup white chocolate chips</li>
+        <li>1 cup dried cranberries</li>
+      </ul>
+      <h2>Instructions</h2>
+      <ol>
+        <li>Preheat oven to 375°F (190°C).</li>
+        <li>Whisk together flour, baking soda, and salt.</li>
+        <li>Cream butter and sugars, then add eggs and vanilla.</li>
+        <li>Gradually add dry ingredients.</li>
+        <li>Fold in white chocolate chips and cranberries.</li>
+        <li>Drop rounded tablespoons onto baking sheets.</li>
+        <li>Bake for 10-12 minutes.</li>
+      </ol>
+    `,
+    excerpt: "Soft and chewy cookies packed with white chocolate chips and dried cranberries.",
+    publishedAt: "2024-03-05T14:30:00Z",
     category: "Chocolate",
     image: "/images/cookie-types/white-chocolate.webp",
     views: 1000,
-    tags: ["Chocolate", "Fruit", "Holiday"]
+    author: "Olivia Brown",
+    tags: ["chocolate", "fruit", "holiday", "dessert"]
   },
   {
     id: 12,
     title: "Pumpkin Spice Cookies",
-    excerpt: "Warm and cozy pumpkin spice cookies that are perfect for fall. These cookies are packed with pumpkin and warm spices.",
-    date: "March 4, 2025",
+    slug: "pumpkin-spice-cookies",
+    content: `
+      <h2>Ingredients</h2>
+      <ul>
+        <li>2 1/4 cups all-purpose flour</li>
+        <li>1 teaspoon baking soda</li>
+        <li>1/2 teaspoon salt</li>
+        <li>1 teaspoon ground cinnamon</li>
+        <li>1/4 teaspoon ground ginger</li>
+        <li>1/4 teaspoon ground nutmeg</li>
+        <li>1/4 teaspoon ground cloves</li>
+        <li>1 cup unsalted butter, softened</li>
+        <li>1 cup granulated sugar</li>
+        <li>1 cup packed brown sugar</li>
+        <li>1 cup pumpkin puree</li>
+        <li>1 large egg</li>
+        <li>2 teaspoons vanilla extract</li>
+      </ul>
+      <h2>Instructions</h2>
+      <ol>
+        <li>Preheat oven to 375°F (190°C).</li>
+        <li>Whisk together flour, baking soda, salt, and spices.</li>
+        <li>Cream butter and sugars, then add pumpkin, egg, and vanilla.</li>
+        <li>Gradually add dry ingredients.</li>
+        <li>Drop rounded tablespoons onto baking sheets.</li>
+        <li>Bake for 10-12 minutes.</li>
+      </ol>
+    `,
+    excerpt: "Warm and cozy pumpkin spice cookies that are perfect for fall.",
+    publishedAt: "2024-03-04T11:45:00Z",
     category: "Seasonal",
     image: "/images/cookie-types/pumpkin-spice.webp",
     views: 1200,
-    tags: ["Seasonal", "Fall", "Spiced"]
+    author: "Daniel Lee",
+    tags: ["seasonal", "fall", "spiced", "dessert"]
   },
   {
     id: 13,
     title: "Salted Caramel Chocolate Cookies",
-    excerpt: "Rich chocolate cookies with a gooey salted caramel center. These cookies are the perfect combination of sweet and salty.",
-    date: "March 3, 2025",
+    slug: "salted-caramel-chocolate-cookies",
+    content: `
+      <h2>Ingredients</h2>
+      <ul>
+        <li>2 1/4 cups all-purpose flour</li>
+        <li>3/4 cup cocoa powder</li>
+        <li>1 teaspoon baking soda</li>
+        <li>1/2 teaspoon salt</li>
+        <li>1 cup unsalted butter, softened</li>
+        <li>1 cup granulated sugar</li>
+        <li>1 cup packed brown sugar</li>
+        <li>2 large eggs</li>
+        <li>2 teaspoons vanilla extract</li>
+        <li>1 cup caramel bits</li>
+        <li>Sea salt for sprinkling</li>
+      </ul>
+      <h2>Instructions</h2>
+      <ol>
+        <li>Preheat oven to 375°F (190°C).</li>
+        <li>Whisk together flour, cocoa powder, baking soda, and salt.</li>
+        <li>Cream butter and sugars, then add eggs and vanilla.</li>
+        <li>Gradually add dry ingredients.</li>
+        <li>Fold in caramel bits.</li>
+        <li>Drop rounded tablespoons onto baking sheets.</li>
+        <li>Sprinkle with sea salt.</li>
+        <li>Bake for 10-12 minutes.</li>
+      </ol>
+    `,
+    excerpt: "Rich chocolate cookies with a gooey salted caramel center.",
+    publishedAt: "2024-03-03T16:20:00Z",
     category: "Chocolate",
     image: "/images/cookie-types/salted-caramel.webp",
     views: 1350,
-    tags: ["Chocolate", "Caramel", "Decadent"]
+    author: "Jessica Taylor",
+    tags: ["chocolate", "caramel", "decadent", "dessert"]
   },
   {
     id: 14,
     title: "Almond Biscotti",
-    excerpt: "Crunchy almond biscotti that are perfect for dipping in coffee or tea. These Italian cookies are twice-baked for extra crispiness.",
-    date: "March 2, 2025",
+    slug: "almond-biscotti",
+    content: `
+      <h2>Ingredients</h2>
+      <ul>
+        <li>2 cups all-purpose flour</li>
+        <li>1 cup granulated sugar</li>
+        <li>1 teaspoon baking powder</li>
+        <li>1/4 teaspoon salt</li>
+        <li>3 large eggs</li>
+        <li>1 teaspoon vanilla extract</li>
+        <li>1 teaspoon almond extract</li>
+        <li>1 cup whole almonds, toasted</li>
+      </ul>
+      <h2>Instructions</h2>
+      <ol>
+        <li>Preheat oven to 350°F (175°C).</li>
+        <li>Whisk together flour, sugar, baking powder, and salt.</li>
+        <li>Beat eggs and extracts, then add to dry ingredients.</li>
+        <li>Fold in almonds.</li>
+        <li>Form dough into two logs on baking sheet.</li>
+        <li>Bake for 25 minutes.</li>
+        <li>Slice and bake again for 10 minutes per side.</li>
+      </ol>
+    `,
+    excerpt: "Crunchy almond biscotti that are perfect for dipping in coffee or tea.",
+    publishedAt: "2024-03-02T09:30:00Z",
     category: "Specialty",
     image: "/images/cookie-types/almond-biscotti.webp",
     views: 950,
-    tags: ["Specialty", "Italian", "Coffee"]
+    author: "Robert Clark",
+    tags: ["specialty", "italian", "coffee", "dessert"]
   },
   {
     id: 15,
     title: "Matcha Green Tea Cookies",
-    excerpt: "Delicate and flavorful matcha green tea cookies that are perfect with a cup of tea. These cookies have a beautiful green color and unique flavor.",
-    date: "March 1, 2025",
+    slug: "matcha-green-tea-cookies",
+    content: `
+      <h2>Ingredients</h2>
+      <ul>
+        <li>2 1/4 cups all-purpose flour</li>
+        <li>2 tablespoons matcha powder</li>
+        <li>1 teaspoon baking soda</li>
+        <li>1/2 teaspoon salt</li>
+        <li>1 cup unsalted butter, softened</li>
+        <li>1 cup granulated sugar</li>
+        <li>1 cup packed brown sugar</li>
+        <li>2 large eggs</li>
+        <li>2 teaspoons vanilla extract</li>
+        <li>1 cup white chocolate chips</li>
+      </ul>
+      <h2>Instructions</h2>
+      <ol>
+        <li>Preheat oven to 375°F (190°C).</li>
+        <li>Whisk together flour, matcha powder, baking soda, and salt.</li>
+        <li>Cream butter and sugars, then add eggs and vanilla.</li>
+        <li>Gradually add dry ingredients.</li>
+        <li>Fold in white chocolate chips.</li>
+        <li>Drop rounded tablespoons onto baking sheets.</li>
+        <li>Bake for 10-12 minutes.</li>
+      </ol>
+    `,
+    excerpt: "Delicate and flavorful matcha green tea cookies that are perfect with a cup of tea.",
+    publishedAt: "2024-03-01T13:15:00Z",
     category: "Specialty",
     image: "/images/cookie-types/matcha-green.webp",
     views: 1050,
-    tags: ["Specialty", "Japanese", "Unique"]
+    author: "Yuki Tanaka",
+    tags: ["specialty", "japanese", "unique", "dessert"]
   }
-]; 
+];
+
+export { mockArticles }; 

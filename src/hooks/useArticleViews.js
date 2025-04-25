@@ -4,10 +4,10 @@ import { mockArticles } from '../data/mockArticles';
 const VIEWS_STORAGE_KEY = 'article_views';
 const LAST_VIEW_STORAGE_KEY = 'last_article_views';
 
-const useArticleViews = (articleId) => {
+const useArticleViews = (articleSlug) => {
   const [views, setViews] = useState(() => {
     // Get initial views from mock data
-    const article = mockArticles.find(a => a.id === articleId);
+    const article = mockArticles.find(a => a.slug === articleSlug);
     return article ? article.views : 0;
   });
 
@@ -15,21 +15,21 @@ const useArticleViews = (articleId) => {
   useEffect(() => {
     const storedViews = localStorage.getItem(VIEWS_STORAGE_KEY);
     const viewsData = storedViews ? JSON.parse(storedViews) : {};
-    const additionalViews = viewsData[articleId] || 0;
+    const additionalViews = viewsData[articleSlug] || 0;
     
     // Get base views from mock data
-    const article = mockArticles.find(a => a.id === articleId);
+    const article = mockArticles.find(a => a.slug === articleSlug);
     const baseViews = article ? article.views : 0;
     
     // Set total views (base + additional)
     setViews(baseViews + additionalViews);
-  }, [articleId]);
+  }, [articleSlug]);
 
   // Track article view
   useEffect(() => {
     const lastViewsData = localStorage.getItem(LAST_VIEW_STORAGE_KEY);
     const lastViews = lastViewsData ? JSON.parse(lastViewsData) : {};
-    const lastViewTime = lastViews[articleId] || 0;
+    const lastViewTime = lastViews[articleSlug] || 0;
     const now = Date.now();
 
     // Only count a view if it's been more than 30 minutes since last view
@@ -38,18 +38,18 @@ const useArticleViews = (articleId) => {
       const viewsData = storedViews ? JSON.parse(storedViews) : {};
       
       // Increment additional views
-      const newAdditionalViews = (viewsData[articleId] || 0) + 1;
-      viewsData[articleId] = newAdditionalViews;
+      const newAdditionalViews = (viewsData[articleSlug] || 0) + 1;
+      viewsData[articleSlug] = newAdditionalViews;
       
       // Update last view time
-      lastViews[articleId] = now;
+      lastViews[articleSlug] = now;
       
       // Save to localStorage
       localStorage.setItem(VIEWS_STORAGE_KEY, JSON.stringify(viewsData));
       localStorage.setItem(LAST_VIEW_STORAGE_KEY, JSON.stringify(lastViews));
       
       // Get base views from mock data
-      const article = mockArticles.find(a => a.id === articleId);
+      const article = mockArticles.find(a => a.slug === articleSlug);
       const baseViews = article ? article.views : 0;
       
       // Update state with total views (base + additional)
@@ -58,10 +58,10 @@ const useArticleViews = (articleId) => {
 
       // Dispatch event for other components to update
       window.dispatchEvent(new CustomEvent('articleViewsUpdated', {
-        detail: { articleId, views: totalViews }
+        detail: { articleSlug, views: totalViews }
       }));
     }
-  }, [articleId]);
+  }, [articleSlug]);
 
   return views;
 };

@@ -37,6 +37,14 @@ const BlogSearch = () => {
     { name: 'Healthy', image: '/images/cookie-types/almond-biscotti.webp', path: '/category/healthy' }
   ];
 
+  // Add generateSlug function
+  const generateSlug = (title) => {
+    return title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+  };
+
   // Calculate relevance score for a post
   const calculateRelevance = (post, searchQuery) => {
     const searchTerms = searchQuery.toLowerCase().split(' ');
@@ -187,10 +195,15 @@ const BlogSearch = () => {
   // Fetch articles from API with fallback to mock data
   const fetchArticles = async () => {
     try {
-      const response = await fetch('/api/articles');
+      const response = await fetch('/api/blog/posts');
       if (!response.ok) throw new Error('Failed to fetch articles');
       const data = await response.json();
-      return data;
+      const posts = data.posts || [];
+      // Add slugs to posts if they don't have them
+      return posts.map(post => ({
+        ...post,
+        slug: post.slug || generateSlug(post.title)
+      }));
     } catch (error) {
       console.error('Error fetching articles:', error);
       // Fallback to mock data with all blog articles
@@ -203,7 +216,8 @@ const BlogSearch = () => {
           views: 1250,
           image: "/images/cookie-types/chocolate-chip.webp",
           excerpt: "Elevate the classic chocolate chip cookie with the nutty depth of brown butter. These cookies have crispy edges, chewy centers and rich flavor that will impress everyone.",
-          tags: ["chocolate", "easy", "classic", "brown butter", "baking"]
+          tags: ["chocolate", "easy", "classic", "brown butter", "baking"],
+          slug: "classic-chocolate-chip-cookies-with-brown-butter"
         },
         {
           id: 2,
@@ -213,7 +227,8 @@ const BlogSearch = () => {
           views: 980,
           image: "/images/cookie-types/sugar-cookie.webp",
           excerpt: "These gluten-free sugar cookies made with almond flour have a wonderful tender texture and delightful citrus glaze that makes them irresistible.",
-          tags: ["gluten-free", "vegan", "holiday", "citrus", "almond"]
+          tags: ["gluten-free", "vegan", "holiday", "citrus", "almond"],
+          slug: "almond-flour-sugar-cookies-with-citrus-glaze"
         },
         {
           id: 3,
@@ -223,7 +238,8 @@ const BlogSearch = () => {
           views: 1560,
           image: "/images/cookie-types/oatmeal-raisin.webp",
           excerpt: "Perfect for hot summer days, these no-bake chocolate oatmeal cookies come together in minutes and satisfy your cookie cravings without turning on the oven.",
-          tags: ["no-bake", "chocolate", "easy", "quick", "oatmeal"]
+          tags: ["no-bake", "chocolate", "easy", "quick", "oatmeal"],
+          slug: "no-bake-chocolate-oatmeal-cookies"
         },
         {
           id: 4,
@@ -233,7 +249,8 @@ const BlogSearch = () => {
           views: 1420,
           image: "/images/cookie-types/peanut-butter.webp",
           excerpt: "A perfect combination of peanut butter and chocolate in these soft and chewy cookies that will satisfy any sweet tooth.",
-          tags: ["chocolate", "peanut butter", "easy", "kids", "classic"]
+          tags: ["chocolate", "peanut butter", "easy", "kids", "classic"],
+          slug: "peanut-butter-chocolate-chip-cookies"
         },
         {
           id: 5,
@@ -243,7 +260,8 @@ const BlogSearch = () => {
           views: 1100,
           image: "/images/cookie-types/snickerdoodle.webp",
           excerpt: "Soft and chewy cinnamon sugar cookies that are perfect for any occasion. These classic cookies are always a crowd favorite.",
-          tags: ["classic", "cinnamon", "holiday", "easy", "baking"]
+          tags: ["classic", "cinnamon", "holiday", "easy", "baking"],
+          slug: "classic-snickerdoodle-cookies"
         },
         {
           id: 6,
@@ -253,7 +271,8 @@ const BlogSearch = () => {
           views: 980,
           image: "/images/cookie-types/macaron.webp",
           excerpt: "Delicate French macarons with a sweet raspberry filling. These elegant cookies are perfect for special occasions.",
-          tags: ["french", "macarons", "raspberry", "specialty", "elegant"]
+          tags: ["french", "macarons", "raspberry", "specialty", "elegant"],
+          slug: "french-macarons-with-raspberry-filling"
         },
         {
           id: 7,
@@ -263,7 +282,8 @@ const BlogSearch = () => {
           views: 950,
           image: "/images/cookie-types/lemon-glazed.webp",
           excerpt: "Buttery shortbread cookies with a tangy lemon glaze that adds the perfect balance of sweetness and citrus.",
-          tags: ["classic", "lemon", "shortbread", "citrus", "buttery"]
+          tags: ["classic", "lemon", "shortbread", "citrus", "buttery"],
+          slug: "lemon-glazed-shortbread-cookies"
         },
         {
           id: 8,
@@ -273,7 +293,8 @@ const BlogSearch = () => {
           views: 1200,
           image: "/images/cookie-types/double-chocolate.webp",
           excerpt: "Rich and decadent double chocolate cookies that are perfect for chocolate lovers. These cookies are packed with chocolate chips and cocoa powder.",
-          tags: ["chocolate", "decadent", "rich", "double chocolate", "indulgent"]
+          tags: ["chocolate", "decadent", "rich", "double chocolate", "indulgent"],
+          slug: "double-chocolate-cookies"
         },
         {
           id: 9,
@@ -283,7 +304,8 @@ const BlogSearch = () => {
           views: 1300,
           image: "/images/cookie-types/red-velvet.webp",
           excerpt: "Soft and chewy red velvet cookies topped with a rich cream cheese frosting. Perfect for Valentine's Day or any special occasion.",
-          tags: ["red velvet", "cream cheese", "specialty", "holiday", "decadent"]
+          tags: ["red velvet", "cream cheese", "specialty", "holiday", "decadent"],
+          slug: "red-velvet-cookies-with-cream-cheese-frosting"
         },
         {
           id: 10,
@@ -293,7 +315,8 @@ const BlogSearch = () => {
           views: 1100,
           image: "/images/cookie-types/gingerbread.webp",
           excerpt: "Classic gingerbread cookies with warm spices and molasses. Perfect for the holiday season or any time you want a cozy treat.",
-          tags: ["gingerbread", "seasonal", "holiday", "spiced", "classic"]
+          tags: ["gingerbread", "seasonal", "holiday", "spiced", "classic"],
+          slug: "gingerbread-cookies-with-royal-icing"
         },
         {
           id: 11,
@@ -303,7 +326,8 @@ const BlogSearch = () => {
           views: 1000,
           image: "/images/cookie-types/white-chocolate.webp",
           excerpt: "Soft and chewy cookies packed with white chocolate chips and dried cranberries. A perfect balance of sweet and tart.",
-          tags: ["white chocolate", "cranberry", "chocolate", "fruity", "holiday"]
+          tags: ["white chocolate", "cranberry", "chocolate", "fruity", "holiday"],
+          slug: "white-chocolate-cranberry-cookies"
         },
         {
           id: 12,
@@ -313,7 +337,8 @@ const BlogSearch = () => {
           views: 1200,
           image: "/images/cookie-types/pumpkin-spice.webp",
           excerpt: "Warm and cozy pumpkin spice cookies that are perfect for fall. These cookies are packed with pumpkin and warm spices.",
-          tags: ["pumpkin", "spice", "seasonal", "fall", "warm"]
+          tags: ["pumpkin", "spice", "seasonal", "fall", "warm"],
+          slug: "pumpkin-spice-cookies"
         },
         {
           id: 13,
@@ -323,7 +348,8 @@ const BlogSearch = () => {
           views: 1350,
           image: "/images/cookie-types/salted-caramel.webp",
           excerpt: "Rich chocolate cookies with a gooey salted caramel center. These cookies are the perfect combination of sweet and salty.",
-          tags: ["chocolate", "caramel", "salted", "decadent", "indulgent"]
+          tags: ["chocolate", "caramel", "salted", "decadent", "indulgent"],
+          slug: "salted-caramel-chocolate-cookies"
         },
         {
           id: 14,
@@ -333,7 +359,8 @@ const BlogSearch = () => {
           views: 950,
           image: "/images/cookie-types/almond-biscotti.webp",
           excerpt: "Crunchy almond biscotti that are perfect for dipping in coffee or tea. These Italian cookies are twice-baked for extra crispiness.",
-          tags: ["almond", "biscotti", "italian", "crunchy", "coffee"]
+          tags: ["almond", "biscotti", "italian", "crunchy", "coffee"],
+          slug: "almond-biscotti"
         },
         {
           id: 15,
@@ -343,9 +370,13 @@ const BlogSearch = () => {
           views: 1050,
           image: "/images/cookie-types/matcha-green.webp",
           excerpt: "Delicate and flavorful matcha green tea cookies that are perfect with a cup of tea. These cookies have a beautiful green color and unique flavor.",
-          tags: ["matcha", "green tea", "japanese", "specialty", "unique"]
+          tags: ["matcha", "green tea", "japanese", "specialty", "unique"],
+          slug: "matcha-green-tea-cookies"
         }
-      ];
+      ].map(post => ({
+        ...post,
+        slug: post.slug || generateSlug(post.title)
+      }));
     }
   };
 
@@ -558,7 +589,7 @@ const BlogSearch = () => {
               <ul className="blog-popular-posts">
                 {mostViewedArticles.map(post => (
                   <li key={post.id} className="blog-popular-post">
-                    <Link to={`/article/${post.id}`}>
+                    <Link to={`/article/${post.slug}`}>
                       <img
                         src={post.image}
                         alt={post.title}
@@ -567,10 +598,10 @@ const BlogSearch = () => {
                     </Link>
                     <div className="blog-popular-post-content">
                       <h4>
-                        <Link to={`/article/${post.id}`}>{post.title}</Link>
+                        <Link to={`/article/${post.slug}`}>{post.title}</Link>
                       </h4>
                       <div>
-                        <span className="blog-popular-post-date">{new Date(post.publishedAt).toLocaleDateString()}</span>
+                        <span className="blog-popular-post-date">{new Date(post.publishedAt || post.date).toLocaleDateString()}</span>
                         <span className="blog-popular-post-views">
                           <i className="fas fa-eye"></i> {post.views.toLocaleString()}
                         </span>
@@ -652,15 +683,15 @@ const BlogSearch = () => {
               <>
                 <div className="blog-posts-grid">
                   {currentPosts.map(post => (
-                    <article key={post.id} className="blog-post">
-                      <div className={`blog-post-image ${imageLoadingStates[post.id] ? 'loading' : ''}`}>
-                        <Link to={`/article/${post.id}`}>
+                    <article key={post._id || post.id} className="blog-post">
+                      <div className={`blog-post-image ${imageLoadingStates[post._id || post.id] ? 'loading' : ''}`}>
+                        <Link to={`/article/${post.slug}`}>
                           <img
-                            src={post.image}
+                            src={post.image || post.imageUrl}
                             alt={post.title}
                             loading="eager"
-                            onLoad={() => handleImageLoad(post.id)}
-                            onError={(e) => handleImageError(post.id, e)}
+                            onLoad={() => handleImageLoad(post._id || post.id)}
+                            onError={(e) => handleImageError(post._id || post.id, e)}
                             crossOrigin="anonymous"
                           />
                         </Link>
@@ -669,22 +700,22 @@ const BlogSearch = () => {
                       <div className="blog-post-content">
                         <div className="blog-post-meta">
                           <span className="blog-post-date">
-                            {new Date(post.publishedAt).toLocaleDateString('en-US', {
+                            {new Date(post.publishedAt || post.date).toLocaleDateString('en-US', {
                               month: 'long',
                               day: 'numeric',
                               year: 'numeric'
                             })}
                           </span>
-                          <span className="blog-post-author">By CookieSpots</span>
+                          <span className="blog-post-author">By {post.author || 'CookieSpots'}</span>
                           <span className="blog-post-views">
                             <i className="fas fa-eye"></i> {post.views.toLocaleString()} views
                           </span>
                         </div>
                         <h3 className="blog-post-title">
-                          <Link to={`/article/${post.id}`}>{post.title}</Link>
+                          <Link to={`/article/${post.slug}`}>{post.title}</Link>
                         </h3>
                         <p className="blog-post-excerpt">{post.excerpt}</p>
-                        <Link to={`/article/${post.id}`} className="blog-read-more">
+                        <Link to={`/article/${post.slug}`} className="blog-read-more">
                           Read Recipe <i className="fas fa-arrow-right"></i>
                         </Link>
                       </div>
@@ -744,7 +775,7 @@ const BlogSearch = () => {
               <ul className="blog-popular-posts">
                 {mostViewedArticles.map(post => (
                   <li key={post.id} className="blog-popular-post">
-                    <Link to={`/article/${post.id}`}>
+                    <Link to={`/article/${post.slug}`}>
                       <img
                         src={post.image}
                         alt={post.title}
@@ -753,10 +784,10 @@ const BlogSearch = () => {
                     </Link>
                     <div className="blog-popular-post-content">
                       <h4>
-                        <Link to={`/article/${post.id}`}>{post.title}</Link>
+                        <Link to={`/article/${post.slug}`}>{post.title}</Link>
                       </h4>
                       <div>
-                        <span className="blog-popular-post-date">{new Date(post.publishedAt).toLocaleDateString()}</span>
+                        <span className="blog-popular-post-date">{new Date(post.publishedAt || post.date).toLocaleDateString()}</span>
                         <span className="blog-popular-post-views">
                           <i className="fas fa-eye"></i> {post.views.toLocaleString()}
                         </span>

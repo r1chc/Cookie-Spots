@@ -2,6 +2,8 @@ const BlogPost = require('../models/BlogPost');
 const { OpenAI } = require('openai');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
+const PostView = require('../models/PostView');
 
 // Initialize OpenAI
 const openai = new OpenAI({
@@ -252,9 +254,41 @@ const getBlogPostById = async (req, res) => {
       return res.status(404).json({ error: 'Post not found' });
     }
     
-    // Increment views
-    post.views += 1;
-    await post.save();
+    // Get session ID from cookie or create new one
+    const sessionId = req.cookies.sessionId || crypto.randomUUID();
+    
+    // Set session cookie if not exists (24 hour expiry)
+    if (!req.cookies.sessionId) {
+      res.cookie('sessionId', sessionId, { 
+        maxAge: 24 * 60 * 60 * 1000,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production'
+      });
+    }
+
+    // Check if this session has viewed this post in last 30 minutes
+    const recentView = await PostView.findOne({
+      postId: post._id,
+      sessionId,
+      viewedAt: { $gt: new Date(Date.now() - 30 * 60 * 1000) }
+    });
+
+    // Only increment view if no recent view from this session
+    if (!recentView) {
+      // Create new view record
+      await PostView.create({
+        postId: post._id,
+        sessionId,
+        viewedAt: new Date()
+      });
+      
+      // Increment views atomically
+      post.views = await BlogPost.findByIdAndUpdate(
+        post._id,
+        { $inc: { views: 1 } },
+        { new: true }
+      ).views;
+    }
     
     res.json(post);
   } catch (error) {
@@ -620,9 +654,131 @@ const generateNewPost = async (req, res) => {
   }
 };
 
+// Create new blog post from AI
+const createAIBlogPost = async (req, res) => {
+  try {
+    const { title, content, category, tags, image } = req.body;
+    
+    // Generate URL-friendly slug from title
+    const slug = title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+    
+    // Add timestamp to ensure uniqueness
+    const uniqueSlug = `${slug}-${Date.now()}`;
+    
+    const post = await BlogPost.create({
+      title,
+      content,
+      category,
+      tags,
+      image,
+      slug: uniqueSlug,
+      author: 'CookieSpots AI',
+      views: 0,
+      publishedAt: new Date(),
+      isAIGenerated: true
+    });
+    
+    res.status(201).json(post);
+  } catch (error) {
+    console.error('Failed to create AI blog post:', error);
+    res.status(500).json({ error: 'Failed to create AI blog post' });
+  }
+};
+
+// Get neighboring posts (previous and next)
+const getNeighborPosts = async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const currentPost = await BlogPost.findOne({ slug });
+    
+    if (!currentPost) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    // Find the previous post (published before current post)
+    const prevPost = await BlogPost.findOne({
+      publishedAt: { $lt: currentPost.publishedAt },
+      published: true
+    })
+    .sort({ publishedAt: -1 })
+    .select('title slug');
+
+    // Find the next post (published after current post)
+    const nextPost = await BlogPost.findOne({
+      publishedAt: { $gt: currentPost.publishedAt },
+      published: true
+    })
+    .sort({ publishedAt: 1 })
+    .select('title slug');
+
+    res.json({
+      prev: prevPost,
+      next: nextPost
+    });
+  } catch (error) {
+    console.error('Failed to fetch neighboring posts:', error);
+    res.status(500).json({ error: 'Failed to fetch neighboring posts' });
+  }
+};
+
+// Get a single blog post by slug
+const getBlogPostBySlug = async (req, res) => {
+  try {
+    const post = await BlogPost.findOne({ slug: req.params.slug });
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    
+    // Get session ID from cookie or create new one
+    const sessionId = req.cookies.sessionId || crypto.randomUUID();
+    
+    // Set session cookie if not exists (24 hour expiry)
+    if (!req.cookies.sessionId) {
+      res.cookie('sessionId', sessionId, { 
+        maxAge: 24 * 60 * 60 * 1000,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production'
+      });
+    }
+
+    // Check if this session has viewed this post in last 30 minutes
+    const recentView = await PostView.findOne({
+      postId: post._id,
+      sessionId,
+      viewedAt: { $gt: new Date(Date.now() - 30 * 60 * 1000) }
+    });
+
+    // Only increment view if no recent view from this session
+    if (!recentView) {
+      // Create new view record
+      await PostView.create({
+        postId: post._id,
+        sessionId,
+        viewedAt: new Date()
+      });
+      
+      // Increment views atomically
+      post.views = await BlogPost.findByIdAndUpdate(
+        post._id,
+        { $inc: { views: 1 } },
+        { new: true }
+      ).views;
+    }
+    
+    res.json(post);
+  } catch (error) {
+    console.error('Failed to fetch blog post:', error);
+    res.status(500).json({ error: 'Failed to fetch blog post' });
+  }
+};
+
 module.exports = {
   getBlogPosts,
   getBlogPostById,
+  getBlogPostBySlug,
   createBlogPost,
   updateBlogPost,
   deleteBlogPost,
@@ -634,5 +790,7 @@ module.exports = {
   getPostsByDate,
   searchBlogPosts,
   generateBlogPost,
-  generateNewPost
+  generateNewPost,
+  createAIBlogPost,
+  getNeighborPosts
 }; 

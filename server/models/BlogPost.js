@@ -6,6 +6,11 @@ const blogPostSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  slug: {
+    type: String,
+    required: true,
+    unique: true
+  },
   excerpt: {
     type: String,
     required: true,
@@ -54,6 +59,20 @@ const blogPostSchema = new mongoose.Schema({
   views: {
     type: Number,
     default: 0
+  },
+  publishedAt: {
+    type: Date,
+    required: true,
+    default: Date.now
+  },
+  isAIGenerated: {
+    type: Boolean,
+    default: false
+  },
+  author: {
+    type: String,
+    required: true,
+    default: 'CookieSpots'
   }
 }, {
   timestamps: true
@@ -69,6 +88,13 @@ blogPostSchema.index({ 'tags.locations': 1 });
 blogPostSchema.index({ 'tags.themes': 1 });
 blogPostSchema.index({ publishDate: -1 });
 blogPostSchema.index({ views: -1 });
+
+// Create indexes for efficient querying
+blogPostSchema.index({ slug: 1 }, { unique: true });
+blogPostSchema.index({ views: -1 });
+blogPostSchema.index({ publishedAt: -1 });
+blogPostSchema.index({ category: 1 });
+blogPostSchema.index({ tags: 1 });
 
 const BlogPost = mongoose.model('BlogPost', blogPostSchema);
 
