@@ -35,27 +35,113 @@ const MapUpdater = ({ viewport, bounds, shouldPreserveView }) => {
 };
 
 // Helper function to format business hours
-const formatHours = (hoursObj) => {
-  if (!hoursObj) return null;
+const formatHours = (hours) => {
+  if (!hours || Object.keys(hours).length === 0) return '';
   
-  const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-  const capitalizedDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+  const today = daysOfWeek[new Date().getDay() - 1 >= 0 ? new Date().getDay() - 1 : 6]; // Adjust: 0 = Sunday in JS but we use monday as first day
   
-  let hoursHtml = '<div style="margin-top: 8px; margin-bottom: 8px;">';
-  let hasHours = false;
+  let hoursHtml = `<div style="margin: 8px 0; font-size: 0.9em;">`;
+  if (hours[today]) {
+    hoursHtml += `<p style="margin: 0 0 4px; font-weight: bold;">Today: ${hours[today]}</p>`;
+  }
   
-  days.forEach((day, index) => {
-    if (hoursObj[day]) {
-      hasHours = true;
-      hoursHtml += `<div style="display: flex; justify-content: space-between; font-size: 12px;">
-        <span style="font-weight: 500;">${capitalizedDays[index]}:</span>
-        <span>${hoursObj[day]}</span>
-      </div>`;
+  hoursHtml += `<details>
+                  <summary style="cursor: pointer; color: #1F75CB;">View all hours</summary>
+                  <div style="margin-top: 6px;">`;
+  
+  daysOfWeek.forEach(day => {
+    if (hours[day]) {
+      const isToday = day === today;
+      hoursHtml += `<div style="display: flex; justify-content: space-between; margin-bottom: 2px; ${isToday ? 'font-weight: bold;' : ''}">
+                      <span style="text-transform: capitalize;">${day}:</span>
+                      <span>${hours[day]}</span>
+                    </div>`;
     }
   });
   
-  hoursHtml += '</div>';
-  return hasHours ? hoursHtml : null;
+  hoursHtml += `</div></details></div>`;
+  return hoursHtml;
+};
+
+// Function to generate photo carousel HTML for infoWindow
+const createPhotoCarousel = (photos) => {
+  if (!photos || !Array.isArray(photos) || photos.length === 0) {
+    return '';
+  }
+  
+  // Limit to 5 photos maximum
+  const photoUrls = photos.slice(0, 5);
+  
+  // Add error handling for images
+  const fallbackImageUrl = '/images/cookie-spot-placeholder.jpg';
+  
+  if (photoUrls.length === 1) {
+    // Single photo
+    return `<div style="margin-bottom: 8px;">
+              <img 
+                src="${photoUrls[0]}" 
+                alt="Location" 
+                style="width: 100%; height: 150px; object-fit: cover; border-radius: 4px;"
+                onerror="this.onerror=null; this.src='${fallbackImageUrl}';"
+              >
+            </div>`;
+  }
+  
+  // Multiple photos - create a simple carousel
+  return `<div style="position: relative; margin-bottom: 8px;">
+            <div id="photo-carousel" style="width: 100%; height: 150px; overflow: hidden; border-radius: 4px;">
+              ${photoUrls.map((url, index) => 
+                `<img 
+                  src="${url}" 
+                  alt="Location photo ${index + 1}" 
+                  style="width: 100%; height: 150px; object-fit: cover; display: ${index === 0 ? 'block' : 'none'};"
+                  onerror="this.onerror=null; this.src='${fallbackImageUrl}'; this.style.display='${index === 0 ? 'block' : 'none'}';"
+                >`
+              ).join('')}
+            </div>
+            <div style="position: absolute; bottom: 8px; left: 0; right: 0; display: flex; justify-content: center; gap: 4px;">
+              ${photoUrls.map((_, index) => 
+                `<span style="height: 6px; width: 6px; border-radius: 50%; background-color: white; opacity: ${index === 0 ? '1' : '0.5'};"></span>`
+              ).join('')}
+            </div>
+            <button onclick="prevPhoto(this)" style="position: absolute; left: 4px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+              <span style="font-size: 18px;">&lt;</span>
+            </button>
+            <button onclick="nextPhoto(this)" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+              <span style="font-size: 18px;">&gt;</span>
+            </button>
+          </div>
+          <script>
+            // Define photo navigation functions that will be available in the InfoWindow
+            window.currentPhotoIndex = 0;
+            window.totalPhotos = ${photoUrls.length};
+            
+            function showPhoto(index, container) {
+              const photos = container.querySelectorAll('img');
+              const dots = container.parentNode.querySelector('div[style*="justify-content: center"]').children;
+              
+              photos.forEach((photo, i) => {
+                photo.style.display = i === index ? 'block' : 'none';
+              });
+              
+              Array.from(dots).forEach((dot, i) => {
+                dot.style.opacity = i === index ? '1' : '0.5';
+              });
+            }
+            
+            window.nextPhoto = function(btn) {
+              const container = btn.parentNode.querySelector('#photo-carousel');
+              window.currentPhotoIndex = (window.currentPhotoIndex + 1) % window.totalPhotos;
+              showPhoto(window.currentPhotoIndex, container);
+            };
+            
+            window.prevPhoto = function(btn) {
+              const container = btn.parentNode.querySelector('#photo-carousel');
+              window.currentPhotoIndex = (window.currentPhotoIndex - 1 + window.totalPhotos) % window.totalPhotos;
+              showPhoto(window.currentPhotoIndex, container);
+            };
+          </script>`;
 };
 
 // Component for rendering markers to prevent their disappearance
@@ -400,8 +486,9 @@ const Map = ({
           
           // Create info window content with direct display instead of a link for external spots
           const contentString = `
-            <div style="min-width: 200px; padding: 8px;">
+            <div style="min-width: 250px; max-width: 300px; padding: 8px;">
               <h3 style="font-weight: bold; margin-bottom: 4px;">${validSpot.name}</h3>
+              ${validSpot.photos && validSpot.photos.length > 0 ? createPhotoCarousel(validSpot.photos) : ''}
               ${validSpot.description ? 
                 `<p style="margin: 0 0 8px;">${validSpot.description}</p>` : 
                 `<p style="margin: 0 0 8px;">${validSpot.address || ''}
@@ -525,8 +612,9 @@ const Map = ({
         
         // Create info window content
         const contentString = `
-          <div style="min-width: 200px; padding: 8px;">
+          <div style="min-width: 250px; max-width: 300px; padding: 8px;">
             <h3 style="font-weight: bold; margin-bottom: 4px;">${validSpot.name}</h3>
+            ${validSpot.photos && validSpot.photos.length > 0 ? createPhotoCarousel(validSpot.photos) : ''}
             ${validSpot.description ? 
               `<p style="margin: 0 0 8px;">${validSpot.description}</p>` : 
               `<p style="margin: 0 0 8px;">${validSpot.address || ''}

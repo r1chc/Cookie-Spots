@@ -250,6 +250,12 @@ export const processExternalCookieSpots = (cookieSpots = [], viewport = null, se
     // Generate a client-side ID if not present
     const id = spot._id || spot.id || spot.place_id || `cs-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
+    // Debug log for photos
+    if (spot.photos && Array.isArray(spot.photos)) {
+      console.log(`Spot "${spot.name}" has ${spot.photos.length} photos. First photo:`, 
+        spot.photos.length > 0 ? spot.photos[0] : 'none');
+    }
+    
     // Extract and normalize cookie types
     let cookieTypes = [];
     if (spot.cookie_types) {
@@ -305,6 +311,9 @@ export const processExternalCookieSpots = (cookieSpots = [], viewport = null, se
       review_count: spot.review_count || spot.user_ratings_total || 0,
       source: spot.source || 'google',
       source_id: spot.source_id || id,
+      // Add photos array if it exists in the original data
+      photos: spot.photos && Array.isArray(spot.photos) ? spot.photos : [],
+      place_id: spot.place_id || null, // Make sure place_id is passed through
       // Include any search metadata at the spot level if present
       search_metadata: spot.search_metadata || null
     };

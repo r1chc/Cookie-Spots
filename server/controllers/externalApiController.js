@@ -92,6 +92,18 @@ const externalApiController = {
         console.log('=== FIRST 3 RESULTS SAMPLE ===');
         console.log(JSON.stringify(uniqueSpots.slice(0, 3), null, 2));
         console.log('=== END SAMPLE ===');
+        
+        // Log photo information for debugging
+        const spotsWithPhotos = uniqueSpots.filter(spot => spot.photos && spot.photos.length > 0);
+        console.log(`=== PHOTO DEBUG: ${spotsWithPhotos.length} spots have photos ===`);
+        if (spotsWithPhotos.length > 0) {
+          console.log('Sample spot with photos:');
+          console.log(JSON.stringify({
+            name: spotsWithPhotos[0].name,
+            photoCount: spotsWithPhotos[0].photos.length,
+            photos: spotsWithPhotos[0].photos
+          }, null, 2));
+        }
       }
       
       return res.json({
@@ -142,7 +154,7 @@ const fetchPlaceDetails = async (placeId, headers) => {
     console.log(`Fetching details for place ID: ${placeId}`);
     
     // Define the specific fields we want to retrieve
-    const fieldMask = 'id,displayName,formattedAddress,location,currentOpeningHours';
+    const fieldMask = 'id,displayName,formattedAddress,location,currentOpeningHours,photos';
     
     // Create headers with the correct field mask
     const requestHeaders = {
@@ -410,22 +422,89 @@ async function fetchFromGoogle(params, isDebugMode = false) {
             // Process the combined results
             if (allPlaces.length > 0) {
               const cookieSpots = await Promise.all(allPlaces.map(async place => {
-                // Check if we have opening hours, if not, fetch detailed place info
+                // Always fetch detailed place info to get photos
                 let detailedPlace = place;
                 
-                if (!place.currentOpeningHours || !place.currentOpeningHours.periods) {
-                  console.log(`No opening hours for ${place.displayName?.text}, fetching details...`);
-                  const details = await fetchPlaceDetails(place.id, headers);
-                  if (details) {
-                    // Merge the details with the original place data
-                    detailedPlace = {
-                      ...place,
-                      currentOpeningHours: details.currentOpeningHours
-                    };
-                  }
+                console.log(`Fetching details for ${place.displayName?.text} to get photos...`);
+                const details = await fetchPlaceDetails(place.id, headers);
+                if (details) {
+                  // Merge the details with the original place data
+                  detailedPlace = {
+                    ...place,
+                    currentOpeningHours: details.currentOpeningHours || place.currentOpeningHours,
+                    photos: details.photos
+                  };
                 }
                 
-                return {
+                // Process photos if available
+                let photos = [];
+                let mainImage = null;
+                
+                // Always create a guaranteed working image URL based on the place name
+                const placeName = encodeURIComponent(detailedPlace.displayName?.text || 'cookie spot');
+                const guaranteedImageUrl = `https://placehold.co/800x600/e2e8f0/1e40af?text=${placeName.replace(/%20/g, '+')}`;
+                
+                if (detailedPlace.photos && Array.isArray(detailedPlace.photos) && detailedPlace.photos.length > 0) {
+                  // Get the Google API key for constructing photo URLs
+                  const photoApiKey = process.env.GOOGLE_PLACES_API_KEY || process.env.VITE_GOOGLE_PLACES_API_KEY;
+                  
+                  if (!photoApiKey) {
+                    console.error('ERROR: GOOGLE_PLACES_API_KEY is missing!');
+                  } else {
+                    console.log('Using API Key starting with:', photoApiKey.substring(0, 8) + '...');
+                  }
+                  
+                  console.log(`Found ${detailedPlace.photos.length} photos for ${detailedPlace.displayName?.text}`);
+                  console.log('Raw first photo data:', JSON.stringify(detailedPlace.photos[0], null, 2));
+                  
+                  // Create photo URLs for up to 5 photos
+                  photos = detailedPlace.photos.slice(0, 5).map((photo, index) => {
+                    // Different URL format based on what's available in the photo object
+                    let photoUrl = '';
+                    
+                    // Prefer the new Places API v1 format
+                    if (photo.name) {
+                      // Correct format: https://places.googleapis.com/v1/{NAME}/media?key=API_KEY&maxWidthPx=400
+                      photoUrl = `https://places.googleapis.com/v1/${photo.name}/media?key=${photoApiKey}&maxWidthPx=1200&maxHeightPx=800`;
+                      console.log(`Using Places API v1 format for photo ${index + 1}:`, photoUrl);
+                    } 
+                    // Fallback to legacy formats (less likely needed with new API calls)
+                    else if (photo.photoReference || photo.photo_reference || photo.reference) {
+                      const reference = photo.photoReference || photo.photo_reference || photo.reference;
+                      photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1200&photoreference=${reference}&key=${photoApiKey}`;
+                      console.log(`Using legacy format with reference ${reference.substring(0,10)}... for photo ${index + 1}:`, photoUrl);
+                    } 
+                    // Fallback to direct URLs if provided (uncommon)
+                    else if (photo.uri || photo.url) {
+                      photoUrl = photo.uri || photo.url;
+                      console.log(`Using direct URL/URI for photo ${index + 1}:`, photoUrl);
+                    }
+                    
+                    if (photoUrl) {
+                      console.log(`[Success] Created photo URL #${index + 1} for ${detailedPlace.displayName?.text}: ${photoUrl}`);
+                      return photoUrl;
+                    }
+                    
+                    console.log(`[Failure] No valid photo URL found for photo ${index + 1}, data:`, JSON.stringify(photo));
+                    return null;
+                  }).filter(Boolean);
+                  
+                  // Set the main image - prefer Google photos, but always have a backup
+                  if (photos.length > 0) {
+                    mainImage = photos[0];
+                    console.log(`Set main image to first photo: ${mainImage.substring(0, 60)}...`);
+                  } else {
+                    // Use guaranteed working URL
+                    mainImage = guaranteedImageUrl;
+                    console.log(`Using guaranteed fallback image: ${mainImage.substring(0, 60)}...`);
+                  }
+                } else {
+                  // No photos available, use guaranteed image
+                  mainImage = guaranteedImageUrl;
+                  console.log(`No photos available, using guaranteed fallback image: ${mainImage.substring(0, 60)}...`);
+                }
+                
+                const spotData = {
                   name: detailedPlace.displayName?.text,
                   description: detailedPlace.formattedAddress,
                   address: detailedPlace.addressComponents?.streetNumber + ' ' + detailedPlace.addressComponents?.route,
@@ -444,12 +523,29 @@ async function fetchFromGoogle(params, isDebugMode = false) {
                   rating: detailedPlace.rating,
                   user_ratings_total: detailedPlace.userRatingCount,
                   place_id: detailedPlace.id,
+                  
+                  // Photo options (for redundancy)
+                  photos: photos, // Google photos array
+                  image: mainImage, // Primary image to display
+                  image_url: mainImage, // Alternative property name
+                  guaranteedImageUrl: guaranteedImageUrl, // Always works backup
+                  
                   // Add search metadata to help with UI presentation
                   search_metadata: search_metadata || {
                     search_type: 'neighborhood_text',
                     location: params.location
                   }
                 };
+                
+                // Debug log for spot 
+                console.log(`Processed spot: ${spotData.name}`, {
+                  hasPhotos: spotData.photos && spotData.photos.length > 0,
+                  photoCount: spotData.photos ? spotData.photos.length : 0,
+                  hasImage: !!spotData.image,
+                  imageUrlStart: spotData.image ? spotData.image.substring(0, 60) + '...' : 'none'
+                });
+                
+                return spotData;
               }));
               
               console.log(`Mapped ${cookieSpots.length} cookie spots`);
@@ -608,7 +704,8 @@ async function fetchFromGoogle(params, isDebugMode = false) {
       "places.priceLevel",
       "places.websiteUri",
       "places.internationalPhoneNumber",
-      "places.currentOpeningHours"
+      "places.currentOpeningHours",
+      "places.photos"  // Add photos to the field mask
     ].join(',');
 
     // Update headers with the correct field mask
@@ -629,22 +726,89 @@ async function fetchFromGoogle(params, isDebugMode = false) {
     
     // Process each place, fetching additional details if needed
     const cookieSpots = await Promise.all(places.map(async place => {
-      // Check if we have opening hours, if not, fetch detailed place info
+      // Always fetch detailed place info to get photos
       let detailedPlace = place;
       
-      if (!place.currentOpeningHours || !place.currentOpeningHours.periods) {
-        console.log(`No opening hours for ${place.displayName?.text}, fetching details...`);
-        const details = await fetchPlaceDetails(place.id, requestHeaders);
-        if (details) {
-          // Merge the details with the original place data
-          detailedPlace = {
-            ...place,
-            currentOpeningHours: details.currentOpeningHours
-          };
-        }
+      console.log(`Fetching details for ${place.displayName?.text} to get photos...`);
+      const details = await fetchPlaceDetails(place.id, requestHeaders);
+      if (details) {
+        // Merge the details with the original place data
+        detailedPlace = {
+          ...place,
+          currentOpeningHours: details.currentOpeningHours || place.currentOpeningHours,
+          photos: details.photos
+        };
       }
       
-      return {
+      // Process photos if available
+      let photos = [];
+      let mainImage = null;
+      
+      // Always create a guaranteed working image URL based on the place name
+      const placeName = encodeURIComponent(detailedPlace.displayName?.text || 'cookie spot');
+      const guaranteedImageUrl = `https://placehold.co/800x600/e2e8f0/1e40af?text=${placeName.replace(/%20/g, '+')}`;
+      
+      if (detailedPlace.photos && Array.isArray(detailedPlace.photos) && detailedPlace.photos.length > 0) {
+        // Get the Google API key for constructing photo URLs
+        const photoApiKey = process.env.GOOGLE_PLACES_API_KEY || process.env.VITE_GOOGLE_PLACES_API_KEY;
+        
+        if (!photoApiKey) {
+          console.error('ERROR: GOOGLE_PLACES_API_KEY is missing!');
+        } else {
+          console.log('Using API Key starting with:', photoApiKey.substring(0, 8) + '...');
+        }
+        
+        console.log(`Found ${detailedPlace.photos.length} photos for ${detailedPlace.displayName?.text}`);
+        console.log('Raw first photo data:', JSON.stringify(detailedPlace.photos[0], null, 2));
+        
+        // Create photo URLs for up to 5 photos
+        photos = detailedPlace.photos.slice(0, 5).map((photo, index) => {
+          // Different URL format based on what's available in the photo object
+          let photoUrl = '';
+          
+          // Prefer the new Places API v1 format
+          if (photo.name) {
+            // Correct format: https://places.googleapis.com/v1/{NAME}/media?key=API_KEY&maxWidthPx=400
+            photoUrl = `https://places.googleapis.com/v1/${photo.name}/media?key=${photoApiKey}&maxWidthPx=1200&maxHeightPx=800`;
+            console.log(`Using Places API v1 format for photo ${index + 1}:`, photoUrl);
+          } 
+          // Fallback to legacy formats (less likely needed with new API calls)
+          else if (photo.photoReference || photo.photo_reference || photo.reference) {
+            const reference = photo.photoReference || photo.photo_reference || photo.reference;
+            photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1200&photoreference=${reference}&key=${photoApiKey}`;
+            console.log(`Using legacy format with reference ${reference.substring(0,10)}... for photo ${index + 1}:`, photoUrl);
+          } 
+          // Fallback to direct URLs if provided (uncommon)
+          else if (photo.uri || photo.url) {
+            photoUrl = photo.uri || photo.url;
+            console.log(`Using direct URL/URI for photo ${index + 1}:`, photoUrl);
+          }
+          
+          if (photoUrl) {
+            console.log(`[Success] Created photo URL #${index + 1} for ${detailedPlace.displayName?.text}: ${photoUrl}`);
+            return photoUrl;
+          }
+          
+          console.log(`[Failure] No valid photo URL found for photo ${index + 1}, data:`, JSON.stringify(photo));
+          return null;
+        }).filter(Boolean);
+        
+        // Set the main image - prefer Google photos, but always have a backup
+        if (photos.length > 0) {
+          mainImage = photos[0];
+          console.log(`Set main image to first photo: ${mainImage.substring(0, 60)}...`);
+        } else {
+          // Use guaranteed working URL
+          mainImage = guaranteedImageUrl;
+          console.log(`Using guaranteed fallback image: ${mainImage.substring(0, 60)}...`);
+        }
+      } else {
+        // No photos available, use guaranteed image
+        mainImage = guaranteedImageUrl;
+        console.log(`No photos available, using guaranteed fallback image: ${mainImage.substring(0, 60)}...`);
+      }
+      
+      const spotData = {
         name: detailedPlace.displayName?.text,
         description: detailedPlace.formattedAddress,
         address: detailedPlace.addressComponents?.streetNumber + ' ' + detailedPlace.addressComponents?.route,
@@ -663,9 +827,26 @@ async function fetchFromGoogle(params, isDebugMode = false) {
         rating: detailedPlace.rating,
         user_ratings_total: detailedPlace.userRatingCount,
         place_id: detailedPlace.id,
+        
+        // Photo options (for redundancy)
+        photos: photos, // Google photos array
+        image: mainImage, // Primary image to display
+        image_url: mainImage, // Alternative property name
+        guaranteedImageUrl: guaranteedImageUrl, // Always works backup
+        
         // Add search metadata to help with UI presentation
         search_metadata: search_metadata
       };
+      
+      // Debug log for spot 
+      console.log(`Processed spot: ${spotData.name}`, {
+        hasPhotos: spotData.photos && spotData.photos.length > 0,
+        photoCount: spotData.photos ? spotData.photos.length : 0,
+        hasImage: !!spotData.image,
+        imageUrlStart: spotData.image ? spotData.image.substring(0, 60) + '...' : 'none'
+      });
+      
+      return spotData;
     }));
 
     // For debugging
