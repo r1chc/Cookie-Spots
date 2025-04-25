@@ -1,29 +1,6 @@
 import React, { useEffect, useRef, useState, useLayoutEffect, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
 import { loadGoogleMaps } from '../utils/googleMapsLoader';
 import { validateSpotCoordinates } from '../utils/spotUtils';
-
-// Fix default marker icon issue in Leaflet
-// This is a common issue with Leaflet in React applications
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: '/images/marker-icon-2x.png',
-  iconUrl: '/images/marker-icon.png',
-  shadowUrl: '/images/marker-shadow.png',
-});
-
-// Define highlighted marker icon once to avoid recreation on each render
-const highlightedIcon = new L.Icon({
-  iconUrl: '/images/marker-icon-highlighted.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowUrl: '/images/marker-shadow.png',
-  shadowSize: [41, 41]
-});
-
 // Component to update map view when viewport changes
 const MapUpdater = ({ viewport, bounds, shouldPreserveView }) => {
   const map = useMap();
@@ -85,20 +62,6 @@ const formatHours = (hoursObj) => {
 const MarkersList = ({ spots, hoveredSpot, clickedSpot }) => {
   const map = useMap();
   const leafletPopupRef = useRef({});
-  
-  // Effect to handle clicked spot in Leaflet
-  useEffect(() => {
-    if (!clickedSpot) return;
-    
-    spots.forEach(spot => {
-      if (spot._id === clickedSpot._id) {
-        // If we have a reference to this popup, open it
-        if (leafletPopupRef.current[spot._id]) {
-          leafletPopupRef.current[spot._id].openPopup();
-        }
-      }
-    });
-  }, [clickedSpot, spots]);
   
   return (
     <>
@@ -241,7 +204,7 @@ const Map = ({
   onBoundsChange,
   hoveredSpot,
   clickedSpot,
-  mapType = 'leaflet', // 'leaflet' or 'google'
+  mapType = 'google', // 'leaflet' or 'google'
   searchMetadata = null, // Added parameter for search metadata
   onSpotClick
 }) => {
@@ -669,7 +632,6 @@ const Map = ({
 
   // Use a useLayoutEffect to immediately handle initial bounds/viewport
   useLayoutEffect(() => {
-    if (mapType === 'leaflet') return; // Not needed for Leaflet
     
     if (!mapInstance || !window.google) return;
     
@@ -715,35 +677,6 @@ const Map = ({
       />
     );
   }
-
-  // Default to Leaflet - using separate MarkersList component to prevent marker disappearance
-  return (
-    <MapContainer
-      center={center || [37.7749, -122.4194]} // Default to San Francisco
-      zoom={searchMetadata?.search_radius 
-        ? calculateZoomForRadius(searchMetadata.search_radius) 
-        : zoom}
-      className="w-full h-full rounded-lg shadow-md"
-      style={{ minHeight: '400px' }}
-      whenCreated={setMapInstance}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      
-      <MarkersList spots={spots} hoveredSpot={hoveredSpot} clickedSpot={clickedSpot} />
-      
-      <MapUpdater 
-        viewport={currentViewport} 
-        bounds={currentBounds} 
-        shouldPreserveView={
-          (filters && filters.preserveView) || 
-          new URLSearchParams(window.location.search).get('preserveView') === 'true'
-        } 
-      />
-    </MapContainer>
-  );
 };
 
 export default Map; 

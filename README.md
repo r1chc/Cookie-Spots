@@ -30,7 +30,7 @@ Cookie Spots is a platform for finding and reviewing cookie spots in your area. 
 - **Backend**: Node.js, Express
 - **Database**: MongoDB Atlas
 - **Authentication**: JWT (JSON Web Tokens)
-- **Maps**: Leaflet
+- **Maps**: Google Maps
 
 ## Getting Started
 
@@ -151,6 +151,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - Original inspiration from [HappyCow](https://www.happycow.net/)
 - Icons from [Heroicons](https://heroicons.com/)
-- Map functionality from [Leaflet](https://leafletjs.com/)
+
 
 #

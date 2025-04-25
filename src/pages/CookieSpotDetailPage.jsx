@@ -3,8 +3,6 @@ import { useParams, Link } from 'react-router-dom';
 import { useCookieSpots } from '../utils/CookieSpotContext';
 import { useAuth } from '../utils/AuthContext';
 import { reviewApi, photoApi, favoriteApi } from '../utils/api';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
 
 const CookieSpotDetailPage = () => {
   const { id } = useParams();
