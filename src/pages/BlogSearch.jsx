@@ -91,6 +91,29 @@ const BlogSearch = () => {
     navigate(`${location.pathname}?${newSearchParams.toString()}`, { replace: true });
   };
 
+  // Helper function to calculate article date display
+  const formatDate = (dateString) => {
+    try {
+      if (!dateString) return 'Invalid date';
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Invalid date';
+      return date.toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Invalid date';
+    }
+  };
+
+  // Helper function to format view counts
+  const formatViews = (views) => {
+    if (!views && views !== 0) return '0';
+    return views.toLocaleString('en-US');
+  };
+
   // Memoize categories for stability
   const categories = useMemo(() => [
       { name: 'Chocolate', image: '/images/cookie-types/chocolate-chip.webp' },
@@ -135,64 +158,189 @@ const BlogSearch = () => {
       .slice(0, 6); // Top 6 tags
   }, [allArticles]);
 
-  const formatDate = (dateString) => {
-      // ... (same as before) ...
-  };
-
-  const formatViews = (views) => {
-      // ... (same as before) ...
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    const searchInput = e.target.elements.search.value;
+    navigate(`/blogsearch?q=${encodeURIComponent(searchInput)}`);
   };
 
   // --- Render Logic ---
   return (
-    <div className="blog-search-page">
-      {/* Header Section */}
-      {/* ... */}
-
-      <div className="blog-search-content-wrapper">
-        <main className="blog-search-main-content">
-          {/* Search Input Area */}
-          <div className="search-input-area">
-             <input 
-                type="search" 
-                value={searchQuery} 
-                onChange={handleSearchChange} 
-                placeholder="Search articles..." 
-             />
-             {/* Maybe add a clear button */} 
+    <div className="blog-page-wrapper">
+      <div className="min-h-screen bg-gradient-to-b from-primary-50 to-white">
+        {/* Header with search info */}
+        <div className="mx-auto max-w-4xl pt-8 px-4">
+          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h1 className="text-2xl font-bold mb-2">
+              Search Results for: <span className="text-primary-600">{searchQuery || 'All Articles'}</span>
+            </h1>
+            <p className="text-gray-600">
+              Found {results.length} article{results.length !== 1 ? 's' : ''} matching your search.
+            </p>
           </div>
+        </div>
 
-          {/* Results Section */}
-          {loading && <div className="loading-message">Loading articles...</div>}
-          {error && <div className="error-message">Error: {error}</div>}
-          {!loading && !error && (
-            <div className="search-results-info">
-              Showing {results.length} result(s) for "<strong>{searchQuery}</strong>"
+        <div className="blog-content-wrapper">
+          <main className="blog-main-content">
+            {/* Search Input Area */}
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <h2 className="text-xl font-semibold mb-3">Search Recipes</h2>
+              <form onSubmit={(e) => { 
+                e.preventDefault(); 
+                navigate(`/blogsearch?q=${encodeURIComponent(searchQuery)}`);
+              }} className="flex">
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  placeholder="Enter keywords..."
+                  className="flex-grow p-2 border border-gray-300 rounded-l focus:outline-none focus:ring-1 focus:ring-primary-500"
+                />
+                <button type="submit" className="p-2 bg-primary-600 text-white rounded-r hover:bg-primary-700">
+                  <i className="fas fa-search"></i>
+                </button>
+              </form>
             </div>
-          )}
-          <div className="search-results-grid">
-             {results.map(post => (
-                <article key={post.id} className="search-result-item">
-                   {/* Link, Image, Category Badge */}
-                   <Link to={`/article/${post.slug}`}> {/* Use correct path */} </Link>
-                   {/* Content: Meta (Date, Author, Views), Title, Excerpt, Read More */}
-                   {/* ... render post details ... */}
-                </article>
-             ))}
-             {!loading && results.length === 0 && (
-                <div className="no-results-message">No articles found matching your search.</div>
-             )}
-          </div>
-        </main>
 
-        <aside className="blog-search-sidebar">
-           {/* Popular Tags (uses popularTags) */}
-           {/* Categories List (uses categoryCounts) */}
-           {/* Maybe Recent Posts? (requires sorting allArticles) */}
-           {/* ... */}
-        </aside>
+            {/* Results Section */}
+            {loading && <div className="bg-white rounded-lg shadow-md p-6 text-center">Loading articles...</div>}
+            {error && <div className="bg-white rounded-lg shadow-md p-6 text-center text-red-500">Error: {error}</div>}
+            
+            {!loading && !error && results.length === 0 && (
+              <div className="bg-white rounded-lg shadow-md p-8 text-center">
+                <h2 className="text-xl font-bold mb-4">No Results Found</h2>
+                <p className="mb-6">We couldn't find any articles matching "{searchQuery}".</p>
+                <p className="mb-4">Try different keywords or browse our popular categories below.</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {categories.slice(0, 4).map((category, index) => (
+                    <button 
+                      key={index} 
+                      onClick={() => navigate(`/blogsearch?q=${encodeURIComponent(category.name)}`)}
+                      className="px-4 py-2 bg-primary-100 text-primary-700 rounded-full hover:bg-primary-200 transition"
+                    >
+                      {category.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {!loading && !error && results.length > 0 && (
+              <div className="blog-posts-grid">
+                {results.map(post => (
+                  <article key={post.id || post.slug} className="blog-post search-result-item">
+                    {/* Image and Category Badge */}
+                    <div className="blog-post-image">
+                      <Link to={`/article/${post.slug}`}> 
+                        <img
+                          src={post.image}
+                          alt={post.title}
+                          loading="lazy"
+                          onError={(e) => { 
+                            e.target.onerror = null; 
+                            e.target.src = "/images/cookie-types/chocolate-chip.webp";
+                          }}
+                          crossOrigin="anonymous"
+                        />
+                      </Link>
+                      {post.category && <div className="blog-post-category-badge">{post.category}</div>}
+                    </div>
+                    {/* Content */}
+                    <div className="blog-post-content">
+                      <div className="blog-post-meta">
+                        {post.publishedAt && <span className="blog-post-date">{formatDate(post.publishedAt)}</span>}
+                        {post.author && <span className="blog-post-author">By {post.author}</span>}
+                        {post.views !== undefined && (
+                          <span className="blog-post-views">
+                            <i className="fas fa-eye"></i> {formatViews(post.views)}
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="blog-post-title">
+                        <Link to={`/article/${post.slug}`}>{post.title}</Link>
+                      </h3>
+                      {post.excerpt && <p className="blog-post-excerpt">{post.excerpt}</p>}
+                      <Link to={`/article/${post.slug}`} className="blog-read-more">
+                        Read Recipe <i className="fas fa-arrow-right"></i>
+                      </Link>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </main>
+
+          <aside className="blog-sidebar">
+            <div className="blog-sidebar-section pb-6">
+              <h3 className="blog-sidebar-title">Search Recipes</h3>
+              <form className="blog-search-form mb-3" onSubmit={handleSearchSubmit}>
+                <input type="text" placeholder="Search Recipes..." name="search" />
+                <button type="submit" className="text-blue-500"><i className="fas fa-search"></i></button>
+              </form>
+              <h4 className="blog-sidebar-subtitle text-sm mb-2">Popular Tags:</h4>
+              <div className="blog-tags-cloud">
+                {popularTags.map((tag, index) => (
+                  <button
+                    key={index}
+                    onClick={() => navigate(`/blogsearch?q=${encodeURIComponent(tag)}`)} 
+                    className="blog-tag text-sm py-1 px-2"
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="blog-sidebar-section">
+              <h3 className="blog-sidebar-title">Popular Recipes</h3>
+              <ul className="blog-popular-posts">
+                {[...allArticles] // Create a copy before sorting
+                  .sort((a, b) => (b.views || 0) - (a.views || 0)) // Sort by views
+                  .slice(0, 3) // Get top 3
+                  .map(post => (
+                    <li key={post.id || post.slug} className="blog-popular-post">
+                      <Link to={`/article/${post.slug}`}>
+                        <img
+                          src={post.image}
+                          alt={post.title}
+                          className="blog-popular-post-image"
+                          loading="lazy"
+                        />
+                      </Link>
+                      <div className="blog-popular-post-content">
+                        <h4>
+                          <Link to={`/article/${post.slug}`}>{post.title}</Link>
+                        </h4>
+                        <div>
+                          {post.publishedAt && <span className="blog-popular-post-date">{formatDate(post.publishedAt)}</span>}
+                          {post.views !== undefined && (
+                            <span className="blog-popular-post-views">
+                              <i className="fas fa-eye"></i> {formatViews(post.views)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+              </ul>
+            </div>
+
+            <div className="blog-sidebar-section">
+              <h3 className="blog-sidebar-title">Categories</h3>
+              <ul className="blog-categories-list">
+                {categories.map(category => (
+                  <li key={category.name}>
+                    <Link to={`/blogsearch?q=${encodeURIComponent(category.name)}`}>
+                      {category.name} 
+                      <span className="count">{categoryCounts[category.name] || 0}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </aside>
+        </div>
       </div>
-
       <SearchButton />
     </div>
   );

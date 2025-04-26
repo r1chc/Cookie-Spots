@@ -10,6 +10,7 @@
   display: none;
 }
 
+/* This section will be preserved for backward compatibility but we're using blog-content-wrapper now */
 .blog-search-container {
   display: flex;
   gap: 2rem;
@@ -18,7 +19,7 @@
   padding: 0 1rem;
 }
 
-/* Left column - Search bar and navigation */
+/* Preserve these for backward compatibility */
 .blog-search-sidebar {
   flex: 0 0 300px;
   display: flex;
@@ -26,7 +27,6 @@
   gap: 1.5rem;
 }
 
-/* Search Bar Section */
 .blog-search-bar-section {
   background-color: #fff;
   border-radius: 8px;
@@ -34,18 +34,61 @@
   padding: 1.5rem;
 }
 
-/* Right column - Search results */
 .blog-search-main {
   flex: 1;
 }
 
-/* Header styles */
 .blog-search-header {
   margin-bottom: 2rem;
   padding: 1.5rem;
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Additional search page styling that augments BlogPage.css */
+.search-results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.search-result-item {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.search-result-item:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.loading-message, 
+.error-message,
+.no-results-message {
+  padding: 2rem;
+  text-align: center;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.loading-message {
+  color: #4a90e2;
+}
+
+.error-message {
+  color: #e74c3c;
+}
+
+.search-results-info {
+  padding: 0.75rem 1rem;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+  color: #4a5568;
 }
 
 /* Sidebar styles */
@@ -179,6 +222,10 @@
   .blog-search-header {
     padding: 1rem;
     margin-bottom: 1.5rem;
+  }
+
+  .search-results-grid {
+    grid-template-columns: 1fr;
   }
 
   .blog-posts-controls {

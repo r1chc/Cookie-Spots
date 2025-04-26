@@ -15,8 +15,6 @@ import AddCookieSpotPage from './pages/AddCookieSpotPage';
 import BlogPage from './pages/BlogPage';
 import BlogSearch from './pages/BlogSearch';
 import ArticlePage from './pages/ArticlePage';
-import ChocolateChipCookies from './pages/articles/ChocolateChipCookies';
-import AlmondFlourSugarCookies from './pages/articles/AlmondFlourSugarCookies';
 import './styles/index.css';
 import ScrollToTop from './components/ScrollToTop';
 
@@ -56,8 +54,6 @@ function App() {
               <Route path="/add-cookie-spot" element={<AddCookieSpotPage />} />
               <Route path="/blog" element={<BlogPage />} />
               <Route path="/blogsearch" element={<BlogSearch />} />
-              <Route path="/article/classic-chocolate-chip-cookies-with-brown-butter" element={<ChocolateChipCookies />} />
-              <Route path="/article/almond-flour-sugar-cookies-with-citrus-glaze" element={<AlmondFlourSugarCookies />} />
               <Route path="/article/:slug" element={<ArticlePage />} />
               <Route path="*" element={<div>Page not found</div>} />
             </Routes>

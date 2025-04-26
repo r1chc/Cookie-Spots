@@ -203,25 +203,57 @@ const ArticlePage = () => {
 
   return (
     <div className={`article-page-wrapper ${isNavVisible ? 'nav-visible' : ''}`}>
+      {/* --- Floating Previous/Next Buttons --- */}
+      <div className={`fixed right-6 top-20 flex flex-col gap-4 z-50 transition-opacity duration-300 ${isNavVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+        {prevArticle && (
+          <button 
+            onClick={() => navigate(`/article/${prevArticle.slug}`)}
+            className="w-28 h-12 rounded-full bg-primary-600 hover:bg-primary-700 transition-colors flex items-center justify-center text-white shadow-lg border-2 border-white gap-2"
+            aria-label="Previous article"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
+            <span className="text-sm font-medium">Previous</span>
+          </button>
+        )}
+        {nextArticle && (
+          <button
+            onClick={() => navigate(`/article/${nextArticle.slug}`)}
+            className="w-28 h-12 rounded-full bg-primary-600 hover:bg-primary-700 transition-colors flex items-center justify-center text-white shadow-lg border-2 border-white gap-2"
+            aria-label="Next article"
+          >
+            <span className="text-sm font-medium">Next</span>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+          </button>
+        )}
+      </div>
+      {/* --- End Floating Buttons --- */}
+
       <main className="article-main-content">
         <article className="article-content">
           {/* Pass the updated article object to BaseArticle */}
           <BaseArticle article={articleForDisplay} />
         </article>
 
-        {/* Navigation between articles */}
+        {/* Navigation between articles (Could be placed elsewhere if desired) */}
+        {/* 
         <div className="article-navigation">
-           {/* ... navigation buttons using prevArticle/nextArticle ... */}
-        </div>
+           {prevArticle && <Link to={`/article/${prevArticle.slug}`}>Previous</Link>}
+           {nextArticle && <Link to={`/article/${nextArticle.slug}`}>Next</Link>}
+        </div> 
+        */}
       </main>
 
       {/* Sidebar */}
       <aside className="article-sidebar">
-          {/* ... sidebar content (Search, Popular Tags, Related Posts, Categories) ... */}
+          {/* ... sidebar content ... */}
+          {/* Example: Related Posts */}
+          {/* You might filter 'allArticles' here based on category/tags of 'articleForDisplay' */}
       </aside>
       
-      {/* Floating Buttons */}
-      {/* ... floating buttons ... */}
       <SearchButton />
     </div>
   );
