@@ -4,8 +4,8 @@ import '../styles/ArticlePage.css';
 import useScrollRestoration from '../hooks/useScrollRestoration';
 import SearchButton from '../components/SearchButton';
 import useArticleViews from '../hooks/useArticleViews';
-import { mockArticles } from '../data/mockArticles';
 import BaseArticle from './articles/BaseArticle';
+import { loadAllArticles, getArticleBySlug } from '../utils/articleLoader';
 
 const ArticlePage = () => {
   // Use the scroll restoration hook
@@ -14,6 +14,7 @@ const ArticlePage = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
   const [article, setArticle] = useState(null);
+  const [allArticles, setAllArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [imageLoading, setImageLoading] = useState(true);
@@ -23,43 +24,43 @@ const ArticlePage = () => {
   const [showFloatingButtons, setShowFloatingButtons] = useState(false);
   const [isNavVisible, setIsNavVisible] = useState(true);
   const scrollToTopRef = useRef(null);
-  const [articles, setArticles] = useState(mockArticles);
 
   // Use the article views hook
-  const currentViews = useArticleViews(article?.slug);
+  const currentViews = useArticleViews(slug);
 
-  // Fetch the current article
+  // Fetch the current article AND all articles
   useEffect(() => {
-    const fetchArticle = async () => {
+    const fetchArticleData = async () => {
+      setLoading(true);
       try {
         if (!slug) {
           throw new Error('No article slug provided');
         }
 
-        // First try to find in mock data since we know API is down
-        const mockArticle = mockArticles.find(post => post.slug === slug);
-        if (mockArticle) {
-          setArticle(mockArticle);
-          setLoading(false);
-          return;
-        }
+        // Fetch all articles using the loader (for sidebar, prev/next)
+        const loadedArticles = await loadAllArticles();
+        setAllArticles(loadedArticles);
 
-        // If not in mock data, try API as fallback
-        const response = await fetch(`/api/blog/posts/${slug}`);
-        if (!response.ok) {
+        // Fetch the specific article for display using the loader
+        const currentArticleData = await getArticleBySlug(slug);
+        
+        if (currentArticleData) {
+          setArticle(currentArticleData);
+        } else {
           throw new Error('Article not found');
         }
-        const data = await response.json();
-        setArticle(data.post);
+        setError(null);
       } catch (err) {
-        console.error('Error fetching article:', err);
+        console.error('Error fetching article data:', err);
         setError(err.message);
+        setArticle(null);
+        setAllArticles([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchArticle();
+    fetchArticleData();
   }, [slug]);
 
   // Listen for navigation menu state
@@ -78,12 +79,12 @@ const ArticlePage = () => {
 
   useEffect(() => {
     // Set search results to all articles
-    setSearchResults(mockArticles);
+    setSearchResults(allArticles);
     
     // Calculate popular tags
-    const tags = mockArticles.reduce((acc, article) => {
-      if (article.tags) {
-        article.tags.forEach(tag => {
+    const tags = allArticles.reduce((acc, art) => {
+      if (art.tags) {
+        art.tags.forEach(tag => {
           acc[tag] = (acc[tag] || 0) + 1;
         });
       }
@@ -94,19 +95,19 @@ const ArticlePage = () => {
     
     // Calculate category counts
     const counts = {};
-    mockArticles.forEach(article => {
-      counts[article.category] = (counts[article.category] || 0) + 1;
+    allArticles.forEach(art => {
+      counts[art.category] = (counts[art.category] || 0) + 1;
     });
     setCategoryCount(counts);
-  }, []);
+  }, [allArticles]);
 
   // Sort articles by date (newest first)
-  const sortedArticles = [...articles].sort((a, b) => 
+  const sortedArticles = [...allArticles].sort((a, b) => 
     new Date(b.publishedAt) - new Date(a.publishedAt)
   );
 
   // Find the current index in the sorted array
-  const currentIndex = sortedArticles.findIndex(article => article.slug === slug);
+  const currentIndex = sortedArticles.findIndex(art => art.slug === slug);
   
   // Get previous and next articles based on the sorted array
   const prevArticle = currentIndex > 0 ? sortedArticles[currentIndex - 1] : null;
@@ -137,7 +138,7 @@ const ArticlePage = () => {
   // Function to count articles that match a category
   const getCategoryCount = (categoryName) => {
     const searchTerm = categoryName.toLowerCase();
-    return mockArticles.filter(article => 
+    return allArticles.filter(article => 
       article.title.toLowerCase().includes(searchTerm) ||
       article.category.toLowerCase().includes(searchTerm) ||
       article.excerpt.toLowerCase().includes(searchTerm) ||
@@ -179,11 +180,19 @@ const ArticlePage = () => {
   }
 
   if (error) {
-    return <div>Error: {error}</div>;
+    return (
+      <div className="article-container flex flex-col items-center justify-center min-h-[60vh]">
+        <h1 className="text-2xl font-bold mb-4">Oops! Article Not Found</h1>
+        <p className="text-gray-600 mb-6">Sorry, we couldn't find the article you're looking for ({error}).</p>
+        <Link to="/blog" className="text-primary-600 hover:underline">
+          &larr; Back to Blog
+        </Link>
+      </div>
+    );
   }
 
   if (!article) {
-    return <div>Article not found.</div>;
+    return <div>Article data is missing.</div>;
   }
 
   // Prepare the article object with the latest view count for rendering

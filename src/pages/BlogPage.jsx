@@ -6,7 +6,7 @@ import SearchButton from '../components/SearchButton';
 import Slider from 'react-slick';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
-import { mockArticles } from '../data/mockArticles';
+import { loadAllArticles } from '../utils/articleLoader';
 
 const BlogPage = () => {
   // Use the scroll restoration hook
@@ -14,6 +14,7 @@ const BlogPage = () => {
 
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [imageLoadingStates, setImageLoadingStates] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
   const [displayPages, setDisplayPages] = useState([1, 2, 3]);
@@ -27,7 +28,8 @@ const BlogPage = () => {
   const [isTablet, setIsTablet] = useState(window.innerWidth <= 770 && window.innerWidth > 480);
   const [isLargeTablet, setIsLargeTablet] = useState(window.innerWidth <= 992 && window.innerWidth > 770);
   const [categoryCount, setCategoryCount] = useState({});
-  const totalPages = Math.ceil((posts.length - 1) / postsPerPage);
+  const [sidebarCategoryCount, setSidebarCategoryCount] = useState({});
+  const totalPages = Math.ceil(Math.max(0, sortedPosts.length - 1) / postsPerPage);
   const navigate = useNavigate();
   const [sliderPosition, setSliderPosition] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -41,21 +43,82 @@ const BlogPage = () => {
     });
   }, []);
 
-  // Calculate category counts when posts change
+  // Fetch initial posts using the loader
   useEffect(() => {
+    const fetchInitialPosts = async () => {
+      setLoading(true);
+      try {
+        const loadedPosts = await loadAllArticles();
+        
+        // Initial sort (newest first)
+        const initialSortedPosts = [...loadedPosts].sort((a, b) => 
+          new Date(b.publishedAt) - new Date(a.publishedAt)
+        );
+
+        setPosts(loadedPosts); // Keep unsorted version if needed elsewhere
+        setOriginalPosts(loadedPosts); // Store the original loaded order
+        setSortedPosts(initialSortedPosts); // Set the initially sorted posts
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching initial posts:', err);
+        setError('Could not load blog posts.');
+        setPosts([]);
+        setOriginalPosts([]);
+        setSortedPosts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchInitialPosts();
+  }, []); // Run only on mount
+
+  // Calculate category counts and popular tags when originalPosts changes
+  useEffect(() => {
+    if (!originalPosts || originalPosts.length === 0) return;
+
+    // --- Calculate Category Counts (for both featured and sidebar) ---
     const counts = {};
-    categories.forEach(category => {
-      const count = mockArticles.filter(post => {
-        const categoryName = category.name.toLowerCase();
-        return post.title.toLowerCase().includes(categoryName) ||
-               post.category.toLowerCase().includes(categoryName) ||
-               post.excerpt.toLowerCase().includes(categoryName) ||
-               (post.tags && post.tags.some(tag => tag.toLowerCase().includes(categoryName)));
-      }).length;
-      counts[category.name] = count;
+    const sidebarCounts = {};
+    // Define categories structure here or import from a shared place
+    const categoriesData = [
+      { name: 'Chocolate' }, { name: 'Gluten-Free' }, { name: 'No-Bake' }, 
+      { name: 'Vegan' }, { name: 'Classic' }, { name: 'Specialty' }, 
+      { name: 'Seasonal' }, { name: 'Healthy' }
+    ];
+
+    categoriesData.forEach(category => {
+      const categoryNameLower = category.name.toLowerCase();
+      // Count for sidebar (exact match)
+      const count = originalPosts.filter(post => post.category.toLowerCase() === categoryNameLower).length;
+      sidebarCounts[category.name] = count;
+      // Count for featured (looser match - kept for consistency with previous logic, might need review)
+      const featuredCount = originalPosts.filter(post => 
+        post.title.toLowerCase().includes(categoryNameLower) ||
+        post.category.toLowerCase().includes(categoryNameLower) ||
+        post.excerpt.toLowerCase().includes(categoryNameLower) ||
+        (post.tags && post.tags.some(tag => tag.toLowerCase().includes(categoryNameLower)))
+      ).length;
+       counts[category.name] = featuredCount; 
     });
-    setCategoryCount(counts);
-  }, []);
+    setCategoryCount(counts); // For featured section
+    setSidebarCategoryCount(sidebarCounts); // For sidebar list
+
+    // --- Calculate Popular Tags ---
+    const tagScores = {};
+    originalPosts.forEach(post => {
+      if (post.tags) {
+        const tagPoints = (post.views || 0) / 100; // Use views from loaded data
+        post.tags.forEach(tag => {
+          tagScores[tag] = (tagScores[tag] || 0) + tagPoints;
+        });
+      }
+    });
+    const sortedTagNames = Object.entries(tagScores)
+      .sort(([, a], [, b]) => b - a)
+      .map(([tag]) => tag);
+    setPopularTags(sortedTagNames.slice(0, 6));
+
+  }, [originalPosts]);
 
   // Update resize listener
   useEffect(() => {
@@ -110,26 +173,6 @@ const BlogPage = () => {
     setSortOrder(newSortOrder);
     setCurrentPage(1);
     setDisplayPages([1, 2, 3]);
-
-    // Sort the posts
-    const newSortedPosts = [...originalPosts].sort((a, b) => {
-      switch (newSortOrder) {
-        case 'newest':
-          return new Date(b.publishedAt) - new Date(a.publishedAt);
-        case 'oldest':
-          return new Date(a.publishedAt) - new Date(b.publishedAt);
-        case 'alphabetical':
-          return a.title.localeCompare(b.title, 'en', { sensitivity: 'base' });
-        case 'most_viewed':
-          return b.views - a.views;
-        case 'least_viewed':
-          return a.views - b.views;
-        default:
-          return 0;
-      }
-    });
-
-    setSortedPosts(newSortedPosts);
   };
 
   const handlePostsPerPageChange = (e) => {
@@ -137,30 +180,6 @@ const BlogPage = () => {
     setPostsPerPage(newPostsPerPage);
     setCurrentPage(1);
     setDisplayPages([1, 2, 3]);
-  };
-
-  // Function to calculate popular tags
-  const calculatePopularTags = (posts) => {
-    const tagScores = {};
-    
-    // Calculate tag scores based on frequency and article views
-    posts.forEach(post => {
-      if (post.tags) {
-        // Each tag gets points based on the article's views
-        const tagPoints = post.views / 100; // Normalize views to a reasonable score
-        post.tags.forEach(tag => {
-          tagScores[tag] = (tagScores[tag] || 0) + tagPoints;
-        });
-      }
-    });
-
-    // Convert to array and sort by score
-    const sortedTags = Object.entries(tagScores)
-      .sort(([, a], [, b]) => b - a)
-      .map(([tag]) => tag);
-
-    // Take top 6 tags (2 rows of 3)
-    return sortedTags.slice(0, 6);
   };
 
   const formatDate = (dateString) => {
@@ -280,83 +299,25 @@ const BlogPage = () => {
     ]
   };
 
-  // Initialize posts with mock data
-  useEffect(() => {
-    // First set mock data
-    const sortedMockArticles = [...mockArticles].sort((a, b) => 
-      new Date(b.publishedAt) - new Date(a.publishedAt)
-    );
-    setPosts(sortedMockArticles);
-    setOriginalPosts(sortedMockArticles);
-    setSortedPosts(sortedMockArticles);
-    setLoading(false);
-
-    // Then try to fetch from API
-    const fetchPosts = async () => {
-      try {
-        const response = await fetch('/api/blog/posts');
-        if (!response.ok) {
-          throw new Error('Failed to fetch posts');
-        }
-        const data = await response.json();
-        const sortedApiPosts = data.posts.sort((a, b) => 
-          new Date(b.publishedAt) - new Date(a.publishedAt)
-        );
-        setPosts(sortedApiPosts);
-        setOriginalPosts(sortedApiPosts);
-        setSortedPosts(sortedApiPosts);
-      } catch (error) {
-        console.error('Error fetching posts:', error);
-        // Keep using mock data if API fails
-      }
-    };
-
-    fetchPosts();
-  }, []);
-
   // Listen for view updates
   useEffect(() => {
     const handleViewsUpdate = (e) => {
-      const { articleSlug, views } = e.detail; // Assuming slug is passed now
-
-      // Update all relevant post arrays
-      const updatePostViews = (prevPosts) => 
-        prevPosts.map(post => 
-          post.slug === articleSlug
-            ? { ...post, views: views } 
-            : post
+      const { articleSlug, views } = e.detail;
+      const updatePostViews = (prevPosts) =>
+        prevPosts.map(post =>
+          post.slug === articleSlug ? { ...post, views: views } : post
         );
 
-      setPosts(updatePostViews);
+      // Update originalPosts to persist the view count across sorts
       setOriginalPosts(updatePostViews);
-
-      // Re-sort sortedPosts based on the current sortOrder
-      setSortedPosts(prevSortedPosts => {
-        const updatedPosts = updatePostViews(prevSortedPosts);
-        return [...updatedPosts].sort((a, b) => {
-          switch (sortOrder) {
-            case 'newest':
-              return new Date(b.publishedAt) - new Date(a.publishedAt);
-            case 'oldest':
-              return new Date(a.publishedAt) - new Date(b.publishedAt);
-            case 'alphabetical':
-              return a.title.localeCompare(b.title, 'en', { sensitivity: 'base' });
-            case 'most_viewed':
-              return b.views - a.views;
-            case 'least_viewed':
-              return a.views - b.views;
-            default:
-              return 0;
-          }
-        });
-      });
+      // The sorting useEffect will handle updating sortedPosts
     };
 
     window.addEventListener('articleViewsUpdated', handleViewsUpdate);
     return () => {
       window.removeEventListener('articleViewsUpdated', handleViewsUpdate);
     };
-  }, [sortOrder]); // Keep sortOrder dependency
+  }, []); // No dependency needed as it uses setOriginalPosts updater
 
   const handleNewsletterSubmit = (e) => {
     e.preventDefault();
@@ -469,7 +430,10 @@ const BlogPage = () => {
   };
 
   if (loading) {
-    return <div className="blog-container">Loading...</div>;
+    return <div className="blog-container">Loading posts...</div>;
+  }
+  if (error) {
+    return <div className="blog-container">Error: {error}</div>;
   }
 
   return (
@@ -708,8 +672,8 @@ const BlogPage = () => {
             <div className="blog-sidebar-section">
               <h3 className="blog-sidebar-title">Popular Recipes</h3>
               <ul className="blog-popular-posts">
-                {posts
-                  .sort((a, b) => b.views - a.views)
+                {sortedPosts
+                  .sort((a, b) => (b.views || 0) - (a.views || 0))
                   .slice(0, 3)
                   .map(post => (
                     <li key={post.id} className="blog-popular-post">
@@ -740,24 +704,14 @@ const BlogPage = () => {
             <div className="blog-sidebar-section">
               <h3 className="blog-sidebar-title">Categories</h3>
               <ul className="blog-categories-list">
-                {categories.map(category => {
-                  // Use the same filtering logic as search
-                  const categoryName = category.name.toLowerCase();
-                  const count = mockArticles.filter(post => 
-                    post.title.toLowerCase().includes(categoryName) ||
-                    post.category.toLowerCase().includes(categoryName) ||
-                    post.excerpt.toLowerCase().includes(categoryName) ||
-                    (post.tags && post.tags.some(tag => tag.toLowerCase().includes(categoryName)))
-                  ).length;
-                  
-                  return (
-                    <li key={category.name}>
-                      <Link to={`/blogsearch?q=${encodeURIComponent(category.name)}`}>
-                        {category.name} <span className="count">{count}</span>
-                      </Link>
-                    </li>
-                  );
-                })}
+                {categories.map(category => (
+                  <li key={category.name}>
+                    <Link to={`/blogsearch?q=${encodeURIComponent(category.name)}`}>
+                      {category.name} 
+                      <span className="count">{sidebarCategoryCount[category.name] || 0}</span>
+                    </Link>
+                  </li>
+                ))}
               </ul>
             </div>
           </aside>
