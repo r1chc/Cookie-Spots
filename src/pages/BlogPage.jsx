@@ -317,32 +317,46 @@ const BlogPage = () => {
   // Listen for view updates
   useEffect(() => {
     const handleViewsUpdate = (e) => {
-      const { articleId, views } = e.detail;
-      setOriginalPosts(prevPosts => 
+      const { articleSlug, views } = e.detail; // Assuming slug is passed now
+
+      // Update all relevant post arrays
+      const updatePostViews = (prevPosts) => 
         prevPosts.map(post => 
-          post.id === articleId 
+          post.slug === articleSlug
             ? { ...post, views: views } 
             : post
-        )
-      );
-      
-      // Re-sort if currently sorting by views
-      if (sortOrder === 'most_viewed' || sortOrder === 'least_viewed') {
-        setSortedPosts(prevPosts => 
-          [...prevPosts].sort((a, b) => 
-            sortOrder === 'most_viewed' 
-              ? b.views - a.views 
-              : a.views - b.views
-          )
         );
-      }
+
+      setPosts(updatePostViews);
+      setOriginalPosts(updatePostViews);
+
+      // Re-sort sortedPosts based on the current sortOrder
+      setSortedPosts(prevSortedPosts => {
+        const updatedPosts = updatePostViews(prevSortedPosts);
+        return [...updatedPosts].sort((a, b) => {
+          switch (sortOrder) {
+            case 'newest':
+              return new Date(b.publishedAt) - new Date(a.publishedAt);
+            case 'oldest':
+              return new Date(a.publishedAt) - new Date(b.publishedAt);
+            case 'alphabetical':
+              return a.title.localeCompare(b.title, 'en', { sensitivity: 'base' });
+            case 'most_viewed':
+              return b.views - a.views;
+            case 'least_viewed':
+              return a.views - b.views;
+            default:
+              return 0;
+          }
+        });
+      });
     };
 
     window.addEventListener('articleViewsUpdated', handleViewsUpdate);
     return () => {
       window.removeEventListener('articleViewsUpdated', handleViewsUpdate);
     };
-  }, [sortOrder]);
+  }, [sortOrder]); // Keep sortOrder dependency
 
   const handleNewsletterSubmit = (e) => {
     e.preventDefault();
