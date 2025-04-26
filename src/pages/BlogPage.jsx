@@ -111,24 +111,13 @@ const BlogPage = () => {
     setCurrentPage(1);
     setDisplayPages([1, 2, 3]);
 
-    // Create a date parser function
-    const parseDate = (dateStr) => {
-      const [month, day, year] = dateStr.replace(',', '').split(' ');
-      const monthMap = {
-        'January': 0, 'February': 1, 'March': 2, 'April': 3, 
-        'May': 4, 'June': 5, 'July': 6, 'August': 7, 
-        'September': 8, 'October': 9, 'November': 10, 'December': 11
-      };
-      return new Date(parseInt(year), monthMap[month], parseInt(day));
-    };
-
     // Sort the posts
     const newSortedPosts = [...originalPosts].sort((a, b) => {
       switch (newSortOrder) {
         case 'newest':
-          return parseDate(b.date).getTime() - parseDate(a.date).getTime();
+          return new Date(b.publishedAt) - new Date(a.publishedAt);
         case 'oldest':
-          return parseDate(a.date).getTime() - parseDate(b.date).getTime();
+          return new Date(a.publishedAt) - new Date(b.publishedAt);
         case 'alphabetical':
           return a.title.localeCompare(b.title, 'en', { sensitivity: 'base' });
         case 'most_viewed':
@@ -174,15 +163,24 @@ const BlogPage = () => {
     return sortedTags.slice(0, 6);
   };
 
-  // Date parsing function
-  const parseDate = (dateStr) => {
-    const [month, day, year] = dateStr.replace(',', '').split(' ');
-    const monthMap = {
-      'January': 0, 'February': 1, 'March': 2, 'April': 3, 
-      'May': 4, 'June': 5, 'July': 6, 'August': 7, 
-      'September': 8, 'October': 9, 'November': 10, 'December': 11
-    };
-    return new Date(parseInt(year), monthMap[month], parseInt(day));
+  const formatDate = (dateString) => {
+    try {
+      if (!dateString) return 'Invalid date';
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Invalid date';
+      return date.toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Invalid date';
+    }
+  };
+
+  const formatViews = (views) => {
+    return views.toLocaleString('en-US');
   };
 
   const getVisibleItems = () => {
@@ -282,30 +280,38 @@ const BlogPage = () => {
     ]
   };
 
+  // Initialize posts with mock data
   useEffect(() => {
-    // Sort posts by views for popular tags
-    const sortedByViews = [...mockArticles].sort((a, b) => b.views - a.views);
-    
-    // Calculate popular tags
-    const tags = calculatePopularTags(sortedByViews);
-    setPopularTags(tags);
-
-    // Sort posts by newest first
-    const sortedByNewest = [...mockArticles].sort((a, b) => {
-      return parseDate(b.date).getTime() - parseDate(a.date).getTime();
-    });
-
-    setPosts(sortedByNewest);
-    setOriginalPosts(sortedByNewest);
-    setSortedPosts(sortedByNewest);
-    setSortOrder('newest');
+    // First set mock data
+    const sortedMockArticles = [...mockArticles].sort((a, b) => 
+      new Date(b.publishedAt) - new Date(a.publishedAt)
+    );
+    setPosts(sortedMockArticles);
+    setOriginalPosts(sortedMockArticles);
+    setSortedPosts(sortedMockArticles);
     setLoading(false);
 
-    const initialLoadingStates = {};
-    mockArticles.forEach(post => {
-      initialLoadingStates[post.id] = true;
-    });
-    setImageLoadingStates(initialLoadingStates);
+    // Then try to fetch from API
+    const fetchPosts = async () => {
+      try {
+        const response = await fetch('/api/blog/posts');
+        if (!response.ok) {
+          throw new Error('Failed to fetch posts');
+        }
+        const data = await response.json();
+        const sortedApiPosts = data.posts.sort((a, b) => 
+          new Date(b.publishedAt) - new Date(a.publishedAt)
+        );
+        setPosts(sortedApiPosts);
+        setOriginalPosts(sortedApiPosts);
+        setSortedPosts(sortedApiPosts);
+      } catch (error) {
+        console.error('Error fetching posts:', error);
+        // Keep using mock data if API fails
+      }
+    };
+
+    fetchPosts();
   }, []);
 
   // Listen for view updates
@@ -446,30 +452,6 @@ const BlogPage = () => {
       newPages[2] = newPages[2] - 1;
       setDisplayPages(newPages);
     }
-  };
-
-  const formatDate = (dateString) => {
-    try {
-      // Split the date string into components
-      const [month, day, year] = dateString.split(' ');
-      // Remove any commas
-      const cleanDay = day.replace(',', '');
-      // Get month number (1-12)
-      const monthMap = {
-        'January': 1, 'February': 2, 'March': 3, 'April': 4,
-        'May': 5, 'June': 6, 'July': 7, 'August': 8,
-        'September': 9, 'October': 10, 'November': 11, 'December': 12
-      };
-      // Format as M/DD/YYYY
-      return `${monthMap[month]}/${cleanDay}/${year}`;
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      return dateString;
-    }
-  };
-
-  const formatViews = (views) => {
-    return views.toLocaleString('en-US');
   };
 
   if (loading) {
