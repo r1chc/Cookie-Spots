@@ -41,9 +41,6 @@ const BaseArticle = ({ article }) => {
               )}
             </div>
             <h1 className="article-title">{article.title}</h1>
-            <div className="article-author">
-              <span>By {article.author}</span>
-            </div>
           </header>
 
           <div className="article-image-container">

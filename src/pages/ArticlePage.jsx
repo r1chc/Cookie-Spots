@@ -174,6 +174,15 @@ const ArticlePage = () => {
     return views?.toLocaleString('en-US') || '0';
   };
 
+  // Handle search form submission
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    const searchTerm = e.target.search.value.trim();
+    if (searchTerm) {
+      navigate(`/blogsearch?q=${encodeURIComponent(searchTerm)}`);
+    }
+  };
+
   // Render logic
   if (loading) {
     return <div>Loading...</div>;
@@ -249,9 +258,61 @@ const ArticlePage = () => {
 
       {/* Sidebar */}
       <aside className="article-sidebar">
-          {/* ... sidebar content ... */}
-          {/* Example: Related Posts */}
-          {/* You might filter 'allArticles' here based on category/tags of 'articleForDisplay' */}
+        <div className="blog-sidebar-section">
+          <h3 className="blog-sidebar-title">Search Recipes</h3>
+          <form className="blog-search-form" onSubmit={handleSearchSubmit}>
+            <input type="text" placeholder="Search Recipes..." name="search" />
+            <button type="submit" className="text-blue-500">
+              <i className="fas fa-search"></i>
+            </button>
+          </form>
+        </div>
+
+        <div className="blog-sidebar-section">
+          <h3 className="blog-sidebar-title">Popular Recipes</h3>
+          <ul className="blog-popular-posts">
+            {sortedArticles
+              .sort((a, b) => (b.views || 0) - (a.views || 0))
+              .slice(0, 3)
+              .map(post => (
+                <li key={post.id} className="blog-popular-post">
+                  <Link to={`/article/${post.slug}`}>
+                    <img
+                      src={post.image}
+                      alt={post.title}
+                      className="blog-popular-post-image"
+                      loading="lazy"
+                    />
+                  </Link>
+                  <div className="blog-popular-post-content">
+                    <h4>
+                      <Link to={`/article/${post.slug}`}>{post.title}</Link>
+                    </h4>
+                    <div>
+                      <span className="blog-popular-post-date">{formatDate(post.publishedAt)}</span>
+                      <span className="blog-popular-post-views">
+                        <i className="fas fa-eye"></i> {formatViews(post.views)}
+                      </span>
+                    </div>
+                  </div>
+                </li>
+              ))}
+          </ul>
+        </div>
+
+        <div className="blog-sidebar-section">
+          <h3 className="blog-sidebar-title">Categories</h3>
+          <ul className="blog-categories-list">
+            {categories.map(category => (
+              <li key={category.name}>
+                <Link to={`/blogsearch?q=${encodeURIComponent(category.name)}`}>
+                  {category.name} 
+                  <span className="count">{categoryCount[category.name] || 0}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
       </aside>
       
       <SearchButton />

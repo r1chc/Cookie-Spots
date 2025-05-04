@@ -88,17 +88,10 @@ const BlogPage = () => {
 
     categoriesData.forEach(category => {
       const categoryNameLower = category.name.toLowerCase();
-      // Count for sidebar (exact match)
+      // Count for both featured and sidebar using exact match
       const count = originalPosts.filter(post => post.category.toLowerCase() === categoryNameLower).length;
       sidebarCounts[category.name] = count;
-      // Count for featured (looser match - kept for consistency with previous logic, might need review)
-      const featuredCount = originalPosts.filter(post => 
-        post.title.toLowerCase().includes(categoryNameLower) ||
-        post.category.toLowerCase().includes(categoryNameLower) ||
-        post.excerpt.toLowerCase().includes(categoryNameLower) ||
-        (post.tags && post.tags.some(tag => tag.toLowerCase().includes(categoryNameLower)))
-      ).length;
-       counts[category.name] = featuredCount; 
+      counts[category.name] = count; // Use the same count for featured section
     });
     setCategoryCount(counts); // For featured section
     setSidebarCategoryCount(sidebarCounts); // For sidebar list
@@ -473,9 +466,6 @@ const BlogPage = () => {
                     >
                       <img src={category.image} alt={category.name} />
                       <h3>{category.name}</h3>
-                      <span className="category-count">
-                        {categoryCount[category.name] || 0} Articles
-                      </span>
                     </div>
                   </div>
                 ))}
@@ -538,7 +528,6 @@ const BlogPage = () => {
                     <div className="blog-featured-content">
                       <div className="blog-post-meta">
                         <span className="blog-post-date">{sortedPosts[0].date}</span>
-                        <span className="blog-post-author">By {sortedPosts[0].author}</span>
                         <span className="blog-post-views">
                           <i className="fas fa-eye"></i> {sortedPosts[0].views.toLocaleString()} views
                         </span>
@@ -574,7 +563,6 @@ const BlogPage = () => {
                       <div className="blog-post-content">
                         <div className="blog-post-meta">
                           <span className="blog-post-date">{post.date}</span>
-                          <span className="blog-post-author">By {post.author}</span>
                           <span className="blog-post-views">
                             <i className="fas fa-eye"></i> {post.views.toLocaleString()} views
                           </span>

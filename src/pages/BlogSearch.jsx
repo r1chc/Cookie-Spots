@@ -249,7 +249,6 @@ const BlogSearch = () => {
                     <div className="blog-post-content">
                       <div className="blog-post-meta">
                         {post.publishedAt && <span className="blog-post-date">{formatDate(post.publishedAt)}</span>}
-                        {post.author && <span className="blog-post-author">By {post.author}</span>}
                         {post.views !== undefined && (
                           <span className="blog-post-views">
                             <i className="fas fa-eye"></i> {formatViews(post.views)}
