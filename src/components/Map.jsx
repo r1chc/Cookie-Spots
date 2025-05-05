@@ -1,29 +1,6 @@
 import React, { useEffect, useRef, useState, useLayoutEffect, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
 import { loadGoogleMaps } from '../utils/googleMapsLoader';
 import { validateSpotCoordinates } from '../utils/spotUtils';
-
-// Fix default marker icon issue in Leaflet
-// This is a common issue with Leaflet in React applications
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: '/images/marker-icon-2x.png',
-  iconUrl: '/images/marker-icon.png',
-  shadowUrl: '/images/marker-shadow.png',
-});
-
-// Define highlighted marker icon once to avoid recreation on each render
-const highlightedIcon = new L.Icon({
-  iconUrl: '/images/marker-icon-highlighted.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowUrl: '/images/marker-shadow.png',
-  shadowSize: [41, 41]
-});
-
 // Component to update map view when viewport changes
 const MapUpdater = ({ viewport, bounds, shouldPreserveView }) => {
   const map = useMap();
@@ -57,8 +34,121 @@ const MapUpdater = ({ viewport, bounds, shouldPreserveView }) => {
   return null;
 };
 
+// Helper function to format business hours
+const formatHours = (hours) => {
+  if (!hours || Object.keys(hours).length === 0) return '';
+  
+  const daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+  const today = daysOfWeek[new Date().getDay() - 1 >= 0 ? new Date().getDay() - 1 : 6]; // Adjust: 0 = Sunday in JS but we use monday as first day
+  
+  let hoursHtml = `<div style="margin: 8px 0; font-size: 0.9em;">`;
+  if (hours[today]) {
+    hoursHtml += `<p style="margin: 0 0 4px; font-weight: bold;">Today: ${hours[today]}</p>`;
+  }
+  
+  hoursHtml += `<details>
+                  <summary style="cursor: pointer; color: #1F75CB;">View all hours</summary>
+                  <div style="margin-top: 6px;">`;
+  
+  daysOfWeek.forEach(day => {
+    if (hours[day]) {
+      const isToday = day === today;
+      hoursHtml += `<div style="display: flex; justify-content: space-between; margin-bottom: 2px; ${isToday ? 'font-weight: bold;' : ''}">
+                      <span style="text-transform: capitalize;">${day}:</span>
+                      <span>${hours[day]}</span>
+                    </div>`;
+    }
+  });
+  
+  hoursHtml += `</div></details></div>`;
+  return hoursHtml;
+};
+
+// Function to generate photo carousel HTML for infoWindow
+const createPhotoCarousel = (photos) => {
+  if (!photos || !Array.isArray(photos) || photos.length === 0) {
+    return '';
+  }
+  
+  // Limit to 5 photos maximum
+  const photoUrls = photos.slice(0, 5);
+  
+  // Add error handling for images
+  const fallbackImageUrl = '/images/cookie-spot-placeholder.jpg';
+  
+  if (photoUrls.length === 1) {
+    // Single photo
+    return `<div style="margin-bottom: 8px;">
+              <img 
+                src="${photoUrls[0]}" 
+                alt="Location" 
+                style="width: 100%; height: 150px; object-fit: cover; border-radius: 4px;"
+                onerror="this.onerror=null; this.src='${fallbackImageUrl}';"
+              >
+            </div>`;
+  }
+  
+  // Multiple photos - create a simple carousel
+  return `<div style="position: relative; margin-bottom: 8px;">
+            <div id="photo-carousel" style="width: 100%; height: 150px; overflow: hidden; border-radius: 4px;">
+              ${photoUrls.map((url, index) => 
+                `<img 
+                  src="${url}" 
+                  alt="Location photo ${index + 1}" 
+                  style="width: 100%; height: 150px; object-fit: cover; display: ${index === 0 ? 'block' : 'none'};"
+                  onerror="this.onerror=null; this.src='${fallbackImageUrl}'; this.style.display='${index === 0 ? 'block' : 'none'}';"
+                >`
+              ).join('')}
+            </div>
+            <div style="position: absolute; bottom: 8px; left: 0; right: 0; display: flex; justify-content: center; gap: 4px;">
+              ${photoUrls.map((_, index) => 
+                `<span style="height: 6px; width: 6px; border-radius: 50%; background-color: white; opacity: ${index === 0 ? '1' : '0.5'};"></span>`
+              ).join('')}
+            </div>
+            <button onclick="prevPhoto(this)" style="position: absolute; left: 4px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+              <span style="font-size: 18px;">&lt;</span>
+            </button>
+            <button onclick="nextPhoto(this)" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+              <span style="font-size: 18px;">&gt;</span>
+            </button>
+          </div>
+          <script>
+            // Define photo navigation functions that will be available in the InfoWindow
+            window.currentPhotoIndex = 0;
+            window.totalPhotos = ${photoUrls.length};
+            
+            function showPhoto(index, container) {
+              const photos = container.querySelectorAll('img');
+              const dots = container.parentNode.querySelector('div[style*="justify-content: center"]').children;
+              
+              photos.forEach((photo, i) => {
+                photo.style.display = i === index ? 'block' : 'none';
+              });
+              
+              Array.from(dots).forEach((dot, i) => {
+                dot.style.opacity = i === index ? '1' : '0.5';
+              });
+            }
+            
+            window.nextPhoto = function(btn) {
+              const container = btn.parentNode.querySelector('#photo-carousel');
+              window.currentPhotoIndex = (window.currentPhotoIndex + 1) % window.totalPhotos;
+              showPhoto(window.currentPhotoIndex, container);
+            };
+            
+            window.prevPhoto = function(btn) {
+              const container = btn.parentNode.querySelector('#photo-carousel');
+              window.currentPhotoIndex = (window.currentPhotoIndex - 1 + window.totalPhotos) % window.totalPhotos;
+              showPhoto(window.currentPhotoIndex, container);
+            };
+          </script>`;
+};
+
 // Component for rendering markers to prevent their disappearance
-const MarkersList = ({ spots, hoveredSpot }) => {
+const MarkersList = ({ spots, hoveredSpot, clickedSpot }) => {
+  const map = useMap();
+  const leafletPopupRef = useRef({});
+  
   return (
     <>
       {spots.map(spot => {
@@ -76,6 +166,12 @@ const MarkersList = ({ spots, hoveredSpot }) => {
             key={spot._id} 
             position={position}
             icon={isHovered ? highlightedIcon : new L.Icon.Default()}
+            ref={(ref) => {
+              if (ref) {
+                // Store reference to the popup in the ref
+                leafletPopupRef.current[spot._id] = ref;
+              }
+            }}
           >
             <Popup>
               <div>
@@ -88,6 +184,67 @@ const MarkersList = ({ spots, hoveredSpot }) => {
                     {spot.state_province ? (spot.city ? ', ' : '') + spot.state_province : ''}
                   </p>
                 }
+                
+                {/* Display phone if available */}
+                {spot.phone && (
+                  <p className="mt-1 mb-1">
+                    <a href={`tel:${spot.phone.replace(/\D/g, '')}`} className="text-primary-600 hover:text-primary-800">
+                      {spot.phone}
+                    </a>
+                  </p>
+                )}
+                
+                {/* Display business hours if available */}
+                {spot.hours_of_operation && Object.keys(spot.hours_of_operation).length > 0 && (
+                  <div className="mt-2 mb-2">
+                    <h4 className="font-semibold text-sm mb-1">Business Hours</h4>
+                    <div className="text-xs">
+                      {spot.hours_of_operation.monday && (
+                        <div className="flex justify-between">
+                          <span className="font-medium">Monday:</span>
+                          <span>{spot.hours_of_operation.monday}</span>
+                        </div>
+                      )}
+                      {spot.hours_of_operation.tuesday && (
+                        <div className="flex justify-between">
+                          <span className="font-medium">Tuesday:</span>
+                          <span>{spot.hours_of_operation.tuesday}</span>
+                        </div>
+                      )}
+                      {spot.hours_of_operation.wednesday && (
+                        <div className="flex justify-between">
+                          <span className="font-medium">Wednesday:</span>
+                          <span>{spot.hours_of_operation.wednesday}</span>
+                        </div>
+                      )}
+                      {spot.hours_of_operation.thursday && (
+                        <div className="flex justify-between">
+                          <span className="font-medium">Thursday:</span>
+                          <span>{spot.hours_of_operation.thursday}</span>
+                        </div>
+                      )}
+                      {spot.hours_of_operation.friday && (
+                        <div className="flex justify-between">
+                          <span className="font-medium">Friday:</span>
+                          <span>{spot.hours_of_operation.friday}</span>
+                        </div>
+                      )}
+                      {spot.hours_of_operation.saturday && (
+                        <div className="flex justify-between">
+                          <span className="font-medium">Saturday:</span>
+                          <span>{spot.hours_of_operation.saturday}</span>
+                        </div>
+                      )}
+                      {spot.hours_of_operation.sunday && (
+                        <div className="flex justify-between">
+                          <span className="font-medium">Sunday:</span>
+                          <span>{spot.hours_of_operation.sunday}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
                 <a 
                   href={`/cookie-spot/${spot._id}`} 
                   className="text-primary-600 hover:text-primary-800"
@@ -132,7 +289,8 @@ const Map = ({
   onViewportChange, 
   onBoundsChange,
   hoveredSpot,
-  mapType = 'leaflet', // 'leaflet' or 'google'
+  clickedSpot,
+  mapType = 'google', // 'leaflet' or 'google'
   searchMetadata = null, // Added parameter for search metadata
   onSpotClick
 }) => {
@@ -298,24 +456,49 @@ const Map = ({
           console.log('Marker clicked:', { spotId: validSpot._id, isExternalSpot });
           
           // Create Google Maps URL for external spots
-          const googleMapsUrl = validSpot.place_id 
-            ? `https://www.google.com/maps/place/?q=place_id:${validSpot.place_id}`
-            : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                validSpot.name + ' ' + (validSpot.address || '') + ' ' + (validSpot.city || '')
-              )}`;
+          const googleMapsUrl = (() => {
+            // If we have a place_id (preferred option), use it for a direct link to the specific business
+            if (validSpot.place_id) {
+              return `https://www.google.com/maps/place/?q=place_id:${validSpot.place_id}`;
+            }
+            
+            // If we have a source_id that looks like a place_id, use that
+            if (validSpot.source_id && typeof validSpot.source_id === 'string' && 
+                validSpot.source_id.length > 20) {
+              return `https://www.google.com/maps/place/?q=place_id:${validSpot.source_id}`;
+            }
+            
+            // For spots with location but no place_id, create a more specific search
+            // This won't be a direct link to the business page, but will be more specific than just coordinates
+            if (validSpot.location && validSpot.location.coordinates) {
+              return `https://www.google.com/maps/search/${encodeURIComponent(validSpot.name)}/@${
+                validSpot.location.coordinates[1]
+              },${
+                validSpot.location.coordinates[0]
+              },17z`;  // 17z is a zoom level that's good for businesses
+            }
+            
+            // Last resort - just search for the business by name and address
+            return `https://www.google.com/maps/search/${encodeURIComponent(
+              validSpot.name + ' ' + (validSpot.address || '') + ' ' + (validSpot.city || '')
+            )}`;
+          })();
           
           // Create info window content with direct display instead of a link for external spots
           const contentString = `
-            <div style="min-width: 200px; padding: 8px;">
+            <div style="min-width: 250px; max-width: 300px; padding: 8px;">
               <h3 style="font-weight: bold; margin-bottom: 4px;">${validSpot.name}</h3>
+              ${validSpot.photos && validSpot.photos.length > 0 ? createPhotoCarousel(validSpot.photos) : ''}
               ${validSpot.description ? 
                 `<p style="margin: 0 0 8px;">${validSpot.description}</p>` : 
                 `<p style="margin: 0 0 8px;">${validSpot.address || ''}
                  ${validSpot.city ? (validSpot.address ? ', ' : '') + validSpot.city : ''}
                  ${validSpot.state_province ? (validSpot.city ? ', ' : '') + validSpot.state_province : ''}</p>`
               }
-              ${validSpot.phone ? `<p style="margin: 0 0 8px;">${validSpot.phone}</p>` : ''}
+              ${validSpot.phone ? `<p style="margin: 0 0 8px;"><a href="tel:${validSpot.phone.replace(/\D/g, '')}" style="color: #1F75CB; text-decoration: none;">${validSpot.phone}</a></p>` : ''}
               ${validSpot.rating ? `<p style="margin: 0 0 8px;">Rating: ${validSpot.rating.toFixed(1)} ⭐ (${validSpot.user_ratings_total || '0'} reviews)</p>` : ''}
+              ${validSpot.hours_of_operation && Object.keys(validSpot.hours_of_operation).length > 0 ? 
+                formatHours(validSpot.hours_of_operation) : ''}
               ${validSpot.website ? `<p style="margin: 0 0 8px;"><a href="${validSpot.website}" target="_blank" style="color: #1F75CB;">Visit Website</a></p>` : ''}
               ${isExternalSpot ? 
                 `<p style="margin-top: 8px;"><a href="${googleMapsUrl}" target="_blank" style="color: #4c7ef3; text-decoration: none;">View on Google Maps</a></p>` : 
@@ -379,6 +562,88 @@ const Map = ({
       }
     });
   }, [hoveredSpot, mapType, mapInstance]);
+
+  // Handle clicked spot for Google Maps markers - show the popup
+  useEffect(() => {
+    if (mapType !== 'google' || !mapInstance || !window.google || !clickedSpot) return;
+    
+    const marker = markersRef.current[clickedSpot._id];
+    if (marker) {
+      // Set marker to bounce
+      marker.setAnimation(window.google.maps.Animation.BOUNCE);
+      
+      // Check if we have an info window reference
+      if (infoWindowRef.current) {
+        // Create the content for the info window
+        const validSpot = validateSpotCoordinates(clickedSpot);
+        if (!validSpot) return;
+        
+        // Determine if this is an external spot
+        const isExternalSpot = 
+          validSpot.source === 'google' || 
+          validSpot.source_id || 
+          validSpot.place_id ||
+          (validSpot._id && typeof validSpot._id === 'string' && 
+            (!validSpot._id.match(/^[0-9a-f]{24}$/i) || validSpot._id.includes('-')));
+        
+        // Create Google Maps URL for external spots
+        const googleMapsUrl = (() => {
+          if (validSpot.place_id) {
+            return `https://www.google.com/maps/place/?q=place_id:${validSpot.place_id}`;
+          }
+          
+          if (validSpot.source_id && typeof validSpot.source_id === 'string' && 
+              validSpot.source_id.length > 20) {
+            return `https://www.google.com/maps/place/?q=place_id:${validSpot.source_id}`;
+          }
+          
+          if (validSpot.location && validSpot.location.coordinates) {
+            return `https://www.google.com/maps/search/${encodeURIComponent(validSpot.name)}/@${
+              validSpot.location.coordinates[1]
+            },${
+              validSpot.location.coordinates[0]
+            },17z`;
+          }
+          
+          return `https://www.google.com/maps/search/${encodeURIComponent(
+            validSpot.name + ' ' + (validSpot.address || '') + ' ' + (validSpot.city || '')
+          )}`;
+        })();
+        
+        // Create info window content
+        const contentString = `
+          <div style="min-width: 250px; max-width: 300px; padding: 8px;">
+            <h3 style="font-weight: bold; margin-bottom: 4px;">${validSpot.name}</h3>
+            ${validSpot.photos && validSpot.photos.length > 0 ? createPhotoCarousel(validSpot.photos) : ''}
+            ${validSpot.description ? 
+              `<p style="margin: 0 0 8px;">${validSpot.description}</p>` : 
+              `<p style="margin: 0 0 8px;">${validSpot.address || ''}
+               ${validSpot.city ? (validSpot.address ? ', ' : '') + validSpot.city : ''}
+               ${validSpot.state_province ? (validSpot.city ? ', ' : '') + validSpot.state_province : ''}</p>`
+            }
+            ${validSpot.phone ? `<p style="margin: 0 0 8px;"><a href="tel:${validSpot.phone.replace(/\D/g, '')}" style="color: #1F75CB; text-decoration: none;">${validSpot.phone}</a></p>` : ''}
+            ${validSpot.rating ? `<p style="margin: 0 0 8px;">Rating: ${validSpot.rating.toFixed(1)} ⭐ (${validSpot.user_ratings_total || '0'} reviews)</p>` : ''}
+            ${validSpot.hours_of_operation && Object.keys(validSpot.hours_of_operation).length > 0 ? 
+              formatHours(validSpot.hours_of_operation) : ''}
+            ${validSpot.website ? `<p style="margin: 0 0 8px;"><a href="${validSpot.website}" target="_blank" style="color: #1F75CB;">Visit Website</a></p>` : ''}
+            ${isExternalSpot ? 
+              `<p style="margin-top: 8px;"><a href="${googleMapsUrl}" target="_blank" style="color: #4c7ef3; text-decoration: none;">View on Google Maps</a></p>` : 
+              `<a 
+                href="/cookie-spot/${validSpot._id}" 
+                style="color: #1F75CB; text-decoration: none; font-weight: 500;"
+              >
+                View Details
+              </a>`
+            }
+          </div>
+        `;
+        
+        // Set the content and open the info window
+        infoWindowRef.current.setContent(contentString);
+        infoWindowRef.current.open(mapInstance, marker);
+      }
+    }
+  }, [clickedSpot, mapType, mapInstance]);
 
   useEffect(() => {
     if (!mapInstance) return;
@@ -455,7 +720,6 @@ const Map = ({
 
   // Use a useLayoutEffect to immediately handle initial bounds/viewport
   useLayoutEffect(() => {
-    if (mapType === 'leaflet') return; // Not needed for Leaflet
     
     if (!mapInstance || !window.google) return;
     
@@ -501,35 +765,6 @@ const Map = ({
       />
     );
   }
-
-  // Default to Leaflet - using separate MarkersList component to prevent marker disappearance
-  return (
-    <MapContainer
-      center={center || [37.7749, -122.4194]} // Default to San Francisco
-      zoom={searchMetadata?.search_radius 
-        ? calculateZoomForRadius(searchMetadata.search_radius) 
-        : zoom}
-      className="w-full h-full rounded-lg shadow-md"
-      style={{ minHeight: '400px' }}
-      whenCreated={setMapInstance}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      
-      <MarkersList spots={spots} hoveredSpot={hoveredSpot} />
-      
-      <MapUpdater 
-        viewport={currentViewport} 
-        bounds={currentBounds} 
-        shouldPreserveView={
-          (filters && filters.preserveView) || 
-          new URLSearchParams(window.location.search).get('preserveView') === 'true'
-        } 
-      />
-    </MapContainer>
-  );
 };
 
 export default Map; 

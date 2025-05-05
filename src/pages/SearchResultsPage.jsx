@@ -9,7 +9,7 @@ import MapComponent from '../components/Map';
 import useScrollRestoration from '../hooks/useScrollRestoration';
 
 // Google Map component
-const GoogleMap = ({ center, bounds, spots, hoveredSpot, searchMetadata }) => {
+const GoogleMap = ({ center, bounds, spots, hoveredSpot, clickedSpot, searchMetadata }) => {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const googleRef = useRef(null);
@@ -74,6 +74,7 @@ const GoogleMap = ({ center, bounds, spots, hoveredSpot, searchMetadata }) => {
         west: bounds[0][1]
       } : null}
       hoveredSpot={hoveredSpot}
+      clickedSpot={clickedSpot}
       mapType="google"
       searchMetadata={searchMetadata}
       onSpotClick={handleSpotClick}
@@ -100,6 +101,7 @@ const SearchResultsPage = () => {
   } = useCookieSpots();
   
   const [hoveredSpot, setHoveredSpot] = useState(null);
+  const [clickedSpot, setClickedSpot] = useState(null);
   const [mapCenter, setMapCenter] = useState([40.7128, -74.0060]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [bounds, setBounds] = useState(null);
@@ -467,6 +469,11 @@ const SearchResultsPage = () => {
     setHoveredSpot(null);
   };
 
+  // Handle card click for map interaction
+  const handleCardClick = (cookieSpot) => {
+    setClickedSpot(cookieSpot);
+  };
+
   // Get all spots to display (combined results or just cookieSpots)
   const spotsToDisplay = combinedResults.length > 0 ? combinedResults : cookieSpots;
   
@@ -592,7 +599,7 @@ const SearchResultsPage = () => {
                   <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
                   <div className="ml-4">
                     <h3 className="text-lg font-medium text-gray-900">We're getting your Cookie Spots!</h3>
-                    <p className="text-gray-600">Generating great cookie spots for you "{filters.search}"</p>
+                    <p className="text-gray-600">Fetching spots in your area...</p>
                   </div>
                 </div>
               ) : error ? (
@@ -634,6 +641,8 @@ const SearchResultsPage = () => {
                             key={cookieSpot._id || `spot-${index}`}
                             onMouseEnter={() => handleCardHover(cookieSpot)}
                             onMouseLeave={handleCardUnhover}
+                            onClick={() => handleCardClick(cookieSpot)}
+                            className="cursor-pointer"
                           >
                             <CookieSpotCard cookieSpot={cookieSpot} />
                           </div>
@@ -722,6 +731,7 @@ const SearchResultsPage = () => {
                     bounds={bounds}
                     spots={spotsToDisplay}
                     hoveredSpot={hoveredSpot}
+                    clickedSpot={clickedSpot}
                     searchMetadata={searchMetadata}
                   />
                 )}

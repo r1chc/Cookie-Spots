@@ -164,7 +164,6 @@ const BlogSearch = () => {
     navigate(`/blogsearch?q=${encodeURIComponent(searchInput)}`);
   };
 
-  // --- Render Logic ---
   return (
     <div className="blog-page-wrapper">
       <div className="min-h-screen bg-gradient-to-b from-primary-50 to-white">

@@ -113,6 +113,15 @@ const ArticlePage = () => {
   const prevArticle = currentIndex > 0 ? sortedArticles[currentIndex - 1] : null;
   const nextArticle = currentIndex < sortedArticles.length - 1 ? sortedArticles[currentIndex + 1] : null;
 
+  // Update article when navigation happens
+  useEffect(() => {
+    if (article) {
+      document.title = `${article.title} | Cookie Spots`;
+      // Reset image loading state when article changes
+      setImageLoading(true);
+    }
+  }, [slug, article]);
+
   // Handle image loading states
   const handleImageLoad = () => {
     setImageLoading(false);

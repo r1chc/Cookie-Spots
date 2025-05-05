@@ -3,8 +3,6 @@ import { useParams, Link } from 'react-router-dom';
 import { useCookieSpots } from '../utils/CookieSpotContext';
 import { useAuth } from '../utils/AuthContext';
 import { reviewApi, photoApi, favoriteApi } from '../utils/api';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
 
 const CookieSpotDetailPage = () => {
   const { id } = useParams();
@@ -391,7 +389,12 @@ const CookieSpotDetailPage = () => {
               {cookieSpot.phone && (
                 <div className="mb-4">
                   <h3 className="font-medium text-gray-700 mb-1">Phone</h3>
-                  <p className="text-gray-600">{cookieSpot.phone}</p>
+                  <a 
+                    href={`tel:${cookieSpot.phone.replace(/\D/g, '')}`}
+                    className="text-primary-600 hover:text-primary-700"
+                  >
+                    {cookieSpot.phone}
+                  </a>
                 </div>
               )}
               
@@ -674,6 +677,66 @@ const CookieSpotDetailPage = () => {
                             {cookieSpot.postal_code && cookieSpot.postal_code}
                           </>
                         }
+                        
+                        {/* Display phone if available */}
+                        {cookieSpot.phone && (
+                          <div className="mt-1 mb-1">
+                            <a href={`tel:${cookieSpot.phone.replace(/\D/g, '')}`} className="text-primary-600 hover:text-primary-700">
+                              {cookieSpot.phone}
+                            </a>
+                          </div>
+                        )}
+                        
+                        {/* Display business hours if available */}
+                        {cookieSpot.hours_of_operation && Object.keys(cookieSpot.hours_of_operation).length > 0 && (
+                          <>
+                            <p className="font-semibold text-sm mt-2 mb-1">Business Hours:</p>
+                            <div className="text-xs">
+                              {cookieSpot.hours_of_operation.monday && (
+                                <div className="flex justify-between">
+                                  <span className="font-medium">Monday:</span>
+                                  <span>{cookieSpot.hours_of_operation.monday}</span>
+                                </div>
+                              )}
+                              {cookieSpot.hours_of_operation.tuesday && (
+                                <div className="flex justify-between">
+                                  <span className="font-medium">Tuesday:</span>
+                                  <span>{cookieSpot.hours_of_operation.tuesday}</span>
+                                </div>
+                              )}
+                              {cookieSpot.hours_of_operation.wednesday && (
+                                <div className="flex justify-between">
+                                  <span className="font-medium">Wednesday:</span>
+                                  <span>{cookieSpot.hours_of_operation.wednesday}</span>
+                                </div>
+                              )}
+                              {cookieSpot.hours_of_operation.thursday && (
+                                <div className="flex justify-between">
+                                  <span className="font-medium">Thursday:</span>
+                                  <span>{cookieSpot.hours_of_operation.thursday}</span>
+                                </div>
+                              )}
+                              {cookieSpot.hours_of_operation.friday && (
+                                <div className="flex justify-between">
+                                  <span className="font-medium">Friday:</span>
+                                  <span>{cookieSpot.hours_of_operation.friday}</span>
+                                </div>
+                              )}
+                              {cookieSpot.hours_of_operation.saturday && (
+                                <div className="flex justify-between">
+                                  <span className="font-medium">Saturday:</span>
+                                  <span>{cookieSpot.hours_of_operation.saturday}</span>
+                                </div>
+                              )}
+                              {cookieSpot.hours_of_operation.sunday && (
+                                <div className="flex justify-between">
+                                  <span className="font-medium">Sunday:</span>
+                                  <span>{cookieSpot.hours_of_operation.sunday}</span>
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        )}
                       </div>
                     </Popup>
                   </Marker>

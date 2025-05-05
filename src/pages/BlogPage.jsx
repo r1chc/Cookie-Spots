@@ -229,8 +229,6 @@ const BlogPage = () => {
 
   const handleSliderDragStart = (e) => {
     setIsDragging(true);
-    document.addEventListener('mousemove', handleSliderDragMove);
-    document.addEventListener('mouseup', handleSliderDragEnd);
   };
 
   const handleSliderDragMove = (e) => {
@@ -291,26 +289,6 @@ const BlogPage = () => {
       }
     ]
   };
-
-  // Listen for view updates
-  useEffect(() => {
-    const handleViewsUpdate = (e) => {
-      const { articleSlug, views } = e.detail;
-      const updatePostViews = (prevPosts) =>
-        prevPosts.map(post =>
-          post.slug === articleSlug ? { ...post, views: views } : post
-        );
-
-      // Update originalPosts to persist the view count across sorts
-      setOriginalPosts(updatePostViews);
-      // The sorting useEffect will handle updating sortedPosts
-    };
-
-    window.addEventListener('articleViewsUpdated', handleViewsUpdate);
-    return () => {
-      window.removeEventListener('articleViewsUpdated', handleViewsUpdate);
-    };
-  }, []); // No dependency needed as it uses setOriginalPosts updater
 
   const handleNewsletterSubmit = (e) => {
     e.preventDefault();
@@ -686,6 +664,31 @@ const BlogPage = () => {
                       </div>
                     </li>
                   ))}
+              </ul>
+            </div>
+
+            <div className="blog-sidebar-section">
+              <h3 className="blog-sidebar-title">Categories</h3>
+              <ul className="blog-categories-list">
+                {categories.map(category => {
+                  // Use the same filtering logic as search
+                  const categoryName = category.name.toLowerCase();
+                  const articlesWithUpdatedViews = getArticlesWithUpdatedViewCounts();
+                  const count = articlesWithUpdatedViews.filter(post => 
+                    post.title.toLowerCase().includes(categoryName) ||
+                    post.category.toLowerCase().includes(categoryName) ||
+                    post.excerpt.toLowerCase().includes(categoryName) ||
+                    (post.tags && post.tags.some(tag => tag.toLowerCase().includes(categoryName)))
+                  ).length;
+                  
+                  return (
+                    <li key={category.name}>
+                      <Link to={`/blogsearch?q=${encodeURIComponent(category.name)}`}>
+                        {category.name} <span className="count">{count}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
 
