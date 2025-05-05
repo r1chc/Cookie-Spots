@@ -89,7 +89,9 @@ const createPhotoCarousel = (photos) => {
   }
   
   // Multiple photos - create a simple carousel
-  return `<div style="position: relative; margin-bottom: 8px;">
+  const carouselId = 'carousel_' + Math.random().toString(36).substr(2, 9);
+  
+  return `<div style="position: relative; margin-bottom: 8px;" data-carousel-id="${carouselId}">
             <div id="photo-carousel" style="width: 100%; height: 150px; overflow: hidden; border-radius: 4px;">
               ${photoUrls.map((url, index) => 
                 `<img 
@@ -105,44 +107,68 @@ const createPhotoCarousel = (photos) => {
                 `<span style="height: 6px; width: 6px; border-radius: 50%; background-color: white; opacity: ${index === 0 ? '1' : '0.5'};"></span>`
               ).join('')}
             </div>
-            <button onclick="prevPhoto(this)" style="position: absolute; left: 4px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+            <button onclick="window.prevPhoto(this)" style="position: absolute; left: 4px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
               <span style="font-size: 18px;">&lt;</span>
             </button>
-            <button onclick="nextPhoto(this)" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+            <button onclick="window.nextPhoto(this)" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
               <span style="font-size: 18px;">&gt;</span>
             </button>
-          </div>
-          <script>
-            // Define photo navigation functions that will be available in the InfoWindow
-            window.currentPhotoIndex = 0;
-            window.totalPhotos = ${photoUrls.length};
-            
-            function showPhoto(index, container) {
-              const photos = container.querySelectorAll('img');
-              const dots = container.parentNode.querySelector('div[style*="justify-content: center"]').children;
-              
-              photos.forEach((photo, i) => {
-                photo.style.display = i === index ? 'block' : 'none';
-              });
-              
-              Array.from(dots).forEach((dot, i) => {
-                dot.style.opacity = i === index ? '1' : '0.5';
-              });
-            }
-            
-            window.nextPhoto = function(btn) {
-              const container = btn.parentNode.querySelector('#photo-carousel');
-              window.currentPhotoIndex = (window.currentPhotoIndex + 1) % window.totalPhotos;
-              showPhoto(window.currentPhotoIndex, container);
-            };
-            
-            window.prevPhoto = function(btn) {
-              const container = btn.parentNode.querySelector('#photo-carousel');
-              window.currentPhotoIndex = (window.currentPhotoIndex - 1 + window.totalPhotos) % window.totalPhotos;
-              showPhoto(window.currentPhotoIndex, container);
-            };
-          </script>`;
+          </div>`;
 };
+
+// Initialize carousel functionality
+if (typeof window !== 'undefined') {
+  if (!window.photoCarousels) {
+    window.photoCarousels = {};
+  }
+
+  window.showPhoto = function(index, container) {
+    const photos = container.querySelectorAll('img');
+    const dots = container.parentNode.querySelector('div[style*="justify-content: center"]').children;
+    
+    photos.forEach((photo, i) => {
+      photo.style.display = i === index ? 'block' : 'none';
+    });
+    
+    Array.from(dots).forEach((dot, i) => {
+      dot.style.opacity = i === index ? '1' : '0.5';
+    });
+  };
+
+  window.nextPhoto = function(btn) {
+    const container = btn.parentNode.querySelector('#photo-carousel');
+    const carouselId = container.closest('[data-carousel-id]').getAttribute('data-carousel-id');
+    
+    if (!window.photoCarousels[carouselId]) {
+      window.photoCarousels[carouselId] = {
+        currentIndex: 0,
+        totalPhotos: container.querySelectorAll('img').length
+      };
+    }
+    
+    const carousel = window.photoCarousels[carouselId];
+    const newIndex = (carousel.currentIndex + 1) % carousel.totalPhotos;
+    window.photoCarousels[carouselId].currentIndex = newIndex;
+    window.showPhoto(newIndex, container);
+  };
+
+  window.prevPhoto = function(btn) {
+    const container = btn.parentNode.querySelector('#photo-carousel');
+    const carouselId = container.closest('[data-carousel-id]').getAttribute('data-carousel-id');
+    
+    if (!window.photoCarousels[carouselId]) {
+      window.photoCarousels[carouselId] = {
+        currentIndex: 0,
+        totalPhotos: container.querySelectorAll('img').length
+      };
+    }
+    
+    const carousel = window.photoCarousels[carouselId];
+    const newIndex = (carousel.currentIndex - 1 + carousel.totalPhotos) % carousel.totalPhotos;
+    window.photoCarousels[carouselId].currentIndex = newIndex;
+    window.showPhoto(newIndex, container);
+  };
+}
 
 // Component for rendering markers to prevent their disappearance
 const MarkersList = ({ spots, hoveredSpot, clickedSpot }) => {
