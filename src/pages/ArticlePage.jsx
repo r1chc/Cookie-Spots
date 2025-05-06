@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import '../styles/ArticlePage.css';
 import useScrollRestoration from '../hooks/useScrollRestoration';
-import SearchButton from '../components/SearchButton';
 import useArticleViews from '../hooks/useArticleViews';
 import BaseArticle from './articles/BaseArticle';
 import { loadAllArticles, getArticleBySlug } from '../utils/articleLoader';
@@ -20,8 +19,7 @@ const ArticlePage = () => {
   const [imageLoading, setImageLoading] = useState(true);
   const [popularTags, setPopularTags] = useState([]);
   const [categoryCount, setCategoryCount] = useState({});
-  const [searchResults, setSearchResults] = useState([]);
-  const [showFloatingButtons, setShowFloatingButtons] = useState(false);
+  const [showFloatingActions, setShowFloatingActions] = useState(false);
   const [isNavVisible, setIsNavVisible] = useState(true);
   const scrollToTopRef = useRef(null);
 
@@ -79,7 +77,7 @@ const ArticlePage = () => {
 
   useEffect(() => {
     // Set search results to all articles
-    setSearchResults(allArticles);
+    // setSearchResults(allArticles);
     
     // Calculate popular tags
     const tags = allArticles.reduce((acc, art) => {
@@ -192,6 +190,19 @@ const ArticlePage = () => {
     }
   };
 
+  // Effect for showing/hiding floating action buttons on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.pageYOffset > 200) { // Show after scrolling 200px
+        setShowFloatingActions(true);
+      } else {
+        setShowFloatingActions(false);
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   // Render logic
   if (loading) {
     return (
@@ -238,22 +249,67 @@ const ArticlePage = () => {
   return (
     <div className="article-page-wrapper">
       <div className="article-container">
-        <article className="article-content">
-          {/* Pass the updated article object to BaseArticle */}
-          <BaseArticle article={articleForDisplay} />
-        </article>
+        <div className="article-main-area">
+          {/* Left Side Sticky Navigation */}
+          <div className="sticky-side-nav left-nav">
+            <div className="article-floating-nav back">
+              <Link to="/blog" className="floating-nav-button">
+                <i className="fas fa-arrow-left"></i>
+                Back to Blog
+              </Link>
+            </div>
+          </div>
 
-        {/* Navigation Sections */}
+          {/* Main Article Content Column */}
+          <article className="article-content-column">
+            <BaseArticle article={articleForDisplay} />
+          </article>
+
+          {/* Right Side Sticky Navigation */}
+          <div className="sticky-side-nav right-nav">
+            {prevArticle && (
+              <div className="article-floating-nav prev">
+                <Link to={`/article/${prevArticle.slug}`} className="floating-nav-button">
+                  <i className="fas fa-arrow-left"></i>
+                  Previous Article
+                </Link>
+              </div>
+            )}
+            {nextArticle && (
+              <div className="article-floating-nav next">
+                <Link to={`/article/${nextArticle.slug}`} className="floating-nav-button">
+                  Next Article
+                  <i className="fas fa-arrow-right"></i>
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* Floating Action Buttons (Search & Scroll-to-Top) */}
+        {showFloatingActions && (
+          <div className="floating-action-buttons">
+            <Link to="/blogsearch" className="search-button-round" aria-label="Search Articles">
+              <i className="fas fa-search"></i>
+            </Link>
+            <button 
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} 
+              className="scroll-to-top"
+              aria-label="Scroll to top"
+            >
+              <i className="fas fa-arrow-up"></i>
+            </button>
+          </div>
+        )}
+
+        {/* Bottom Navigation Sections (Popular, Categories, etc.) */}
         <div className="article-navigation-sections">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Search Recipes */}
             <div className="blog-sidebar-section">
               <h3 className="blog-sidebar-title">Search Recipes</h3>
               <form className="blog-search-form" onSubmit={handleSearchSubmit}>
                 <input type="text" placeholder="Search Recipes..." name="search" />
-                <button type="submit">
-                  <i className="fas fa-search"></i>
-                </button>
+                <button type="submit"><i className="fas fa-search"></i></button>
               </form>
               <div className="blog-tags">
                 {popularTags.map(tag => (
@@ -268,7 +324,6 @@ const ArticlePage = () => {
               </div>
             </div>
 
-            {/* Popular Recipes */}
             <div className="blog-sidebar-section">
               <h3 className="blog-sidebar-title">Popular Recipes</h3>
               <ul className="blog-popular-posts">
@@ -301,7 +356,6 @@ const ArticlePage = () => {
               </ul>
             </div>
 
-            {/* Categories */}
             <div className="blog-sidebar-section">
               <h3 className="blog-sidebar-title">Categories</h3>
               <ul className="blog-categories-list">
