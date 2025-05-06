@@ -194,23 +194,39 @@ const ArticlePage = () => {
 
   // Render logic
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="article-page-wrapper">
+        <div className="article-container">
+          <div>Loading...</div>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <div className="article-container flex flex-col items-center justify-center min-h-[60vh]">
-        <h1 className="text-2xl font-bold mb-4">Oops! Article Not Found</h1>
-        <p className="text-gray-600 mb-6">Sorry, we couldn't find the article you're looking for ({error}).</p>
-        <Link to="/blog" className="text-primary-600 hover:underline">
-          &larr; Back to Blog
-        </Link>
+      <div className="article-page-wrapper">
+        <div className="article-container">
+          <div className="flex flex-col items-center justify-center min-h-[60vh]">
+            <h1 className="text-2xl font-bold mb-4">Oops! Article Not Found</h1>
+            <p className="text-gray-600 mb-6">Sorry, we couldn't find the article you're looking for ({error}).</p>
+            <Link to="/blog" className="text-primary-600 hover:underline">
+              &larr; Back to Blog
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!article) {
-    return <div>Article data is missing.</div>;
+    return (
+      <div className="article-page-wrapper">
+        <div className="article-container">
+          <div>Article data is missing.</div>
+        </div>
+      </div>
+    );
   }
 
   // Prepare the article object with the latest view count for rendering
@@ -220,84 +236,88 @@ const ArticlePage = () => {
   };
 
   return (
-    <div className="article-container">
-      <article className="article-content">
-        {/* Pass the updated article object to BaseArticle */}
-        <BaseArticle article={articleForDisplay} />
+    <div className="article-page-wrapper">
+      <div className="article-container">
+        <article className="article-content">
+          {/* Pass the updated article object to BaseArticle */}
+          <BaseArticle article={articleForDisplay} />
+        </article>
 
         {/* Navigation Sections */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8 w-full">
-          {/* Search Recipes */}
-          <div className="blog-sidebar-section w-full">
-            <h3 className="blog-sidebar-title">Search Recipes</h3>
-            <form className="blog-search-form" onSubmit={handleSearchSubmit}>
-              <input type="text" placeholder="Search Recipes..." name="search" />
-              <button type="submit" className="text-blue-500">
-                <i className="fas fa-search"></i>
-              </button>
-            </form>
-            <div className="blog-tags mt-4">
-              {popularTags.map(tag => (
-                <Link
-                  key={tag}
-                  to={`/blogsearch?q=${encodeURIComponent(tag)}`}
-                  className="blog-tag"
-                >
-                  {tag}
-                </Link>
-              ))}
+        <div className="article-navigation-sections">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Search Recipes */}
+            <div className="blog-sidebar-section">
+              <h3 className="blog-sidebar-title">Search Recipes</h3>
+              <form className="blog-search-form" onSubmit={handleSearchSubmit}>
+                <input type="text" placeholder="Search Recipes..." name="search" />
+                <button type="submit">
+                  <i className="fas fa-search"></i>
+                </button>
+              </form>
+              <div className="blog-tags">
+                {popularTags.map(tag => (
+                  <Link
+                    key={tag}
+                    to={`/blogsearch?q=${encodeURIComponent(tag)}`}
+                    className="blog-tag"
+                  >
+                    {tag}
+                  </Link>
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* Popular Recipes */}
-          <div className="blog-sidebar-section w-full">
-            <h3 className="blog-sidebar-title">Popular Recipes</h3>
-            <ul className="blog-popular-posts">
-              {sortedArticles
-                .sort((a, b) => (b.views || 0) - (a.views || 0))
-                .slice(0, 3)
-                .map(post => (
-                  <li key={post.id} className="blog-popular-post">
-                    <Link to={`/article/${post.slug}`}>
-                      <img
-                        src={post.image}
-                        alt={post.title}
-                        className="blog-popular-post-image"
-                        loading="lazy"
-                      />
-                    </Link>
-                    <div className="blog-popular-post-content">
-                      <h4>
-                        <Link to={`/article/${post.slug}`}>{post.title}</Link>
-                      </h4>
-                      <div>
-                        <span className="blog-popular-post-date">{formatDate(post.publishedAt)}</span>
-                        <span className="blog-popular-post-views">
-                          <i className="fas fa-eye"></i> {formatViews(post.views)}
-                        </span>
+            {/* Popular Recipes */}
+            <div className="blog-sidebar-section">
+              <h3 className="blog-sidebar-title">Popular Recipes</h3>
+              <ul className="blog-popular-posts">
+                {sortedArticles
+                  .sort((a, b) => (b.views || 0) - (a.views || 0))
+                  .slice(0, 3)
+                  .map(post => (
+                    <li key={post.id} className="blog-popular-post">
+                      <Link to={`/article/${post.slug}`}>
+                        <img
+                          src={post.image}
+                          alt={post.title}
+                          className="blog-popular-post-image"
+                          loading="lazy"
+                        />
+                      </Link>
+                      <div className="blog-popular-post-content">
+                        <h4>
+                          <Link to={`/article/${post.slug}`}>{post.title}</Link>
+                        </h4>
+                        <div className="blog-popular-post-meta">
+                          <span className="blog-popular-post-date">{formatDate(post.publishedAt)}</span>
+                          <span className="blog-popular-post-views">
+                            <i className="fas fa-eye"></i> {formatViews(post.views)}
+                          </span>
+                        </div>
                       </div>
-                    </div>
+                    </li>
+                  ))}
+              </ul>
+            </div>
+
+            {/* Categories */}
+            <div className="blog-sidebar-section">
+              <h3 className="blog-sidebar-title">Categories</h3>
+              <ul className="blog-categories-list">
+                {categories.map(category => (
+                  <li key={category.name}>
+                    <Link to={`/blogsearch?q=${encodeURIComponent(category.name)}`}>
+                      {category.name} 
+                      <span className="count">{getCategoryCount(category.name)}</span>
+                    </Link>
                   </li>
                 ))}
-            </ul>
-          </div>
-
-          {/* Categories */}
-          <div className="blog-sidebar-section w-full">
-            <h3 className="blog-sidebar-title">Categories</h3>
-            <ul className="blog-categories-list">
-              {categories.map(category => (
-                <li key={category.name}>
-                  <Link to={`/blogsearch?q=${encodeURIComponent(category.name)}`}>
-                    {category.name} 
-                    <span className="count">{getCategoryCount(category.name)}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+              </ul>
+            </div>
           </div>
         </div>
-      </article>
+      </div>
     </div>
   );
 };
