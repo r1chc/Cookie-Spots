@@ -15,6 +15,8 @@ import AddCookieSpotPage from './pages/AddCookieSpotPage';
 import BlogPage from './pages/BlogPage';
 import BlogSearch from './pages/BlogSearch';
 import ArticlePage from './pages/ArticlePage';
+import AboutPage from './pages/AboutPage';
+import ContactPage from './pages/ContactPage';
 import './styles/index.css';
 import ScrollToTop from './components/ScrollToTop';
 
@@ -55,6 +57,8 @@ function App() {
               <Route path="/blog" element={<BlogPage />} />
               <Route path="/blogsearch" element={<BlogSearch />} />
               <Route path="/article/:slug" element={<ArticlePage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/contact" element={<ContactPage />} />
               <Route path="*" element={<div>Page not found</div>} />
             </Routes>
           </main>

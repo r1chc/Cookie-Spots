@@ -220,111 +220,84 @@ const ArticlePage = () => {
   };
 
   return (
-    <div className={`article-page-wrapper ${isNavVisible ? 'nav-visible' : ''}`}>
-      {/* --- Floating Previous/Next Buttons --- */}
-      <div className={`fixed right-6 top-20 flex flex-col gap-4 z-50 transition-opacity duration-300 ${isNavVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-        {prevArticle && (
-          <button 
-            onClick={() => navigate(`/article/${prevArticle.slug}`)}
-            className="w-28 h-12 rounded-full bg-primary-600 hover:bg-primary-700 transition-colors flex items-center justify-center text-white shadow-lg border-2 border-white gap-2"
-            aria-label="Previous article"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-            </svg>
-            <span className="text-sm font-medium">Previous</span>
-          </button>
-        )}
-        {nextArticle && (
-          <button
-            onClick={() => navigate(`/article/${nextArticle.slug}`)}
-            className="w-28 h-12 rounded-full bg-primary-600 hover:bg-primary-700 transition-colors flex items-center justify-center text-white shadow-lg border-2 border-white gap-2"
-            aria-label="Next article"
-          >
-            <span className="text-sm font-medium">Next</span>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-            </svg>
-          </button>
-        )}
-      </div>
-      {/* --- End Floating Buttons --- */}
+    <div className="article-container">
+      <article className="article-content">
+        {/* Pass the updated article object to BaseArticle */}
+        <BaseArticle article={articleForDisplay} />
 
-      <main className="article-main-content">
-        <article className="article-content">
-          {/* Pass the updated article object to BaseArticle */}
-          <BaseArticle article={articleForDisplay} />
-        </article>
+        {/* Navigation Sections */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8 w-full">
+          {/* Search Recipes */}
+          <div className="blog-sidebar-section w-full">
+            <h3 className="blog-sidebar-title">Search Recipes</h3>
+            <form className="blog-search-form" onSubmit={handleSearchSubmit}>
+              <input type="text" placeholder="Search Recipes..." name="search" />
+              <button type="submit" className="text-blue-500">
+                <i className="fas fa-search"></i>
+              </button>
+            </form>
+            <div className="blog-tags mt-4">
+              {popularTags.map(tag => (
+                <Link
+                  key={tag}
+                  to={`/blogsearch?q=${encodeURIComponent(tag)}`}
+                  className="blog-tag"
+                >
+                  {tag}
+                </Link>
+              ))}
+            </div>
+          </div>
 
-        {/* Navigation between articles (Could be placed elsewhere if desired) */}
-        {/* 
-        <div className="article-navigation">
-           {prevArticle && <Link to={`/article/${prevArticle.slug}`}>Previous</Link>}
-           {nextArticle && <Link to={`/article/${nextArticle.slug}`}>Next</Link>}
-        </div> 
-        */}
-      </main>
-
-      {/* Sidebar */}
-      <aside className="article-sidebar">
-        <div className="blog-sidebar-section">
-          <h3 className="blog-sidebar-title">Search Recipes</h3>
-          <form className="blog-search-form" onSubmit={handleSearchSubmit}>
-            <input type="text" placeholder="Search Recipes..." name="search" />
-            <button type="submit" className="text-blue-500">
-              <i className="fas fa-search"></i>
-            </button>
-          </form>
-        </div>
-
-        <div className="blog-sidebar-section">
-          <h3 className="blog-sidebar-title">Popular Recipes</h3>
-          <ul className="blog-popular-posts">
-            {sortedArticles
-              .sort((a, b) => (b.views || 0) - (a.views || 0))
-              .slice(0, 3)
-              .map(post => (
-                <li key={post.id} className="blog-popular-post">
-                  <Link to={`/article/${post.slug}`}>
-                    <img
-                      src={post.image}
-                      alt={post.title}
-                      className="blog-popular-post-image"
-                      loading="lazy"
-                    />
-                  </Link>
-                  <div className="blog-popular-post-content">
-                    <h4>
-                      <Link to={`/article/${post.slug}`}>{post.title}</Link>
-                    </h4>
-                    <div>
-                      <span className="blog-popular-post-date">{formatDate(post.publishedAt)}</span>
-                      <span className="blog-popular-post-views">
-                        <i className="fas fa-eye"></i> {formatViews(post.views)}
-                      </span>
+          {/* Popular Recipes */}
+          <div className="blog-sidebar-section w-full">
+            <h3 className="blog-sidebar-title">Popular Recipes</h3>
+            <ul className="blog-popular-posts">
+              {sortedArticles
+                .sort((a, b) => (b.views || 0) - (a.views || 0))
+                .slice(0, 3)
+                .map(post => (
+                  <li key={post.id} className="blog-popular-post">
+                    <Link to={`/article/${post.slug}`}>
+                      <img
+                        src={post.image}
+                        alt={post.title}
+                        className="blog-popular-post-image"
+                        loading="lazy"
+                      />
+                    </Link>
+                    <div className="blog-popular-post-content">
+                      <h4>
+                        <Link to={`/article/${post.slug}`}>{post.title}</Link>
+                      </h4>
+                      <div>
+                        <span className="blog-popular-post-date">{formatDate(post.publishedAt)}</span>
+                        <span className="blog-popular-post-views">
+                          <i className="fas fa-eye"></i> {formatViews(post.views)}
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  </li>
+                ))}
+            </ul>
+          </div>
+
+          {/* Categories */}
+          <div className="blog-sidebar-section w-full">
+            <h3 className="blog-sidebar-title">Categories</h3>
+            <ul className="blog-categories-list">
+              {categories.map(category => (
+                <li key={category.name}>
+                  <Link to={`/blogsearch?q=${encodeURIComponent(category.name)}`}>
+                    {category.name} 
+                    <span className="count">{getCategoryCount(category.name)}</span>
+                  </Link>
                 </li>
               ))}
-          </ul>
+            </ul>
+          </div>
         </div>
-
-        <div className="blog-sidebar-section">
-          <h3 className="blog-sidebar-title">Categories</h3>
-          <ul className="blog-categories-list">
-            {categories.map(category => (
-              <li key={category.name}>
-                <Link to={`/blogsearch?q=${encodeURIComponent(category.name)}`}>
-                  {category.name} 
-                  <span className="count">{categoryCount[category.name] || 0}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </aside>
-      
-      <SearchButton />
+      </article>
     </div>
   );
 };

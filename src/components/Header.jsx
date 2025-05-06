@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const [isSticky, setIsSticky] = useState(false)
 
   const debounce = (func, wait) => {
@@ -62,8 +61,6 @@ const Header = () => {
     
     // Close the mobile menu if it's open
     setIsMenuOpen(false);
-    // Close the user menu if it's open
-    setIsUserMenuOpen(false);
   }
 
   const toggleMenu = () => {
@@ -100,31 +97,10 @@ const Header = () => {
           {/* Navigation - Desktop */}
             <nav className="hidden lg:flex items-center space-x-4">
               <Link to="/" className="text-gray-700 hover:text-primary text-base" onClick={handleNavClick}>Explore</Link>
-              <Link to="/map" className="text-gray-700 hover:text-primary text-base" onClick={handleNavClick}>Map</Link>
               <Link to="/blog" className="text-gray-700 hover:text-primary text-base" onClick={handleNavClick}>Blog</Link>
-              <Link to="/app" className="text-gray-700 hover:text-primary text-base" onClick={handleNavClick}>The App</Link>
-              <Link to="/shop" className="text-gray-700 hover:text-primary text-base" onClick={handleNavClick}>Shop</Link>
-            
-            <div className="relative">
-              <button 
-                  className="text-gray-700 hover:text-primary flex items-center text-base"
-                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              >
-                More
-                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-                </svg>
-              </button>
-              
-              {isUserMenuOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
-                    <Link to="/about" className="block px-4 py-2 text-base text-gray-700 hover:bg-gray-100">About Us</Link>
-                    <Link to="/contact" className="block px-4 py-2 text-base text-gray-700 hover:bg-gray-100">Contact</Link>
-                    <Link to="/faq" className="block px-4 py-2 text-base text-gray-700 hover:bg-gray-100">FAQ</Link>
-                </div>
-              )}
-            </div>
-          </nav>
+              <Link to="/about" className="text-gray-700 hover:text-primary text-base" onClick={handleNavClick}>About</Link>
+              <Link to="/contact" className="text-gray-700 hover:text-primary text-base" onClick={handleNavClick}>Contact Us</Link>
+            </nav>
 
           {/* User Actions */}
           <div className="flex items-center space-x-4">
@@ -141,11 +117,11 @@ const Header = () => {
               </button>
             
               <Link to="/add-cookie-spot" className="hidden lg:block bg-primary text-white px-4 py-2 rounded-md text-sm font-medium hover:opacity-90">
-              Add Listing
+              Cookies Near You
             </Link>
             
               <Link to="/login" className="hidden lg:block bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-md text-sm font-medium">
-              Login / Join
+              Subscribe
             </Link>
           </div>
         </div>
@@ -160,22 +136,14 @@ const Header = () => {
               <div className="flex flex-col items-center">
                 <Link to="/" className="block py-2 text-gray-700 text-base text-center hover:text-primary w-full max-w-[200px]" onClick={handleNavClick}>Explore</Link>
                 <div className="w-full max-w-[300px] border-b border-gray-200"></div>
-                <Link to="/map" className="block py-2 text-gray-700 text-base text-center hover:text-primary w-full max-w-[200px]" onClick={handleNavClick}>Map</Link>
-                <div className="w-full max-w-[300px] border-b border-gray-200"></div>
                 <Link to="/blog" className="block py-2 text-gray-700 text-base text-center hover:text-primary w-full max-w-[200px]" onClick={handleNavClick}>Blog</Link>
                 <div className="w-full max-w-[300px] border-b border-gray-200"></div>
-                <Link to="/app" className="block py-2 text-gray-700 text-base text-center hover:text-primary w-full max-w-[200px]" onClick={handleNavClick}>The App</Link>
+                <Link to="/about" className="block py-2 text-gray-700 text-base text-center hover:text-primary w-full max-w-[200px]" onClick={handleNavClick}>About</Link>
                 <div className="w-full max-w-[300px] border-b border-gray-200"></div>
-                <Link to="/shop" className="block py-2 text-gray-700 text-base text-center hover:text-primary w-full max-w-[200px]" onClick={handleNavClick}>Shop</Link>
-                <div className="w-full max-w-[300px] border-b border-gray-200"></div>
-                <Link to="/about" className="block py-2 text-gray-700 text-base text-center hover:text-primary w-full max-w-[200px]" onClick={handleNavClick}>About Us</Link>
-                <div className="w-full max-w-[300px] border-b border-gray-200"></div>
-                <Link to="/contact" className="block py-2 text-gray-700 text-base text-center hover:text-primary w-full max-w-[200px]" onClick={handleNavClick}>Contact</Link>
-                <div className="w-full max-w-[300px] border-b border-gray-200"></div>
-                <Link to="/faq" className="block py-2 text-gray-700 text-base text-center hover:text-primary w-full max-w-[200px]" onClick={handleNavClick}>FAQ</Link>
+                <Link to="/contact" className="block py-2 text-gray-700 text-base text-center hover:text-primary w-full max-w-[200px]" onClick={handleNavClick}>Contact Us</Link>
                 <div className="mt-3"></div>
-                <Link to="/add-cookie-spot" className="block py-2 text-white bg-primary rounded-md text-center my-2 hover:opacity-90 w-full max-w-[200px]" onClick={handleNavClick}>Add Listing</Link>
-                <Link to="/login" className="block py-2 text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-md text-center my-2 w-full max-w-[200px]" onClick={handleNavClick}>Login / Join</Link>
+                <Link to="/add-cookie-spot" className="block py-2 text-white bg-primary rounded-md text-center my-2 hover:opacity-90 w-full max-w-[200px]" onClick={handleNavClick}>Cookies Near You</Link>
+                <Link to="/login" className="block py-2 text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-md text-center my-2 w-full max-w-[200px]" onClick={handleNavClick}>Subscribe</Link>
               </div>
           </nav>
           </div>

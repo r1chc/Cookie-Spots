@@ -55,4 +55,13 @@ export async function loadAllArticles() {
 export async function getArticleBySlug(slug) {
   const allArticles = await loadAllArticles();
   return allArticles.find(article => article.slug === slug) || null;
+}
+
+// Function to get articles with updated view counts
+export async function getArticlesWithUpdatedViewCounts() {
+  const articles = await loadAllArticles();
+  return articles.map(article => ({
+    ...article,
+    views: article.views || 0
+  }));
 } 

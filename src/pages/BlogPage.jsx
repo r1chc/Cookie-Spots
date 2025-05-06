@@ -6,7 +6,7 @@ import SearchButton from '../components/SearchButton';
 import Slider from 'react-slick';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
-import { loadAllArticles } from '../utils/articleLoader';
+import { loadAllArticles, getArticlesWithUpdatedViewCounts } from '../utils/articleLoader';
 
 const BlogPage = () => {
   // Use the scroll restoration hook
@@ -34,6 +34,7 @@ const BlogPage = () => {
   const [sliderPosition, setSliderPosition] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const sliderRef = useRef(null);
+  const [articlesWithViews, setArticlesWithViews] = useState([]);
 
   // Force scroll to top when component mounts
   useEffect(() => {
@@ -400,6 +401,14 @@ const BlogPage = () => {
     }
   };
 
+  useEffect(() => {
+    const fetchArticles = async () => {
+      const articles = await getArticlesWithUpdatedViewCounts();
+      setArticlesWithViews(articles);
+    };
+    fetchArticles();
+  }, []);
+
   if (loading) {
     return <div className="blog-container">Loading posts...</div>;
   }
@@ -671,10 +680,8 @@ const BlogPage = () => {
               <h3 className="blog-sidebar-title">Categories</h3>
               <ul className="blog-categories-list">
                 {categories.map(category => {
-                  // Use the same filtering logic as search
                   const categoryName = category.name.toLowerCase();
-                  const articlesWithUpdatedViews = getArticlesWithUpdatedViewCounts();
-                  const count = articlesWithUpdatedViews.filter(post => 
+                  const count = articlesWithViews.filter(post => 
                     post.title.toLowerCase().includes(categoryName) ||
                     post.category.toLowerCase().includes(categoryName) ||
                     post.excerpt.toLowerCase().includes(categoryName) ||
