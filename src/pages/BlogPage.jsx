@@ -2,11 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../styles/BlogPage.css';
 import useScrollRestoration from '../hooks/useScrollRestoration';
-import SearchButton from '../components/SearchButton';
 import Slider from 'react-slick';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
 import { loadAllArticles, getArticlesWithUpdatedViewCounts } from '../utils/articleLoader';
+import FloatingActionButtons from '../components/FloatingActionButtons';
+import SearchButton from '../components/SearchButton';
 
 const BlogPage = () => {
   // Use the scroll restoration hook
@@ -35,6 +36,7 @@ const BlogPage = () => {
   const [isDragging, setIsDragging] = useState(false);
   const sliderRef = useRef(null);
   const [articlesWithViews, setArticlesWithViews] = useState([]);
+  const [showFloatingActions, setShowFloatingActions] = useState(false);
 
   // Force scroll to top when component mounts
   useEffect(() => {
@@ -409,6 +411,19 @@ const BlogPage = () => {
     fetchArticles();
   }, []);
 
+  // Effect for showing/hiding floating action buttons on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.pageYOffset > 200) { // Show after scrolling 200px
+        setShowFloatingActions(true);
+      } else {
+        setShowFloatingActions(false);
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   if (loading) {
     return <div className="blog-container">Loading posts...</div>;
   }
@@ -715,7 +730,9 @@ const BlogPage = () => {
           </aside>
         </div>
       </div>
-      <SearchButton />
+
+      {/* Floating Action Buttons */}
+      <FloatingActionButtons />
     </div>
   );
 };

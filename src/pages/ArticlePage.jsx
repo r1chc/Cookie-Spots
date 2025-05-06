@@ -5,6 +5,7 @@ import useScrollRestoration from '../hooks/useScrollRestoration';
 import useArticleViews from '../hooks/useArticleViews';
 import BaseArticle from './articles/BaseArticle';
 import { loadAllArticles, getArticleBySlug } from '../utils/articleLoader';
+import FloatingActionButtons from '../components/FloatingActionButtons';
 
 const ArticlePage = () => {
   // Use the scroll restoration hook
@@ -250,7 +251,8 @@ const ArticlePage = () => {
     <div className="article-page-wrapper">
       <div className="article-container">
         <div className="article-main-area">
-          {/* Left Side Sticky Navigation */}
+          {/* Left Side Sticky Navigation - REMOVED */}
+          {/* 
           <div className="sticky-side-nav left-nav">
             <div className="article-floating-nav back">
               <Link to="/blog" className="floating-nav-button">
@@ -258,7 +260,8 @@ const ArticlePage = () => {
                 Back to Blog
               </Link>
             </div>
-          </div>
+          </div> 
+          */}
 
           {/* Main Article Content Column */}
           <article className="article-content-column">
@@ -286,21 +289,8 @@ const ArticlePage = () => {
           </div>
         </div>
         
-        {/* Floating Action Buttons (Search & Scroll-to-Top) */}
-        {showFloatingActions && (
-          <div className="floating-action-buttons">
-            <Link to="/blogsearch" className="search-button-round" aria-label="Search Articles">
-              <i className="fas fa-search"></i>
-            </Link>
-            <button 
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} 
-              className="scroll-to-top"
-              aria-label="Scroll to top"
-            >
-              <i className="fas fa-arrow-up"></i>
-            </button>
-          </div>
-        )}
+        {/* Floating Action Buttons */}
+        <FloatingActionButtons />
 
         {/* Bottom Navigation Sections (Popular, Categories, etc.) */}
         <div className="article-navigation-sections">
