@@ -198,30 +198,84 @@
 
 @media (max-width: 768px) {
   .article-container {
-    padding: 1rem;
+    padding: 0.75rem;
+    width: 100%;
+    overflow-x: hidden;
+  }
+  
+  .article-content {
+    width: 100%;
+    padding: 0;
+    overflow-x: hidden;
   }
   
   .article-header {
-    padding: 1rem 1rem 0;
+    padding: 1.25rem 1rem 0;
   }
   
-  .article-body,
-  .article-tags {
-    padding: 0 1rem 1rem;
+  .article-meta {
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 1rem;
   }
-
-  .article-image {
-    height: 250px;
-  }
-
-  .article-meta,
-  .article-title,
-  .article-body {
-    padding: 0 1rem;
-  }
-
+  
   .article-title {
-    font-size: 2rem;
+    font-size: 1.8rem;
+    padding: 0;
+    margin-bottom: 1rem;
+  }
+  
+  .article-image {
+    height: 220px;
+  }
+  
+  .article-body, 
+  .article-tags {
+    padding: 0 1rem 1.5rem;
+  }
+  
+  .article-navigation-sections {
+    padding: 0 0.75rem;
+    margin-top: 2rem;
+    width: 100%;
+    overflow-x: hidden;
+    display: flex;
+    justify-content: center;
+  }
+  
+  .article-navigation-sections .grid {
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .article-navigation-sections .blog-sidebar-section {
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 1.5rem;
+    max-width: 100%;
+  }
+  
+  .article-navigation-sections .blog-tags {
+    flex-wrap: wrap;
+  }
+  
+  .article-navigation-sections .blog-popular-post {
+    flex-direction: column;
+  }
+  
+  .article-navigation-sections .blog-popular-post-image {
+    width: 100%;
+    height: 180px;
+    margin-bottom: 0.75rem;
+  }
+  
+  .article-page-wrapper {
+    width: 100%;
+    overflow-x: hidden;
   }
 
   .article-navigation {
@@ -243,10 +297,39 @@
   .article-content {
     border-radius: 8px;
   }
-
+  
+  .article-header {
+    padding: 1rem 0.75rem 0;
+  }
+  
+  .article-title {
+    font-size: 1.5rem;
+  }
+  
+  .article-body,
+  .article-tags {
+    padding: 0 0.75rem 1rem;
+  }
+  
   .article-navigation-sections {
     padding: 0 0.5rem;
-    gap: 1rem;
+  }
+  
+  .article-navigation-sections .grid {
+    max-width: 100%;
+  }
+  
+  .article-navigation-sections .blog-sidebar-section {
+    padding: 1rem;
+  }
+  
+  .article-navigation-sections .blog-search-form {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .article-navigation-sections .blog-search-form button {
+    width: 100%;
   }
 }
 
