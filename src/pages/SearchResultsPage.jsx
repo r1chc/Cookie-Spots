@@ -558,15 +558,28 @@ const SearchResultsPage = () => {
   // Get all spots to display
   const spotsToDisplay = finalFilteredSpots;
 
-  // Force "no results" to false when loading
-  if (loading || isLoadingExternal) {
-    if (showNoResults) setShowNoResults(false);
-  }
-  
-  // Reset showNoResults when a new search starts
+  // Effect to manage the showNoResults flag based on final results and loading states
   useEffect(() => {
-    setShowNoResults(false);
-  }, [location.search]);
+    // If we are still loading data from any source, or if there's an error,
+    // the main loading/error messages should be shown, so don't decide on "no results" yet.
+    if (loading || isLoadingExternal || error) {
+      // It might be good to ensure showNoResults is false here if not handled elsewhere,
+      // to prevent briefly showing "no results" if loading states toggle quickly.
+      // For now, the main goal is to set it to true when appropriate.
+      // setShowNoResults(false); // Consider if this is needed or if existing resets are sufficient.
+      return;
+    }
+
+    // At this point, all loading is done, and there's no error.
+    // Now, check if there are any spots to display.
+    if (spotsToDisplay.length === 0) {
+      // No spots left after all fetching and client-side filtering.
+      setShowNoResults(true);
+    } else {
+      // There are spots to display.
+      setShowNoResults(false);
+    }
+  }, [spotsToDisplay, loading, isLoadingExternal, error]);
 
   return (
     <div className="min-h-screen bg-white" style={{ backgroundColor: 'white !important' }}>
