@@ -8,6 +8,7 @@ import 'slick-carousel/slick/slick-theme.css';
 import { loadAllArticles, getArticlesWithUpdatedViewCounts } from '../utils/articleLoader';
 import FloatingActionButtons from '../components/FloatingActionButtons';
 import SearchButton from '../components/SearchButton';
+import BlogSidebar from '../components/BlogSidebar';
 
 const BlogPage = () => {
   // Use the scroll restoration hook
@@ -638,96 +639,8 @@ const BlogPage = () => {
             </section>
           </main>
 
-          <aside className="blog-sidebar">
-            <div className="blog-sidebar-section pb-6">
-              <h3 className="blog-sidebar-title">Search Recipes</h3>
-              <form className="blog-search-form mb-3" onSubmit={handleSearchSubmit}>
-                <input type="text" placeholder="Search Recipes..." name="search" />
-                <button type="submit" className="text-blue-500"><i className="fas fa-search"></i></button>
-              </form>
-              <h4 className="blog-sidebar-subtitle text-sm mb-2">Popular Tags:</h4>
-              <div className="blog-tags-cloud">
-                {popularTags.map((tag, index) => (
-                  <button
-                    key={index}
-                    onClick={() => navigate(`/blogsearch?q=${encodeURIComponent(tag)}`)}
-                    className="blog-tag text-sm py-1 px-2"
-                  >
-                    {tag}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="blog-sidebar-section">
-              <h3 className="blog-sidebar-title">Popular Recipes</h3>
-              <ul className="blog-popular-posts">
-                {sortedPosts
-                  .sort((a, b) => (b.views || 0) - (a.views || 0))
-                  .slice(0, 3)
-                  .map(post => (
-                    <li key={post.id} className="blog-popular-post">
-                      <Link to={`/article/${post.slug}`}>
-                        <img
-                          src={post.image}
-                          alt={post.title}
-                          className="blog-popular-post-image"
-                        />
-                      </Link>
-                      <div className="blog-popular-post-content">
-                        <h4>
-                          <Link to={`/article/${post.slug}`}>{post.title}</Link>
-                        </h4>
-                        <div>
-                          <span className="blog-popular-post-date">{formatDate(post.date)}</span>
-                          <span className="blog-popular-post-views">
-                            <i className="fas fa-eye"></i>
-                            {formatViews(post.views)}
-                          </span>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-              </ul>
-            </div>
-
-            <div className="blog-sidebar-section">
-              <h3 className="blog-sidebar-title">Categories</h3>
-              <ul className="blog-categories-list">
-                {categories.map(category => {
-                  const categoryName = category.name.toLowerCase();
-                  const count = articlesWithViews.filter(post => 
-                    post.title.toLowerCase().includes(categoryName) ||
-                    post.category.toLowerCase().includes(categoryName) ||
-                    post.excerpt.toLowerCase().includes(categoryName) ||
-                    (post.tags && post.tags.some(tag => tag.toLowerCase().includes(categoryName)))
-                  ).length;
-                  
-                  return (
-                    <li key={category.name}>
-                      <Link to={`/blogsearch?q=${encodeURIComponent(category.name)}`}>
-                        {category.name} <span className="count">{count}</span>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-
-            <div className="blog-sidebar-section">
-              <h3 className="blog-sidebar-title">Categories</h3>
-              <ul className="blog-categories-list">
-                {categories.map(category => (
-                  <li key={category.name}>
-                    <Link to={`/blogsearch?q=${encodeURIComponent(category.name)}`}>
-                      {category.name} 
-                      <span className="count">{sidebarCategoryCount[category.name] || 0}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </aside>
+          {/* Use the shared BlogSidebar component */}
+          <BlogSidebar />
         </div>
       </div>
 

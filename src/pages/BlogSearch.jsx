@@ -4,6 +4,7 @@ import '../styles/BlogPage.css'; // Keep if styles are shared
 import '../styles/BlogSearch.css'; 
 import useScrollRestoration from '../hooks/useScrollRestoration';
 import FloatingActionButtons from '../components/FloatingActionButtons';
+import BlogSidebar from '../components/BlogSidebar';
 // Remove mockArticles import and generateSlug if not used elsewhere
 // import { mockArticles, generateSlug } from '../data/mockArticles'; 
 import { loadAllArticles } from '../utils/articleLoader'; // Import the loader
@@ -33,6 +34,10 @@ const BlogSearch = () => {
   const [error, setError] = useState(null);
   const [allArticles, setAllArticles] = useState([]); // Store all loaded articles
   const [showFloatingActions, setShowFloatingActions] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [displayPages, setDisplayPages] = useState([1, 2, 3]);
+  const [postsPerPage, setPostsPerPage] = useState(6);
+  const [sortOrder, setSortOrder] = useState('newest');
 
   // Fetch all articles using the loader (used for filtering/fallback)
   useEffect(() => {
@@ -178,6 +183,144 @@ const BlogSearch = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Add pagination handlers
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    // Update display pages to show current page and adjacent pages
+    if (page <= 2) {
+      setDisplayPages([1, 2, 3]);
+    } else if (page >= totalPages - 1) {
+      setDisplayPages([totalPages - 2, totalPages - 1, totalPages]);
+    } else {
+      setDisplayPages([page - 1, page, page + 1]);
+    }
+    // Scroll to the search results section
+    scrollToSearchResults();
+  };
+
+  const scrollToSearchResults = () => {
+    const searchResultsSection = document.querySelector('.blog-posts-grid');
+    if (searchResultsSection) {
+      const isMobile = window.innerWidth <= 770;
+      const isTablet = window.innerWidth > 770 && window.innerWidth <= 1024;
+      const offset = isMobile ? 70 : isTablet ? 85 : 100;
+      const elementPosition = searchResultsSection.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - offset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  const handleDoubleChevronRight = () => {
+    const newPages = [...displayPages];
+    if (newPages[2] + 2 <= totalPages) {
+      newPages[0] = newPages[0] + 2;
+      newPages[1] = newPages[1] + 2;
+      newPages[2] = newPages[2] + 2;
+      setDisplayPages(newPages);
+      setCurrentPage(newPages[1]);
+      scrollToSearchResults();
+    } else if (newPages[2] < totalPages) {
+      // If there's only one page left to move, move to the last page
+      newPages[0] = totalPages - 2;
+      newPages[1] = totalPages - 1;
+      newPages[2] = totalPages;
+      setDisplayPages(newPages);
+      setCurrentPage(totalPages - 1);
+      scrollToSearchResults();
+    }
+  };
+
+  const handleDoubleChevronLeft = () => {
+    const newPages = [...displayPages];
+    if (newPages[0] > 2) {
+      newPages[0] = newPages[0] - 2;
+      newPages[1] = newPages[1] - 2;
+      newPages[2] = newPages[2] - 2;
+      setDisplayPages(newPages);
+      setCurrentPage(newPages[1]);
+      scrollToSearchResults();
+    } else if (newPages[0] === 2) {
+      // If there's only one page left to move, move to the first page
+      newPages[0] = 1;
+      newPages[1] = 2;
+      newPages[2] = 3;
+      setDisplayPages(newPages);
+      setCurrentPage(2);
+      scrollToSearchResults();
+    }
+  };
+
+  const handleSingleChevronRight = () => {
+    const newPages = [...displayPages];
+    if (newPages[2] + 1 <= totalPages) {
+      newPages[0] = newPages[0] + 1;
+      newPages[1] = newPages[1] + 1;
+      newPages[2] = newPages[2] + 1;
+      setDisplayPages(newPages);
+      setCurrentPage(newPages[1]);
+      scrollToSearchResults();
+    }
+  };
+
+  const handleSingleChevronLeft = () => {
+    const newPages = [...displayPages];
+    if (newPages[0] > 1) {
+      newPages[0] = newPages[0] - 1;
+      newPages[1] = newPages[1] - 1;
+      newPages[2] = newPages[2] - 1;
+      setDisplayPages(newPages);
+      setCurrentPage(newPages[1]);
+      scrollToSearchResults();
+    }
+  };
+
+  // Add sort handler
+  const handleSortChange = (e) => {
+    const newSortOrder = e.target.value;
+    setSortOrder(newSortOrder);
+    setCurrentPage(1);
+    setDisplayPages([1, 2, 3]);
+  };
+
+  // Add posts per page handler
+  const handlePostsPerPageChange = (e) => {
+    const newPostsPerPage = parseInt(e.target.value);
+    setPostsPerPage(newPostsPerPage);
+    setCurrentPage(1);
+    setDisplayPages([1, 2, 3]);
+  };
+
+  // Sort results based on sortOrder
+  const sortedResults = useMemo(() => {
+    if (!results) return [];
+    
+    const sorted = [...results];
+    switch (sortOrder) {
+      case 'newest':
+        return sorted.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+      case 'oldest':
+        return sorted.sort((a, b) => new Date(a.publishedAt) - new Date(b.publishedAt));
+      case 'most_viewed':
+        return sorted.sort((a, b) => (b.views || 0) - (a.views || 0));
+      case 'least_viewed':
+        return sorted.sort((a, b) => (a.views || 0) - (b.views || 0));
+      case 'alphabetical':
+        return sorted.sort((a, b) => a.title.localeCompare(b.title));
+      default:
+        return sorted;
+    }
+  }, [results, sortOrder]);
+
+  // Update currentPosts to use sortedResults
+  const indexOfLastPost = currentPage * postsPerPage;
+  const indexOfFirstPost = indexOfLastPost - postsPerPage;
+  const currentPosts = sortedResults.slice(indexOfFirstPost, indexOfLastPost);
+  const totalPages = Math.ceil(sortedResults.length / postsPerPage);
+
   return (
     <div className="blog-page-wrapper">
       <div className="min-h-screen bg-gradient-to-b from-primary-50 to-white">
@@ -215,6 +358,42 @@ const BlogSearch = () => {
               </form>
             </div>
 
+            {/* Add sorting controls */}
+            <div className="blog-posts-header mb-6">
+              <div className="blog-posts-controls">
+                <div className="posts-per-page-selector">
+                  <label htmlFor="postsPerPage">Show:</label>
+                  <select 
+                    id="postsPerPage" 
+                    value={postsPerPage} 
+                    onChange={handlePostsPerPageChange}
+                    className="posts-per-page-dropdown"
+                  >
+                    <option value={2}>2 per page</option>
+                    <option value={4}>4 per page</option>
+                    <option value={6}>6 per page</option>
+                    <option value={8}>8 per page</option>
+                    <option value={results.length}>All</option>
+                  </select>
+                </div>
+                <div className="posts-sort-selector">
+                  <label htmlFor="sortOrder">Sort by:</label>
+                  <select 
+                    id="sortOrder" 
+                    value={sortOrder} 
+                    onChange={handleSortChange}
+                    className="posts-sort-dropdown"
+                  >
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="most_viewed">Most Viewed</option>
+                    <option value="least_viewed">Least Viewed</option>
+                    <option value="alphabetical">Alphabetical</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
             {/* Results Section */}
             {loading && <div className="bg-white rounded-lg shadow-md p-6 text-center">Loading articles...</div>}
             {error && <div className="bg-white rounded-lg shadow-md p-6 text-center text-red-500">Error: {error}</div>}
@@ -240,8 +419,8 @@ const BlogSearch = () => {
             
             {!loading && !error && results.length > 0 && (
               <div className="blog-posts-grid">
-                {results.map(post => (
-                  <article key={post.id || post.slug} className="blog-post search-result-item">
+                {currentPosts.map((post) => (
+                  <article key={post.slug} className="blog-post-card">
                     {/* Image and Category Badge */}
                     <div className="blog-post-image">
                       <Link to={`/article/${post.slug}`}> 
@@ -280,77 +459,55 @@ const BlogSearch = () => {
                 ))}
               </div>
             )}
+
+            {/* Add pagination */}
+            {results.length > postsPerPage && (
+              <div className="blog-pagination mb-12">
+                <button 
+                  className="blog-pagination-button"
+                  onClick={handleDoubleChevronLeft}
+                  disabled={displayPages[0] <= 1}
+                >
+                  <i className="fas fa-angle-double-left"></i>
+                </button>
+                <button 
+                  className="blog-pagination-button"
+                  onClick={handleSingleChevronLeft}
+                  disabled={displayPages[0] <= 1}
+                >
+                  <i className="fas fa-angle-left"></i>
+                </button>
+                {displayPages.map((page) => (
+                  page > 0 && page <= totalPages && (
+                    <button
+                      key={page}
+                      className={`blog-pagination-button ${currentPage === page ? 'active' : ''}`}
+                      onClick={() => handlePageChange(page)}
+                    >
+                      {page}
+                    </button>
+                  )
+                ))}
+                <button 
+                  className="blog-pagination-button"
+                  onClick={handleSingleChevronRight}
+                  disabled={displayPages[2] >= totalPages}
+                >
+                  <i className="fas fa-angle-right"></i>
+                </button>
+                <button 
+                  className="blog-pagination-button"
+                  onClick={handleDoubleChevronRight}
+                  disabled={displayPages[2] >= totalPages}
+                >
+                  <i className="fas fa-angle-double-right"></i>
+                </button>
+              </div>
+            )}
           </main>
 
-          <aside className="blog-sidebar">
-            <div className="blog-sidebar-section pb-6">
-              <h3 className="blog-sidebar-title">Search Recipes</h3>
-              <form className="blog-search-form mb-3" onSubmit={handleSearchSubmit}>
-                <input type="text" placeholder="Search Recipes..." name="search" />
-                <button type="submit" className="text-blue-500"><i className="fas fa-search"></i></button>
-              </form>
-              <h4 className="blog-sidebar-subtitle text-sm mb-2">Popular Tags:</h4>
-              <div className="blog-tags-cloud">
-                {popularTags.map((tag, index) => (
-                  <button
-                    key={index}
-                    onClick={() => navigate(`/blogsearch?q=${encodeURIComponent(tag)}`)} 
-                    className="blog-tag text-sm py-1 px-2"
-                  >
-                    {tag}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="blog-sidebar-section">
-              <h3 className="blog-sidebar-title">Popular Recipes</h3>
-              <ul className="blog-popular-posts">
-                {[...allArticles] // Create a copy before sorting
-                  .sort((a, b) => (b.views || 0) - (a.views || 0)) // Sort by views
-                  .slice(0, 3) // Get top 3
-                  .map(post => (
-                    <li key={post.id || post.slug} className="blog-popular-post">
-                      <Link to={`/article/${post.slug}`}>
-                        <img
-                          src={post.image}
-                          alt={post.title}
-                          className="blog-popular-post-image"
-                          loading="lazy"
-                        />
-                      </Link>
-                      <div className="blog-popular-post-content">
-                        <h4>
-                          <Link to={`/article/${post.slug}`}>{post.title}</Link>
-                        </h4>
-                        <div>
-                          {post.publishedAt && <span className="blog-popular-post-date">{formatDate(post.publishedAt)}</span>}
-                          {post.views !== undefined && (
-                            <span className="blog-popular-post-views">
-                              <i className="fas fa-eye"></i> {formatViews(post.views)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-              </ul>
-            </div>
-
-            <div className="blog-sidebar-section">
-              <h3 className="blog-sidebar-title">Categories</h3>
-              <ul className="blog-categories-list">
-                {categories.map(category => (
-                  <li key={category.name}>
-                    <Link to={`/blogsearch?q=${encodeURIComponent(category.name)}`}>
-                      {category.name} 
-                      <span className="count">{categoryCounts[category.name] || 0}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </aside>
+          {/* Use the shared BlogSidebar component */}
+          <BlogSidebar />
         </div>
       </div>
 
