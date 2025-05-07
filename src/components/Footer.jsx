@@ -29,10 +29,10 @@ const Footer = () => {
           </div>
 
           {/* Column 2: About and Social Media */}
-          <div className="flex flex-col items-center md:items-start">
-            <div className="mb-8">
+          <div className="flex flex-col md:flex-row items-center text-center md:items-start md:text-left md:gap-x-16">
+            <div className="mb-8 md:mb-0">
               <h3 className="text-xl font-semibold mb-4 text-center md:text-left">Site Links</h3>
-              <div className="flex flex-wrap justify-center md:justify-start gap-4">
+              <div className="flex flex-col items-center md:items-start gap-2">
                 <Link 
                   to="/" 
                   className="text-gray-300 hover:text-white transition-colors"

@@ -530,7 +530,7 @@ const BlogPage = () => {
                     </div>
                     <div className="blog-featured-content">
                       <div className="blog-post-meta">
-                        <span className="blog-post-date">{sortedPosts[0].date}</span>
+                        <span className="blog-post-date">{formatDate(sortedPosts[0].publishedAt)}</span>
                         <span className="blog-post-views">
                           <i className="fas fa-eye"></i> {sortedPosts[0].views.toLocaleString()} views
                         </span>

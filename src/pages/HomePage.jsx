@@ -173,8 +173,6 @@ const HomePage = ({ onSearch }) => {
             </Link>
           </div>
 
-          <FilterButtons />
-
           {isLoading ? (
             <div className="flex justify-center items-center h-64">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
@@ -191,7 +189,7 @@ const HomePage = ({ onSearch }) => {
         </div>
       </section>
 
-      {/* Featured Cookie Types */}
+      {/* Featured Cookie Types 
       <section className="py-12 bg-gray-100">
         <div className="container mx-auto px-4">
           <h2 className="text-2xl font-bold mb-8">Popular Cookie Types</h2>
@@ -222,8 +220,9 @@ const HomePage = ({ onSearch }) => {
           </div>
         </div>
       </section>
+      */}
 
-      {/* App Promotion */}
+      {/* App Promotion 
       <section className="py-12 bg-primary-600 text-white">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center justify-between">
@@ -245,6 +244,7 @@ const HomePage = ({ onSearch }) => {
           </div>
         </div>
       </section>
+      */}
 
       {/* Newsletter */}
       <section className="py-12 bg-white">
