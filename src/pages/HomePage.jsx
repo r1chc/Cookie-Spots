@@ -6,6 +6,7 @@ import FilterButtons from '../components/FilterButtons'
 import { getCurrentLocation, reverseGeocode, getDefaultLocation } from '../utils/geolocation'
 import { fetchCookieSpotsByLocation, fetchAllSourceCookieSpots } from '../utils/cookieSpotService'
 import useScrollRestoration from '../hooks/useScrollRestoration'
+import FloatingActionButtons from '../components/FloatingActionButtons'
 import '../styles/HomePage.css'
 
 // In-memory cache for the homepage to avoid duplicate API calls
@@ -267,6 +268,9 @@ const HomePage = ({ onSearch }) => {
           </form>
         </div>
       </section>
+
+      {/* Floating Action Buttons */}
+      <FloatingActionButtons />
     </div>
   )
 }

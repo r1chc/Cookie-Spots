@@ -348,25 +348,18 @@ const Map = ({
       marker.setAnimation(null);
     });
 
-    // Close all info windows first
-    Object.values(infoWindowsRef.current).forEach(iw => iw.close());
-
-    // Highlight hovered spot and open its info window
+    // Highlight hovered spot
     if (hoveredSpot && markersRef.current[hoveredSpot._id]) {
-      const marker = markersRef.current[hoveredSpot._id];
-      const infoWindow = infoWindowsRef.current[hoveredSpot._id];
-      
-      // Set bounce animation
-      marker.setAnimation(window.google.maps.Animation.BOUNCE);
-      
-      // Open info window
-      infoWindow.open(map, marker);
+      markersRef.current[hoveredSpot._id].setAnimation(window.google.maps.Animation.BOUNCE);
     }
 
     // Open info window for clicked spot
     if (clickedSpot && markersRef.current[clickedSpot._id]) {
       const marker = markersRef.current[clickedSpot._id];
       const infoWindow = infoWindowsRef.current[clickedSpot._id];
+      
+      // Close all other info windows
+      Object.values(infoWindowsRef.current).forEach(iw => iw.close());
       
       // Open this info window
       infoWindow.open(map, marker);

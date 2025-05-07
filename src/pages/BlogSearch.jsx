@@ -3,7 +3,7 @@ import { useLocation, Link, useNavigate } from 'react-router-dom';
 import '../styles/BlogPage.css'; // Keep if styles are shared
 import '../styles/BlogSearch.css'; 
 import useScrollRestoration from '../hooks/useScrollRestoration';
-import SearchButton from '../components/SearchButton';
+import FloatingActionButtons from '../components/FloatingActionButtons';
 // Remove mockArticles import and generateSlug if not used elsewhere
 // import { mockArticles, generateSlug } from '../data/mockArticles'; 
 import { loadAllArticles } from '../utils/articleLoader'; // Import the loader
@@ -32,6 +32,7 @@ const BlogSearch = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [allArticles, setAllArticles] = useState([]); // Store all loaded articles
+  const [showFloatingActions, setShowFloatingActions] = useState(false);
 
   // Fetch all articles using the loader (used for filtering/fallback)
   useEffect(() => {
@@ -163,6 +164,19 @@ const BlogSearch = () => {
     const searchInput = e.target.elements.search.value;
     navigate(`/blogsearch?q=${encodeURIComponent(searchInput)}`);
   };
+
+  // Effect for showing/hiding floating action buttons on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.pageYOffset > 200) { // Show after scrolling 200px
+        setShowFloatingActions(true);
+      } else {
+        setShowFloatingActions(false);
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   return (
     <div className="blog-page-wrapper">
@@ -339,7 +353,9 @@ const BlogSearch = () => {
           </aside>
         </div>
       </div>
-      <SearchButton />
+
+      {/* Floating Action Buttons */}
+      <FloatingActionButtons />
     </div>
   );
 };

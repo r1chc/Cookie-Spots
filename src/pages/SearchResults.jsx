@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import '../styles/BlogPage.css';
 import '../styles/SearchResults.css';
+import FloatingActionButtons from '../components/FloatingActionButtons';
 
 const SearchResults = () => {
   const location = useLocation();
@@ -481,6 +482,9 @@ const SearchResults = () => {
           )}
         </main>
       </div>
+
+      {/* Floating Action Buttons */}
+      <FloatingActionButtons />
     </div>
   );
 };
