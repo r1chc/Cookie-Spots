@@ -97,7 +97,7 @@ const Header = () => {
           {/* Navigation - Desktop */}
             <nav className="hidden lg:flex items-center space-x-4">
               <Link to="/" className="text-gray-700 hover:text-primary text-base" onClick={handleNavClick}>Explore</Link>
-              <Link to="/blog" className="text-gray-700 hover:text-primary text-base" onClick={handleNavClick}>Blog</Link>
+              <Link to="/blog" className="text-gray-700 hover:text-primary text-base" onClick={handleNavClick}>Recipes & Blog</Link>
               <Link to="/about" className="text-gray-700 hover:text-primary text-base" onClick={handleNavClick}>About</Link>
               <Link to="/contact" className="text-gray-700 hover:text-primary text-base" onClick={handleNavClick}>Contact Us</Link>
             </nav>
@@ -136,7 +136,7 @@ const Header = () => {
               <div className="flex flex-col items-center">
                 <Link to="/" className="block py-2 text-gray-700 text-base text-center hover:text-primary w-full max-w-[200px]" onClick={handleNavClick}>Explore</Link>
                 <div className="w-full max-w-[300px] border-b border-gray-200"></div>
-                <Link to="/blog" className="block py-2 text-gray-700 text-base text-center hover:text-primary w-full max-w-[200px]" onClick={handleNavClick}>Blog</Link>
+                <Link to="/blog" className="block py-2 text-gray-700 text-base text-center hover:text-primary w-full max-w-[200px]" onClick={handleNavClick}>Recipes & Blog</Link>
                 <div className="w-full max-w-[300px] border-b border-gray-200"></div>
                 <Link to="/about" className="block py-2 text-gray-700 text-base text-center hover:text-primary w-full max-w-[200px]" onClick={handleNavClick}>About</Link>
                 <div className="w-full max-w-[300px] border-b border-gray-200"></div>

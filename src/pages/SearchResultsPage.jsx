@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useCookieSpots } from '../utils/CookieSpotContext';
 import CookieSpotCard from '../components/CookieSpotCard';
@@ -7,6 +7,30 @@ import { loadGoogleMaps } from '../utils/googleMapsLoader';
 import { fetchAllSourceCookieSpots } from '../utils/cookieSpotService';
 import MapComponent from '../components/Map';
 import useScrollRestoration from '../hooks/useScrollRestoration';
+
+// Helper function to get filter keyword (name) from its ID
+const getFilterKeyword = (filterId, items) => {
+  if (!filterId || !items || items.length === 0) return null;
+  if (filterId === 'all' || filterId === '') return null; 
+  const item = items.find(opt => opt._id === filterId);
+  return item ? item.name.toLowerCase() : null;
+};
+
+// Helper function to check if a spot matches a keyword in its name, description, or specific arrays
+const spotMatchesKeyword = (spot, keyword, fieldArrayName = null) => {
+  if (!keyword) return true; 
+  const lowerKeyword = keyword.toLowerCase();
+
+  const nameMatch = spot.name && spot.name.toLowerCase().includes(lowerKeyword);
+  const descriptionMatch = spot.description && spot.description.toLowerCase().includes(lowerKeyword);
+  
+  let fieldArrayValuesMatch = false;
+  if (fieldArrayName && spot[fieldArrayName] && Array.isArray(spot[fieldArrayName])) {
+    fieldArrayValuesMatch = spot[fieldArrayName].some(val => typeof val === 'string' && val.toLowerCase().includes(lowerKeyword));
+  }
+
+  return nameMatch || descriptionMatch || fieldArrayValuesMatch;
+};
 
 // Google Map component
 const GoogleMap = ({ center, bounds, spots, hoveredSpot, clickedSpot, searchMetadata }) => {
@@ -121,7 +145,7 @@ const SearchResultsPage = () => {
   
   // Add a ref to track the previous search to prevent duplicates
   const previousSearchRef = useRef(null);
-  
+
   // Force white background
   useEffect(() => {
     document.body.classList.add('search-page');
@@ -474,9 +498,66 @@ const SearchResultsPage = () => {
     setClickedSpot(cookieSpot);
   };
 
-  // Get all spots to display (combined results or just cookieSpots)
-  const spotsToDisplay = combinedResults.length > 0 ? combinedResults : cookieSpots;
-  
+  const finalFilteredSpots = useMemo(() => {
+    if (loading || !combinedResults) {
+        return [];
+    }
+    if (combinedResults.length === 0) {
+        return [];
+    }
+
+    const activeCookieTypeKeyword = getFilterKeyword(filters.cookieType, cookieTypes);
+    const activeDietaryOptionKeyword = getFilterKeyword(filters.dietaryOption, dietaryOptions);
+    
+    if (!activeCookieTypeKeyword && !activeDietaryOptionKeyword) {
+      return combinedResults;
+    }
+
+    return combinedResults.filter(spot => {
+      const isExternal = spot.source === 'google' || spot.place_id;
+
+      if (activeCookieTypeKeyword) {
+        let matchesCookieType = false;
+        if (isExternal) {
+          matchesCookieType = spotMatchesKeyword(spot, activeCookieTypeKeyword, 'cookie_types');
+        } else { 
+          const internalSpotInContext = cookieSpots.find(cs => cs._id === spot._id);
+          if (internalSpotInContext && internalSpotInContext.cookie_types && Array.isArray(internalSpotInContext.cookie_types)) {
+            matchesCookieType = internalSpotInContext.cookie_types.some(ct => 
+               (typeof ct === 'string' && ct.toLowerCase().includes(activeCookieTypeKeyword)) || 
+               (ct.name && ct.name.toLowerCase().includes(activeCookieTypeKeyword))
+            );
+          } else {
+            matchesCookieType = spotMatchesKeyword(spot, activeCookieTypeKeyword, 'cookie_types');
+          }
+        }
+        if (!matchesCookieType) return false;
+      }
+
+      if (activeDietaryOptionKeyword) {
+        let matchesDietaryOption = false;
+        if (isExternal) {
+          matchesDietaryOption = spotMatchesKeyword(spot, activeDietaryOptionKeyword, 'dietary_options');
+        } else { 
+          const internalSpotInContext = cookieSpots.find(cs => cs._id === spot._id);
+          if (internalSpotInContext && internalSpotInContext.dietary_options && Array.isArray(internalSpotInContext.dietary_options)) {
+            matchesDietaryOption = internalSpotInContext.dietary_options.some(opt => 
+               (typeof opt === 'string' && opt.toLowerCase().includes(activeDietaryOptionKeyword)) ||
+               (opt.name && opt.name.toLowerCase().includes(activeDietaryOptionKeyword))
+            );
+          } else {
+            matchesDietaryOption = spotMatchesKeyword(spot, activeDietaryOptionKeyword, 'dietary_options');
+          }
+        }
+        if (!matchesDietaryOption) return false;
+      }
+      return true; 
+    });
+  }, [combinedResults, filters.cookieType, filters.dietaryOption, cookieTypes, dietaryOptions, cookieSpots, loading]);
+
+  // Get all spots to display
+  const spotsToDisplay = finalFilteredSpots;
+
   // Force "no results" to false when loading
   if (loading || isLoadingExternal) {
     if (showNoResults) setShowNoResults(false);
@@ -486,7 +567,7 @@ const SearchResultsPage = () => {
   useEffect(() => {
     setShowNoResults(false);
   }, [location.search]);
-  
+
   return (
     <div className="min-h-screen bg-white" style={{ backgroundColor: 'white !important' }}>
       <div className="container mx-auto px-4 py-8">
@@ -531,8 +612,11 @@ const SearchResultsPage = () => {
                 <h3 className="font-medium mb-2">Cookie Types</h3>
                 <FilterButtons
                   items={cookieTypes}
-                  selectedId={filters.cookieType}
-                  onSelect={(id) => updateFilters({ cookieType: id })}
+                  selectedId={filters.cookieType || 'all'}
+                  onSelect={(id) => {
+                    const newCookieType = filters.cookieType === id ? null : id;
+                    updateFilters({ ...filters, cookieType: newCookieType });
+                  }}
                   colorClass="bg-blue-100 text-primary"
                 />
               </div>
@@ -542,8 +626,11 @@ const SearchResultsPage = () => {
                 <h3 className="font-medium mb-2">Dietary Options</h3>
                 <FilterButtons
                   items={dietaryOptions}
-                  selectedId={filters.dietaryOption}
-                  onSelect={(id) => updateFilters({ dietaryOption: id })}
+                  selectedId={filters.dietaryOption || 'all'}
+                  onSelect={(id) => {
+                    const newDietaryOption = filters.dietaryOption === id ? null : id;
+                    updateFilters({ ...filters, dietaryOption: newDietaryOption });
+                  }}
                   colorClass="bg-green-100 text-green-800"
                 />
               </div>

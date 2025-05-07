@@ -446,7 +446,7 @@ const BlogPage = () => {
             height="500"
           />
           <div className="blog-hero-overlay">
-            <h2>CookieSpots Blog</h2>
+            <h2>CookieSpots Recipes & Blog</h2>
             <p>Discover delicious cookie recipes, baking tips, and sweet inspiration for every occasion.</p>
             <div className="blog-hero-buttons">
               <button onClick={scrollToLatestRecipes} className="blog-cta-button">Explore Recipes</button>
