@@ -18,7 +18,9 @@ const BlogSidebar = () => {
     { name: 'Classic', image: '/images/cookie-types/snickerdoodle.webp' },
     { name: 'Specialty', image: '/images/cookie-types/red-velvet.webp' },
     { name: 'Seasonal', image: '/images/cookie-types/gingerbread.webp' },
-    { name: 'Healthy', image: '/images/cookie-types/almond-biscotti.webp' }
+    { name: 'International', image: '/images/cookie-types/specialty.webp' },
+    { name: 'Sweet & Salty', image: '/images/cookie-types/peanut-butter.webp' },
+    { name: 'Fruit', image: '/images/cookie-types/white-chocolate-cranberry.webp' }
   ];
 
   // Load articles and calculate statistics

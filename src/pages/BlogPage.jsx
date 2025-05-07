@@ -87,7 +87,8 @@ const BlogPage = () => {
     const categoriesData = [
       { name: 'Chocolate' }, { name: 'Gluten-Free' }, { name: 'No-Bake' }, 
       { name: 'Vegan' }, { name: 'Classic' }, { name: 'Specialty' }, 
-      { name: 'Seasonal' }, { name: 'Healthy' }
+      { name: 'Seasonal' }, { name: 'International' }, { name: 'Sweet & Salty' },
+      { name: 'Fruit' }
     ];
 
     categoriesData.forEach(category => {

@@ -46,11 +46,18 @@ const Footer = () => {
                   Explore
                 </Link>
                 <Link 
+                  to="/search" 
+                  className="text-gray-300 hover:text-white transition-colors"
+                  onClick={(e) => handleLinkClick(e, '/search')}
+                >
+                  Find Cookies
+                </Link>
+                <Link 
                   to="/blog" 
                   className="text-gray-300 hover:text-white transition-colors"
                   onClick={(e) => handleLinkClick(e, '/blog')}
                 >
-                  Blog
+                  Recipes & Blog
                 </Link>
                 <Link 
                   to="/about" 
