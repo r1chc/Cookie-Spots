@@ -173,8 +173,6 @@ const HomePage = ({ onSearch }) => {
             </Link>
           </div>
 
-          <FilterButtons />
-
           {isLoading ? (
             <div className="flex justify-center items-center h-64">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
@@ -191,7 +189,7 @@ const HomePage = ({ onSearch }) => {
         </div>
       </section>
 
-      {/* Featured Cookie Types */}
+      {/* Featured Cookie Types 
       <section className="py-12 bg-gray-100">
         <div className="container mx-auto px-4">
           <h2 className="text-2xl font-bold mb-8">Popular Cookie Types</h2>
@@ -222,8 +220,9 @@ const HomePage = ({ onSearch }) => {
           </div>
         </div>
       </section>
+      */}
 
-      {/* App Promotion */}
+      {/* App Promotion 
       <section className="py-12 bg-primary-600 text-white">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center justify-between">
@@ -245,27 +244,32 @@ const HomePage = ({ onSearch }) => {
           </div>
         </div>
       </section>
+      */}
 
-      {/* Newsletter */}
-      <section className="py-12 bg-white">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-2xl font-bold mb-2">Hungry? Let us feed you the latest</h2>
-          <p className="text-gray-600 mb-6">Cookie exclusives: amazing stories, hot tips, and free stuff you don't want to miss!</p>
-          <form className="max-w-md mx-auto">
-            <div className="flex">
+      {/* Newsletter Section */}
+      <section className="py-16 bg-white">
+        <div className="container mx-auto px-4">
+          {/* Newsletter container with custom background color */}
+          <div className="max-w-3xl mx-auto rounded-lg shadow-lg border border-gray-200 p-10 px-12 text-center" style={{ backgroundColor: '#92AFD7' }}>
+            <h2 className="text-3xl font-bold mb-6 text-white">Hungry? Let us feed you the latest</h2>
+            <p className="text-lg mb-10 text-white max-w-2xl mx-auto">Get our latest cookie recipes and spot discoveries delivered straight to your inbox.</p>
+            
+            <form className="max-w-md mx-auto flex flex-col sm:flex-row gap-4" onSubmit={(e) => e.preventDefault()}>
               <input 
                 type="email" 
-                placeholder="Your email address" 
-                className="flex-grow px-4 py-2 rounded-l-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                placeholder="Enter your email address" 
+                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-gray-900 placeholder-gray-500" 
+                required 
               />
               <button 
-                type="submit" 
-                className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-r-md"
+                type="submit"
+                className="text-white px-6 py-3 rounded-md font-semibold transition-colors w-full sm:w-auto hover:bg-blue-700"
+                style={{ backgroundColor: '#3B82F6' }}
               >
                 Subscribe
               </button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
       </section>
 

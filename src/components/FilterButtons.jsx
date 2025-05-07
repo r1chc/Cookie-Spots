@@ -1,43 +1,33 @@
-import React, { useState } from 'react'
+import React from 'react';
 
-const FilterButtons = () => {
-  const [activeFilters, setActiveFilters] = useState([])
+const FilterButtons = ({ items, selectedId, onSelect, colorClass /* Optional: if you want to keep colorClass */ }) => {
+  // Create a list for rendering, prepending an "All" option
+  const displayItems = [
+    { _id: null, name: 'All' }, // Using null as the ID for "All"
+    ...(items || []), // Spread the received items, ensuring it's an array
+  ];
 
-  const filters = [
-    { id: 'all', label: 'All' },
-    { id: 'chocolate-chip', label: 'Chocolate Chip' },
-    { id: 'sugar-cookie', label: 'Sugar Cookie' },
-    { id: 'specialty', label: 'Specialty' },
-    { id: 'vegan', label: 'Vegan' },
-    { id: 'gluten-free', label: 'Gluten-Free' }
-  ]
-
-  const toggleFilter = (filterId) => {
-    if (filterId === 'all') {
-      setActiveFilters([])
-      return
-    }
-    
-    if (activeFilters.includes(filterId)) {
-      setActiveFilters(activeFilters.filter(id => id !== filterId))
-    } else {
-      setActiveFilters([...activeFilters, filterId])
-    }
-  }
+  const handleFilterClick = (itemId) => {
+    onSelect(itemId);
+    // The parent (SearchResultsPage) handles the toggle logic (if itemId is same as selectedId, it becomes null)
+  };
 
   return (
     <div className="flex flex-wrap gap-2 mb-4">
-      {filters.map(filter => (
+      {displayItems.map(item => (
         <button
-          key={filter.id}
-          className={`filter-button ${filter.id === 'all' && activeFilters.length === 0 || activeFilters.includes(filter.id) ? 'active' : ''}`}
-          onClick={() => toggleFilter(filter.id)}
+          key={item._id || 'all'} // Use item._id or a fallback for the "All" key
+          className={`filter-button ${
+            selectedId === item._id ? 'active' : ''
+          } ${selectedId === item._id && colorClass ? colorClass.replace('bg-', 'bg-opacity-100 font-semibold border-2 border-current ') : colorClass ? colorClass + ' bg-opacity-60' : ''}`}
+          // Example of enhancing active state with colorClass, adjust as needed
+          onClick={() => handleFilterClick(item._id)}
         >
-          {filter.label}
+          {item.name}
         </button>
       ))}
     </div>
-  )
-}
+  );
+};
 
-export default FilterButtons
+export default FilterButtons;
