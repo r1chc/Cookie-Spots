@@ -146,6 +146,10 @@ const BlogSearch = () => {
       return;
     }
 
+    // Reset to page 1 whenever search query changes
+    setCurrentPage(1);
+    setDisplayPages([1, 2, 3]);
+    
     const query = searchQuery.toLowerCase().trim();
     if (!query) {
       setResults(allArticles); // Show all if query is empty
