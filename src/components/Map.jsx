@@ -348,9 +348,19 @@ const Map = ({
       marker.setAnimation(null);
     });
 
-    // Highlight hovered spot
+    // Highlight hovered spot and open its info window
     if (hoveredSpot && markersRef.current[hoveredSpot._id]) {
-      markersRef.current[hoveredSpot._id].setAnimation(window.google.maps.Animation.BOUNCE);
+      const marker = markersRef.current[hoveredSpot._id];
+      const infoWindow = infoWindowsRef.current[hoveredSpot._id];
+      
+      // Set bounce animation
+      marker.setAnimation(window.google.maps.Animation.BOUNCE);
+      
+      // Close all other info windows
+      Object.values(infoWindowsRef.current).forEach(iw => iw.close());
+      
+      // Open this info window
+      infoWindow.open(map, marker);
     }
 
     // Open info window for clicked spot
