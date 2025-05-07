@@ -36,8 +36,17 @@ const BlogSearch = () => {
   const [showFloatingActions, setShowFloatingActions] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [displayPages, setDisplayPages] = useState([1, 2, 3]);
-  const [postsPerPage, setPostsPerPage] = useState(6);
+  const [postsPerPage, setPostsPerPage] = useState(4);
   const [sortOrder, setSortOrder] = useState('newest');
+
+  // Update searchQuery when URL query parameter 'q' changes
+  useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    const newQuery = queryParams.get('q') || '';
+    if (newQuery !== searchQuery) {
+      setSearchQuery(newQuery);
+    }
+  }, [location.search, searchQuery]); // Added searchQuery to dependencies to prevent potential loops if setSearchQuery itself caused a location change indirectly, though unlikely here.
 
   // Fetch all articles using the loader (used for filtering/fallback)
   useEffect(() => {
@@ -418,9 +427,9 @@ const BlogSearch = () => {
             )}
             
             {!loading && !error && results.length > 0 && (
-              <div className="blog-posts-grid">
+              <div className="blog-posts-grid mb-8">
                 {currentPosts.map((post) => (
-                  <article key={post.slug} className="blog-post-card">
+                  <article key={post.slug} className="blog-post-card bg-white">
                     {/* Image and Category Badge */}
                     <div className="blog-post-image">
                       <Link to={`/article/${post.slug}`}> 

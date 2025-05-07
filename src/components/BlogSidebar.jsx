@@ -102,10 +102,14 @@ const BlogSidebar = () => {
 
   return (
     <aside className="blog-sidebar">
-      <div className="blog-sidebar-section pb-6">
+      <div className="blog-sidebar-section">
         <h3 className="blog-sidebar-title">Search Recipes</h3>
-        <form className="blog-search-form mb-3" onSubmit={handleSearchSubmit}>
-          <input type="text" placeholder="Search Recipes..." name="search" />
+        <form onSubmit={handleSearchSubmit} className="blog-search-form">
+          <input
+            type="search"
+            name="search"
+            placeholder="Search recipes..."
+          />
           <button type="submit" className="text-blue-500">
             <i className="fas fa-search"></i>
           </button>
@@ -131,33 +135,34 @@ const BlogSidebar = () => {
             .sort((a, b) => (b.views || 0) - (a.views || 0))
             .slice(0, 3)
             .map(post => (
-              <li key={post.slug} className="blog-popular-post">
-                <Link to={`/article/${post.slug}`}>
-                  <img
-                    src={post.image}
+              <li key={post.slug} className="blog-popular-post flex items-start mb-4">
+                <Link to={`/article/${post.slug}`} className="flex-shrink-0 mr-3">
+                  <img 
+                    src={post.image} 
                     alt={post.title}
-                    className="blog-popular-post-image"
+                    className="blog-popular-post-image w-20 h-20 object-cover"
                     loading="lazy"
-                    onError={(e) => {
-                      e.target.onerror = null;
+                    onError={(e) => { 
+                      e.target.onerror = null; 
                       e.target.src = "/images/cookie-types/chocolate-chip.webp";
                     }}
+                    crossOrigin="anonymous"
                   />
                 </Link>
-                <div className="blog-popular-post-content">
-                  <h4>
-                    <Link to={`/article/${post.slug}`}>{post.title}</Link>
+                <div className="blog-popular-post-content flex flex-col justify-start text-left flex-grow">
+                  <h4 className="text-left font-semibold text-base mb-0.5">
+                    <Link to={`/article/${post.slug}`} className="hover:underline">{post.title}</Link>
                   </h4>
-                  <div>
+                  <div className="blog-popular-post-meta text-xs text-gray-600 leading-tight flex flex-col w-full text-left">
                     {post.publishedAt && (
-                      <span className="blog-popular-post-date">
+                      <div className="blog-popular-post-date w-full text-left">
                         {formatDate(post.publishedAt)}
-                      </span>
+                      </div>
                     )}
                     {post.views !== undefined && (
-                      <span className="blog-popular-post-views">
-                        <i className="fas fa-eye"></i> {formatViews(post.views)}
-                      </span>
+                      <div className="blog-popular-post-views w-full text-left">
+                        <i className="fas fa-eye mr-1"></i>{formatViews(post.views)}
+                      </div>
                     )}
                   </div>
                 </div>

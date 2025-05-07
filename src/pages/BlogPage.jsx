@@ -565,10 +565,12 @@ const BlogPage = () => {
                       </div>
                       <div className="blog-post-content">
                         <div className="blog-post-meta">
-                          <span className="blog-post-date">{post.date}</span>
-                          <span className="blog-post-views">
-                            <i className="fas fa-eye"></i> {post.views.toLocaleString()} views
-                          </span>
+                          {post.publishedAt && <span className="blog-post-date">{formatDate(post.publishedAt)}</span>}
+                          {post.views !== undefined && (
+                            <span className="blog-post-views">
+                              <i className="fas fa-eye"></i> {formatViews(post.views)}
+                            </span>
+                          )}
                         </div>
                         <h3 className="blog-post-title">
                           <Link to={`/article/${post.slug}`}>{post.title}</Link>
