@@ -348,6 +348,9 @@ const Map = ({
       marker.setAnimation(null);
     });
 
+    // Close all info windows first
+    Object.values(infoWindowsRef.current).forEach(iw => iw.close());
+
     // Highlight hovered spot and open its info window
     if (hoveredSpot && markersRef.current[hoveredSpot._id]) {
       const marker = markersRef.current[hoveredSpot._id];
@@ -356,10 +359,7 @@ const Map = ({
       // Set bounce animation
       marker.setAnimation(window.google.maps.Animation.BOUNCE);
       
-      // Close all other info windows
-      Object.values(infoWindowsRef.current).forEach(iw => iw.close());
-      
-      // Open this info window
+      // Open info window
       infoWindow.open(map, marker);
     }
 
@@ -367,9 +367,6 @@ const Map = ({
     if (clickedSpot && markersRef.current[clickedSpot._id]) {
       const marker = markersRef.current[clickedSpot._id];
       const infoWindow = infoWindowsRef.current[clickedSpot._id];
-      
-      // Close all other info windows
-      Object.values(infoWindowsRef.current).forEach(iw => iw.close());
       
       // Open this info window
       infoWindow.open(map, marker);
