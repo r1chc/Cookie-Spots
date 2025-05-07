@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { loadAllArticles } from '../utils/articleLoader';
+import { getCategoryCounts } from '../utils/categoryUtils';
 
 const BlogSidebar = () => {
   const navigate = useNavigate();
@@ -18,7 +19,8 @@ const BlogSidebar = () => {
     { name: 'Classic', image: '/images/cookie-types/snickerdoodle.webp' },
     { name: 'Specialty', image: '/images/cookie-types/red-velvet.webp' },
     { name: 'Seasonal', image: '/images/cookie-types/gingerbread.webp' },
-    { name: 'International', image: '/images/cookie-types/specialty.webp' },
+    { name: 'Healthy', image: '/images/cookie-types/almond-biscotti.webp' },
+    { name: 'International', image: '/images/cookie-types/sugar-cookie.webp' },
     { name: 'Sweet & Salty', image: '/images/cookie-types/peanut-butter.webp' },
     { name: 'Fruit', image: '/images/cookie-types/white-chocolate-cranberry.webp' }
   ];
@@ -31,17 +33,7 @@ const BlogSidebar = () => {
         setAllArticles(articles);
         
         // Calculate category counts
-        const counts = {};
-        categories.forEach(category => {
-          const categoryNameLower = category.name.toLowerCase();
-          counts[category.name] = articles.filter(post => 
-            (post.title && post.title.toLowerCase().includes(categoryNameLower)) ||
-            (post.category && post.category.toLowerCase().includes(categoryNameLower)) ||
-            (post.excerpt && post.excerpt.toLowerCase().includes(categoryNameLower)) ||
-            (post.tags && post.tags.some(tag => tag.toLowerCase().includes(categoryNameLower)))
-          ).length;
-        });
-        setCategoryCounts(counts);
+        setCategoryCounts(getCategoryCounts(articles, categories));
 
         // Calculate popular tags based on views and usage
         const tagScores = {};

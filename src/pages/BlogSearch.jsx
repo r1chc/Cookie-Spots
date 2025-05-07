@@ -8,6 +8,7 @@ import BlogSidebar from '../components/BlogSidebar';
 // Remove mockArticles import and generateSlug if not used elsewhere
 // import { mockArticles, generateSlug } from '../data/mockArticles'; 
 import { loadAllArticles } from '../utils/articleLoader'; // Import the loader
+import { isArticleInCategory, filterArticlesByCategory, getCategoryCounts } from '../utils/categoryUtils';
 
 // Define generateSlug locally if still needed, or move to utils
 const generateSlug = (title) => {
@@ -39,15 +40,6 @@ const BlogSearch = () => {
   const [postsPerPage, setPostsPerPage] = useState(4);
   const [sortOrder, setSortOrder] = useState('newest');
 
-  // Update searchQuery when URL query parameter 'q' changes
-  useEffect(() => {
-    const queryParams = new URLSearchParams(location.search);
-    const newQuery = queryParams.get('q') || '';
-    if (newQuery !== searchQuery) {
-      setSearchQuery(newQuery);
-    }
-  }, [location.search, searchQuery]); // Added searchQuery to dependencies to prevent potential loops if setSearchQuery itself caused a location change indirectly, though unlikely here.
-
   // Fetch all articles using the loader (used for filtering/fallback)
   useEffect(() => {
     const fetchArticles = async () => {
@@ -74,6 +66,79 @@ const BlogSearch = () => {
     fetchArticles();
   }, []); // Fetch articles on component mount
 
+  // Memoize categories for stability
+  const categories = useMemo(() => [
+      { name: 'Chocolate', image: '/images/cookie-types/chocolate-chip.webp' },
+      { name: 'Gluten-Free', image: '/images/cookie-types/sugar-cookie.webp' },
+      { name: 'No-Bake', image: '/images/cookie-types/oatmeal-raisin.webp' },
+      { name: 'Vegan', image: '/images/cookie-types/macaron.webp' },
+      { name: 'Classic', image: '/images/cookie-types/snickerdoodle.webp' },
+      { name: 'Specialty', image: '/images/cookie-types/red-velvet.webp' },
+      { name: 'Seasonal', image: '/images/cookie-types/gingerbread.webp' },
+      { name: 'Healthy', image: '/images/cookie-types/almond-biscotti.webp' },
+      { name: 'Sweet & Salty', image: '/images/cookie-types/peanut-butter.webp' },
+      { name: 'International', image: '/images/cookie-types/sugar-cookie.webp' },
+      { name: 'Fruit', image: '/images/cookie-types/white-chocolate-cranberry.webp' }
+  ], []);
+
+  // Update searchQuery when URL query parameter 'q' changes
+  useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    const newQuery = queryParams.get('q') || '';
+    if (newQuery !== searchQuery) {
+      setSearchQuery(newQuery);
+    }
+  }, [location.search, searchQuery]);
+
+  // Calculate category counts based on the full set of articles
+  const categoryCounts = useMemo(() => {
+    return getCategoryCounts(allArticles, categories);
+  }, [allArticles, categories]);
+
+  // Calculate popular tags based on the full set of articles
+  const popularTags = useMemo(() => {
+    const tagScores = {};
+    allArticles.forEach(post => {
+      if (post.tags) {
+        const tagPoints = (post.views || 0) / 100;
+        post.tags.forEach(tag => {
+          tagScores[tag] = (tagScores[tag] || 0) + tagPoints;
+        });
+      }
+    });
+    return Object.entries(tagScores)
+      .sort(([, a], [, b]) => b - a)
+      .map(([tag]) => tag)
+      .slice(0, 6); // Top 6 tags
+  }, [allArticles]);
+
+  // Sort results based on sortOrder
+  const sortedResults = useMemo(() => {
+    if (!results) return [];
+    
+    const sorted = [...results];
+    switch (sortOrder) {
+      case 'newest':
+        return sorted.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+      case 'oldest':
+        return sorted.sort((a, b) => new Date(a.publishedAt) - new Date(b.publishedAt));
+      case 'most_viewed':
+        return sorted.sort((a, b) => (b.views || 0) - (a.views || 0));
+      case 'least_viewed':
+        return sorted.sort((a, b) => (a.views || 0) - (b.views || 0));
+      case 'alphabetical':
+        return sorted.sort((a, b) => a.title.localeCompare(b.title));
+      default:
+        return sorted;
+    }
+  }, [results, sortOrder]);
+
+  // Calculate pagination values
+  const indexOfLastPost = currentPage * postsPerPage;
+  const indexOfFirstPost = indexOfLastPost - postsPerPage;
+  const currentPosts = sortedResults.slice(indexOfFirstPost, indexOfLastPost);
+  const totalPages = Math.ceil(sortedResults.length / postsPerPage);
+
   // Filter articles based on search query when query or articles change
   useEffect(() => {
     if (!allArticles || allArticles.length === 0) {
@@ -87,6 +152,19 @@ const BlogSearch = () => {
       return;
     }
 
+    // Check if query matches exactly with a category name
+    const categoryMatch = categories.find(
+      category => category.name.toLowerCase() === query
+    );
+
+    if (categoryMatch) {
+      // Use the consistent category filtering function
+      const filteredByCategory = filterArticlesByCategory(allArticles, categoryMatch.name);
+      setResults(filteredByCategory);
+      return;
+    }
+
+    // General search for other queries
     const filtered = allArticles.filter(article => 
       (article.title && article.title.toLowerCase().includes(query)) ||
       (article.category && article.category.toLowerCase().includes(query)) ||
@@ -96,7 +174,7 @@ const BlogSearch = () => {
     );
     setResults(filtered);
 
-  }, [searchQuery, allArticles]);
+  }, [searchQuery, allArticles, categories]);
 
   const handleSearchChange = (e) => {
     setSearchQuery(e.target.value);
@@ -128,50 +206,6 @@ const BlogSearch = () => {
     if (!views && views !== 0) return '0';
     return views.toLocaleString('en-US');
   };
-
-  // Memoize categories for stability
-  const categories = useMemo(() => [
-      { name: 'Chocolate', image: '/images/cookie-types/chocolate-chip.webp' },
-      { name: 'Gluten-Free', image: '/images/cookie-types/sugar-cookie.webp' },
-      { name: 'No-Bake', image: '/images/cookie-types/oatmeal-raisin.webp' },
-      { name: 'Vegan', image: '/images/cookie-types/macaron.webp' },
-      { name: 'Classic', image: '/images/cookie-types/snickerdoodle.webp' },
-      { name: 'Specialty', image: '/images/cookie-types/red-velvet.webp' },
-      { name: 'Seasonal', image: '/images/cookie-types/gingerbread.webp' },
-      { name: 'Healthy', image: '/images/cookie-types/almond-biscotti.webp' }
-  ], []);
-
-  // Calculate category counts based on the full set of articles
-  const categoryCounts = useMemo(() => {
-    const counts = {};
-    categories.forEach(category => {
-      const categoryNameLower = category.name.toLowerCase();
-      counts[category.name] = allArticles.filter(post => 
-          (post.title && post.title.toLowerCase().includes(categoryNameLower)) ||
-          (post.category && post.category.toLowerCase().includes(categoryNameLower)) ||
-          (post.excerpt && post.excerpt.toLowerCase().includes(categoryNameLower)) ||
-          (post.tags && post.tags.some(tag => tag.toLowerCase().includes(categoryNameLower)))
-      ).length;
-    });
-    return counts;
-  }, [allArticles, categories]);
-
-  // Calculate popular tags based on the full set of articles
-  const popularTags = useMemo(() => {
-    const tagScores = {};
-    allArticles.forEach(post => {
-      if (post.tags) {
-        const tagPoints = (post.views || 0) / 100;
-        post.tags.forEach(tag => {
-          tagScores[tag] = (tagScores[tag] || 0) + tagPoints;
-        });
-      }
-    });
-    return Object.entries(tagScores)
-      .sort(([, a], [, b]) => b - a)
-      .map(([tag]) => tag)
-      .slice(0, 6); // Top 6 tags
-  }, [allArticles]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -238,7 +272,7 @@ const BlogSearch = () => {
       newPages[1] = totalPages - 1;
       newPages[2] = totalPages;
       setDisplayPages(newPages);
-      setCurrentPage(totalPages - 1);
+      setCurrentPage(newPages[1]);
       scrollToSearchResults();
     }
   };
@@ -258,7 +292,7 @@ const BlogSearch = () => {
       newPages[1] = 2;
       newPages[2] = 3;
       setDisplayPages(newPages);
-      setCurrentPage(2);
+      setCurrentPage(newPages[1]);
       scrollToSearchResults();
     }
   };
@@ -302,33 +336,6 @@ const BlogSearch = () => {
     setCurrentPage(1);
     setDisplayPages([1, 2, 3]);
   };
-
-  // Sort results based on sortOrder
-  const sortedResults = useMemo(() => {
-    if (!results) return [];
-    
-    const sorted = [...results];
-    switch (sortOrder) {
-      case 'newest':
-        return sorted.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
-      case 'oldest':
-        return sorted.sort((a, b) => new Date(a.publishedAt) - new Date(b.publishedAt));
-      case 'most_viewed':
-        return sorted.sort((a, b) => (b.views || 0) - (a.views || 0));
-      case 'least_viewed':
-        return sorted.sort((a, b) => (a.views || 0) - (b.views || 0));
-      case 'alphabetical':
-        return sorted.sort((a, b) => a.title.localeCompare(b.title));
-      default:
-        return sorted;
-    }
-  }, [results, sortOrder]);
-
-  // Update currentPosts to use sortedResults
-  const indexOfLastPost = currentPage * postsPerPage;
-  const indexOfFirstPost = indexOfLastPost - postsPerPage;
-  const currentPosts = sortedResults.slice(indexOfFirstPost, indexOfLastPost);
-  const totalPages = Math.ceil(sortedResults.length / postsPerPage);
 
   return (
     <div className="blog-page-wrapper">

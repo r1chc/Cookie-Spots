@@ -9,6 +9,7 @@ import { loadAllArticles, getArticlesWithUpdatedViewCounts } from '../utils/arti
 import FloatingActionButtons from '../components/FloatingActionButtons';
 import SearchButton from '../components/SearchButton';
 import BlogSidebar from '../components/BlogSidebar';
+import { getCategoryCounts } from '../utils/categoryUtils';
 
 const BlogPage = () => {
   // Use the scroll restoration hook
@@ -81,25 +82,17 @@ const BlogPage = () => {
     if (!originalPosts || originalPosts.length === 0) return;
 
     // --- Calculate Category Counts (for both featured and sidebar) ---
-    const counts = {};
-    const sidebarCounts = {};
-    // Define categories structure here or import from a shared place
     const categoriesData = [
       { name: 'Chocolate' }, { name: 'Gluten-Free' }, { name: 'No-Bake' }, 
       { name: 'Vegan' }, { name: 'Classic' }, { name: 'Specialty' }, 
-      { name: 'Seasonal' }, { name: 'International' }, { name: 'Sweet & Salty' },
-      { name: 'Fruit' }
+      { name: 'Seasonal' }, { name: 'Healthy' }, { name: 'International' }, 
+      { name: 'Sweet & Salty' }, { name: 'Fruit' }
     ];
 
-    categoriesData.forEach(category => {
-      const categoryNameLower = category.name.toLowerCase();
-      // Count for both featured and sidebar using exact match
-      const count = originalPosts.filter(post => post.category.toLowerCase() === categoryNameLower).length;
-      sidebarCounts[category.name] = count;
-      counts[category.name] = count; // Use the same count for featured section
-    });
-    setCategoryCount(counts); // For featured section
-    setSidebarCategoryCount(sidebarCounts); // For sidebar list
+    // Get counts for both sets
+    const counts = getCategoryCounts(originalPosts, categoriesData);
+    setCategoryCount(counts);
+    setSidebarCategoryCount(counts);
 
     // --- Calculate Popular Tags ---
     const tagScores = {};
@@ -140,7 +133,10 @@ const BlogPage = () => {
     { name: 'Classic', image: '/images/cookie-types/snickerdoodle.webp', path: '/category/classic' },
     { name: 'Specialty', image: '/images/cookie-types/red-velvet.webp', path: '/category/specialty' },
     { name: 'Seasonal', image: '/images/cookie-types/gingerbread.webp', path: '/category/seasonal' },
-    { name: 'Healthy', image: '/images/cookie-types/almond-biscotti.webp', path: '/category/healthy' }
+    { name: 'Healthy', image: '/images/cookie-types/almond-biscotti.webp', path: '/category/healthy' },
+    { name: 'Sweet & Salty', image: '/images/cookie-types/peanut-butter.webp', path: '/category/sweet-salty' },
+    { name: 'International', image: '/images/cookie-types/sugar-cookie.webp', path: '/category/international' },
+    { name: 'Fruit', image: '/images/cookie-types/white-chocolate-cranberry.webp', path: '/category/fruit' }
   ];
 
   // Calculate current posts to display
@@ -179,6 +175,35 @@ const BlogPage = () => {
     setCurrentPage(1);
     setDisplayPages([1, 2, 3]);
   };
+
+  // Apply sorting effect when sortOrder changes
+  useEffect(() => {
+    if (!originalPosts || originalPosts.length === 0) return;
+    
+    const sorted = [...originalPosts];
+    switch (sortOrder) {
+      case 'newest':
+        sorted.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+        break;
+      case 'oldest':
+        sorted.sort((a, b) => new Date(a.publishedAt) - new Date(b.publishedAt));
+        break;
+      case 'most_viewed':
+        sorted.sort((a, b) => (b.views || 0) - (a.views || 0));
+        break;
+      case 'least_viewed':
+        sorted.sort((a, b) => (a.views || 0) - (b.views || 0));
+        break;
+      case 'alphabetical':
+        sorted.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      default:
+        // Default to newest first
+        sorted.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+    }
+    
+    setSortedPosts(sorted);
+  }, [originalPosts, sortOrder]);
 
   const formatDate = (dateString) => {
     try {
