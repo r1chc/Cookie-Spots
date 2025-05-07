@@ -247,10 +247,10 @@ const HomePage = ({ onSearch }) => {
       */}
 
       {/* Newsletter */}
-      <section className="py-12 bg-white">
+      <section className="py-12 bg-primary-600 text-white">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-2xl font-bold mb-2">Hungry? Let us feed you the latest</h2>
-          <p className="text-gray-600 mb-6">Cookie exclusives: amazing stories, hot tips, and free stuff you don't want to miss!</p>
+          <p className="mb-6">Cookie exclusives: amazing stories, hot tips, and free stuff you don't want to miss!</p>
           <form className="max-w-md mx-auto">
             <div className="flex">
               <input 
@@ -260,7 +260,7 @@ const HomePage = ({ onSearch }) => {
               />
               <button 
                 type="submit" 
-                className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-r-md"
+                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-r-md"
               >
                 Subscribe
               </button>
