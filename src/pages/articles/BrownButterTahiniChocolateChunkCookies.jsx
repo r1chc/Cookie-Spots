@@ -49,11 +49,11 @@ export const article = {
     <h2>Storage Tips</h2>
     <p>These cookies will keep in an airtight container at room temperature for up to 5 days. The unbaked cookie dough can be refrigerated for up to 3 days or frozen for up to 3 months. If frozen, you can bake the cookies directly from frozen—just add 1-2 minutes to the baking time.</p>
   `,
-  excerpt: "Elevate your chocolate chip cookie game with these sophisticated treats featuring brown butter, tahini, and chunks of dark chocolate.",
-  publishedAt: "2025-03-27T12:00:00Z", // March 27, 2025
-  category: "Chocolate",
-  image: "/images/cookie-types/chocolate-chip.webp", // Using existing image
-  views: 3850,
+  excerpt: "Experience the unforgettable flavor combination of nutty brown butter, rich tahini, and dark chocolate chunks in these extraordinary cookies.",
+  publishedAt: "2025-03-15T10:00:00Z", // March 15, 2025
+  category: "Sweet & Salty",
+  image: "/images/cookie-types/Brown Butter Tahini Chocolate Chunk Cookies.jpg",
+  views: 5350,
   author: "Daniel Chen",
   tags: ["chocolate", "tahini", "brown butter", "gourmet", "chocolate chunk"]
 };

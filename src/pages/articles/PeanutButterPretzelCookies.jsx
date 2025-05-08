@@ -73,11 +73,11 @@ export const article = {
     <h2>Storage</h2>
     <p>These cookies will keep in an airtight container at room temperature for up to 5 days. For longer storage, freeze the cookies without the caramel drizzle for up to 3 months, then thaw and add the drizzle before serving.</p>
   `,
-  excerpt: "The perfect sweet and salty treat: chewy peanut butter cookies loaded with crunchy pretzel pieces and drizzled with homemade salted caramel.",
-  publishedAt: "2025-04-17T13:15:00Z", // April 17, 2025
+  excerpt: "These irresistible peanut butter cookies with crunchy pretzel pieces and gooey salted caramel create the perfect sweet and salty treat.",
+  publishedAt: "2025-03-10T08:45:00Z", // March 10, 2025
   category: "Sweet & Salty",
-  image: "/images/cookie-types/peanut-butter.webp", // Using existing image
-  views: 3900,
+  image: "/images/cookie-types/Peanut Butter Pretzel Cookies with Salted Caramel.jpg",
+  views: 5980,
   author: "Jamie Wilson",
   tags: ["peanut butter", "pretzel", "salted caramel", "sweet and salty", "caramel"]
 };

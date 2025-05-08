@@ -81,12 +81,18 @@
 .article-image-container {
   margin: 0;
   width: 100%;
+  margin-bottom: 0.75rem;
 }
 
 .article-body {
-  padding: 0 2rem 2rem;
+  padding: 1rem 2rem 2rem;
   line-height: 1.8;
   color: #333;
+}
+
+/* Ensure proper spacing for headings after images */
+.article-body h2:first-child {
+  margin-top: 0;
 }
 
 .article-tags {
@@ -226,7 +232,11 @@
   
   .article-body, 
   .article-tags {
-    padding: 0 1.5rem 1.5rem;
+    padding: 0.75rem 1.5rem 1.5rem;
+  }
+  
+  .article-image-container {
+    margin-bottom: 0.5rem;
   }
 }
 
@@ -325,28 +335,38 @@
 
 @media (max-width: 480px) {
   .article-container {
-    padding: 0.5rem;
+    padding: 0.75rem;
+    width: 100%;
+    overflow-x: hidden;
   }
   
   .article-content {
+    width: 100%;
+    padding: 0;
+    overflow-x: hidden;
     border-radius: 8px;
   }
   
   .article-header {
-    padding: 1rem 0.75rem 0;
+    padding: 1.25rem 1rem 0;
   }
   
   .article-title {
-    font-size: 1.5rem;
+    font-size: 1.8rem;
+    margin-bottom: 1rem;
   }
   
   .article-body,
   .article-tags {
-    padding: 0 0.75rem 1rem;
+    padding: 0.75rem 1rem 1.25rem;
   }
   
+  .article-image-container {
+    margin-bottom: 0.5rem;
+  }
+
   .article-navigation-sections {
-    padding: 0 0.5rem;
+    padding: 1rem 0;
   }
   
   .article-navigation-sections .grid {
@@ -361,7 +381,7 @@
     flex-direction: column;
     gap: 0.5rem;
   }
-  
+
   .article-navigation-sections .blog-search-form button {
     width: 100%;
   }

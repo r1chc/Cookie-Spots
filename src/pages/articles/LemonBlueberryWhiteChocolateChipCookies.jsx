@@ -71,7 +71,7 @@ export const article = {
   excerpt: "Bright and refreshing cookies featuring the perfect combination of tangy lemon, sweet blueberries, and creamy white chocolate chips.",
   publishedAt: "2025-04-22T11:00:00Z", // April 22, 2025
   category: "Fruit",
-  image: "/images/cookie-types/white-chocolate-cranberry.webp", // Using existing image
+  image: "/images/cookie-types/Lemon Blueberry White Chocolate Chip Cookies.jpg",
   views: 3600,
   author: "Sophie Green",
   tags: ["lemon", "blueberry", "white chocolate", "fruit", "spring", "summer"]

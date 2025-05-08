@@ -54,11 +54,11 @@ export const article = {
     <h2>Serving and Storage</h2>
     <p>These shortbread cookies are perfect served with tea or coffee. They can be stored in an airtight container at room temperature for up to 1 week, or frozen for up to 3 months. The dough can also be frozen before baking - just add an extra minute or two to the baking time when cooking from frozen.</p>
   `,
-  excerpt: "Elegant gluten-free shortbread cookies made with almond flour and fresh rosemary - perfect for tea time or special occasions.",
-  publishedAt: "2025-03-25T14:15:00Z", // March 25, 2025
+  excerpt: "These gluten-free almond flour shortbread cookies with fresh rosemary offer a sophisticated, herbaceous twist on a classic shortbread.",
+  publishedAt: "2025-03-28T16:30:00Z", // March 28, 2025
   category: "Gluten-Free",
-  image: "/images/cookie-types/sugar-cookie.webp", // Using existing image
-  views: 2800,
+  image: "/images/cookie-types/Gluten-Free Almond Flour Shortbread with Rosemary.png",
+  views: 4120,
   author: "Claire Williams",
   tags: ["gluten-free", "almond flour", "shortbread", "rosemary", "herb", "elegant"]
 };

@@ -20,6 +20,8 @@ export async function loadAllArticles() {
       // Use eager: true to load them immediately and get the modules directly
       const articleModules = import.meta.glob('/src/pages/articles/*.jsx', { eager: true });
 
+      console.log('Debug - available article modules paths:', Object.keys(articleModules));
+      
       const articles = [];
       for (const path in articleModules) {
         // Skip the BaseArticle component file
@@ -31,6 +33,7 @@ export async function loadAllArticles() {
         // Ensure the module has an 'article' export
         if (module && module.article) {
           articles.push(module.article);
+          console.log('Debug - loaded article:', module.article.title, module.article.slug);
         } else {
           console.warn(`Article data not found or missing 'article' export in ${path}`);
         }

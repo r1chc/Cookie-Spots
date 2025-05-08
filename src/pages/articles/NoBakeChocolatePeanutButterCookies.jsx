@@ -51,11 +51,11 @@ export const article = {
     <h2>Storage</h2>
     <p>Store these no-bake cookies in an airtight container at room temperature for up to 1 week, or refrigerate for up to 2 weeks. They can also be frozen for up to 3 months - just thaw at room temperature before serving.</p>
   `,
-  excerpt: "Quick and easy no-bake cookies combining the classic flavors of chocolate and peanut butter - ready in minutes with no oven required!",
-  publishedAt: "2025-03-20T11:45:00Z", // March 20, 2025
+  excerpt: "These quick and easy no-bake chocolate peanut butter cookies come together in just minutes - perfect for when you need a chocolate fix without turning on the oven!",
+  publishedAt: "2025-03-05T16:15:00Z", // March 5, 2025
   category: "No-Bake",
-  image: "/images/cookie-types/chocolate-chip.webp", // Using existing image
-  views: 4100,
+  image: "/images/cookie-types/No-Bake Chocolate Peanut Butter Cookies.jpg",
+  views: 6430,
   author: "Jessica Baker",
   tags: ["no-bake", "chocolate", "peanut butter", "quick", "easy", "oatmeal"]
 };

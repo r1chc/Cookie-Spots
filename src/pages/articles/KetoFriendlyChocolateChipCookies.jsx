@@ -59,8 +59,8 @@ export const article = {
   `,
   excerpt: "Satisfy your cookie cravings while staying in ketosis with these delicious low-carb chocolate chip cookies.",
   publishedAt: "2025-04-03T15:45:00Z", // April 3, 2025
-  category: "Specialty",
-  image: "/images/cookie-types/chocolate-chip.webp", // Using existing image
+  category: "Keto",
+  image: "/images/cookie-types/Keto-Friendly Chocolate Chip Cookies.png",
   views: 5200,
   author: "Dr. Sarah Wilson",
   tags: ["keto", "low-carb", "sugar-free", "gluten-free", "chocolate chip", "almond flour"]

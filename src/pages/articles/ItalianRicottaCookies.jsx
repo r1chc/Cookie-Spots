@@ -64,11 +64,11 @@ export const article = {
     <h2>Storage</h2>
     <p>These cookies will stay soft and fresh in an airtight container at room temperature for up to 4 days. They can also be frozen unglazed for up to 3 months. Thaw completely before glazing.</p>
   `,
-  excerpt: "Delightfully soft and tender Italian ricotta cookies topped with a bright lemon glaze - a beloved Italian-American classic.",
-  publishedAt: "2025-04-08T13:00:00Z", // April 8, 2025
+  excerpt: "These delicate Italian ricotta cookies with refreshing lemon glaze are perfect for spring gatherings, tea parties, or simply enjoying with your afternoon espresso.",
+  publishedAt: "2025-03-25T14:00:00Z", // March 25, 2025
   category: "International",
-  image: "/images/cookie-types/sugar-cookie.webp", // Using existing image
-  views: 3400,
+  image: "/images/cookie-types/Italian Ricotta Cookies with Lemon Glaze.jpg",
+  views: 3570,
   author: "Maria Rossi",
   tags: ["Italian", "ricotta", "lemon", "soft", "cakey", "glazed", "international"]
 };

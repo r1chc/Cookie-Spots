@@ -75,7 +75,7 @@ export const article = {
   excerpt: "Experience the luxury of Dubai in cookie form with these decadent chocolate cookies featuring crispy kataifi pastry and rich pistachio paste, finished with a touch of gold.",
   publishedAt: "2025-05-07T14:00:00Z", // May 7, 2025 (most recent)
   category: "Specialty",
-  image: "/images/cookie-types/specialty.webp", // Using existing image
+  image: "/images/cookie-types/Dubai Chocolate Cookie - Kataifi & Pistachio Luxury.jpg",
   views: 9500, // Highest view count as requested
   author: "Chef Amira Hassan",
   tags: ["chocolate", "kataifi", "pistachio", "Dubai", "Middle Eastern", "specialty", "gourmet", "luxury"]

@@ -63,11 +63,11 @@ export const article = {
     
     <p>Store in an airtight container at room temperature for up to 1 week, or freeze unglazed cookies for up to 3 months.</p>
   `,
-  excerpt: "Delicate shortbread cookies infused with cardamom and rose water, studded with pistachios for a Middle Eastern-inspired treat.",
-  publishedAt: "2025-04-10T09:45:00Z", // April 10, 2025
+  excerpt: "These elegant shortbread cookies infused with cardamom and rose water will transport you to the Middle East with every bite.",
+  publishedAt: "2025-04-05T09:15:00Z", // April 5, 2025
   category: "International",
-  image: "/images/cookie-types/sugar-cookie.webp", // Using existing image
-  views: 2700,
+  image: "/images/cookie-types/Cardamom Rose Water Shortbread with Pistachios.jpg",
+  views: 3920,
   author: "Layla Ahmed",
   tags: ["cardamom", "rose water", "pistachio", "shortbread", "Middle Eastern", "international", "floral"]
 };

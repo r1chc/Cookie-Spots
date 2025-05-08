@@ -32,7 +32,7 @@ const BlogPage = () => {
   const [isLargeTablet, setIsLargeTablet] = useState(window.innerWidth <= 992 && window.innerWidth > 770);
   const [categoryCount, setCategoryCount] = useState({});
   const [sidebarCategoryCount, setSidebarCategoryCount] = useState({});
-  const totalPages = Math.ceil(Math.max(0, sortedPosts.length - 1) / postsPerPage);
+  const totalPages = Math.ceil((sortedPosts.length - 1) / postsPerPage);
   const navigate = useNavigate();
   const [sliderPosition, setSliderPosition] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -54,6 +54,14 @@ const BlogPage = () => {
       setLoading(true);
       try {
         const loadedPosts = await loadAllArticles();
+        
+        // Debug log to see all articles
+        console.log("All loaded articles:", loadedPosts.map(post => ({
+          title: post.title,
+          slug: post.slug,
+          date: post.publishedAt,
+          category: post.category
+        })));
         
         // Initial sort (newest first)
         const initialSortedPosts = [...loadedPosts].sort((a, b) => 
@@ -85,7 +93,7 @@ const BlogPage = () => {
     const categoriesData = [
       { name: 'Chocolate' }, { name: 'Gluten-Free' }, { name: 'No-Bake' }, 
       { name: 'Vegan' }, { name: 'Classic' }, { name: 'Specialty' }, 
-      { name: 'Seasonal' }, { name: 'Healthy' }, { name: 'International' }, 
+      { name: 'Seasonal' }, { name: 'Keto' }, { name: 'International' }, 
       { name: 'Sweet & Salty' }, { name: 'Fruit' }
     ];
 
@@ -129,22 +137,26 @@ const BlogPage = () => {
     { name: 'Chocolate', image: '/images/cookie-types/chocolate-chip.webp', path: '/category/chocolate' },
     { name: 'Gluten-Free', image: '/images/cookie-types/sugar-cookie.webp', path: '/category/gluten-free' },
     { name: 'No-Bake', image: '/images/cookie-types/oatmeal-raisin.webp', path: '/category/no-bake' },
-    { name: 'Vegan', image: '/images/cookie-types/macaron.webp', path: '/category/vegan' },
+    { name: 'Vegan', image: '/images/cookie-types/Vegan Coconut Oatmeal Cookies with Maple Glaze.png', path: '/category/vegan' },
     { name: 'Classic', image: '/images/cookie-types/snickerdoodle.webp', path: '/category/classic' },
     { name: 'Specialty', image: '/images/cookie-types/red-velvet.webp', path: '/category/specialty' },
     { name: 'Seasonal', image: '/images/cookie-types/gingerbread.webp', path: '/category/seasonal' },
-    { name: 'Healthy', image: '/images/cookie-types/almond-biscotti.webp', path: '/category/healthy' },
+    { name: 'Keto', image: '/images/cookie-types/Keto-Friendly Chocolate Chip Cookies.png', path: '/category/keto' },
     { name: 'Sweet & Salty', image: '/images/cookie-types/peanut-butter.webp', path: '/category/sweet-salty' },
-    { name: 'International', image: '/images/cookie-types/sugar-cookie.webp', path: '/category/international' },
-    { name: 'Fruit', image: '/images/cookie-types/white-chocolate-cranberry.webp', path: '/category/fruit' }
+    { name: 'International', image: '/images/cookie-types/Dubai Chocolate Cookie - Kataifi & Pistachio Luxury.jpg', path: '/category/international' },
+    { name: 'Fruit', image: '/images/cookie-types/Lemon Blueberry White Chocolate Chip Cookies.jpg', path: '/category/fruit' }
   ];
 
   // Calculate current posts to display
-  const indexOfLastPost = currentPage * postsPerPage;
-  const indexOfFirstPost = currentPage === 1 ? 1 : indexOfLastPost - postsPerPage;
-  const currentPosts = currentPage === 1 
-    ? sortedPosts.slice(1, postsPerPage + 1)
-    : sortedPosts.slice(indexOfFirstPost, indexOfLastPost);
+  // Page 1 shows the featured post (index 0) separately, and then posts 1-4 (if postsPerPage=4)
+  // Page 2 should show posts 5-8, Page 3 should show posts 9-12, etc.
+  const featuredPost = sortedPosts[0]; // First post is always the featured one
+  
+  // For page 1, display posts 1 to postsPerPage (not including featured post)
+  // For other pages, continue from where page 1 ended
+  const startIndex = currentPage === 1 ? 1 : 1 + (currentPage - 1) * postsPerPage;
+  const endIndex = startIndex + postsPerPage;
+  const currentPosts = sortedPosts.slice(startIndex, endIndex);
 
   const handleImageLoad = (postId) => {
     setImageLoadingStates(prev => ({
@@ -542,72 +554,70 @@ const BlogPage = () => {
                 {currentPage === 1 && (
                   <article className="blog-post blog-featured-post">
                     <div className="blog-featured-image">
-                      <Link to={`/article/${sortedPosts[0].slug}`}>
+                      <Link to={`/article/${featuredPost.slug}`}>
                         <img
-                          src={sortedPosts[0].image}
-                          alt={sortedPosts[0].title}
+                          src={featuredPost.image}
+                          alt={featuredPost.title}
                           loading="eager"
-                          onLoad={() => handleImageLoad(sortedPosts[0].id)}
-                          onError={(e) => handleImageError(sortedPosts[0].id, e)}
+                          onLoad={() => handleImageLoad(featuredPost.id)}
+                          onError={(e) => handleImageError(featuredPost.id, e)}
                           crossOrigin="anonymous"
                         />
                       </Link>
-                      <div className="blog-post-category-badge">{sortedPosts[0].category}</div>
+                      <div className="blog-post-category-badge">{featuredPost.category}</div>
                     </div>
                     <div className="blog-featured-content">
                       <div className="blog-post-meta">
-                        <span className="blog-post-date">{formatDate(sortedPosts[0].publishedAt)}</span>
+                        <span className="blog-post-date">{formatDate(featuredPost.publishedAt)}</span>
                         <span className="blog-post-views">
-                          <i className="fas fa-eye"></i> {sortedPosts[0].views.toLocaleString()} views
+                          <i className="fas fa-eye"></i> {featuredPost.views.toLocaleString()} views
                         </span>
                       </div>
                       <h3 className="blog-post-title">
-                        <Link to={`/article/${sortedPosts[0].slug}`}>{sortedPosts[0].title}</Link>
+                        <Link to={`/article/${featuredPost.slug}`}>{featuredPost.title}</Link>
                       </h3>
-                      <p className="blog-post-excerpt">{sortedPosts[0].excerpt}</p>
-                      <Link to={`/article/${sortedPosts[0].slug}`} className="blog-read-more">
+                      <p className="blog-post-excerpt">{featuredPost.excerpt}</p>
+                      <Link to={`/article/${featuredPost.slug}`} className="blog-read-more">
                         Read Recipe <i className="fas fa-arrow-right"></i>
                       </Link>
                     </div>
                   </article>
                 )}
 
-                {currentPosts
-                  .filter((post, index) => currentPage === 1 ? index > 0 : true)
-                  .map(post => (
-                    <article key={post.id} className="blog-post">
-                      <div className={`blog-post-image ${imageLoadingStates[post.id] ? 'loading' : ''}`}>
-                        <Link to={`/article/${post.slug}`}>
-                          <img
-                            src={post.image}
-                            alt={post.title}
-                            loading="eager"
-                            onLoad={() => handleImageLoad(post.id)}
-                            onError={(e) => handleImageError(post.id, e)}
-                            crossOrigin="anonymous"
-                          />
-                        </Link>
-                        <div className="blog-post-category-badge">{post.category}</div>
+                {currentPosts.map(post => (
+                  <article key={post.id} className="blog-post">
+                    <div className={`blog-post-image ${imageLoadingStates[post.id] ? 'loading' : ''}`}>
+                      <Link to={`/article/${post.slug}`}>
+                        <img
+                          src={post.image}
+                          alt={post.title}
+                          loading="eager"
+                          onLoad={() => handleImageLoad(post.id)}
+                          onError={(e) => handleImageError(post.id, e)}
+                          crossOrigin="anonymous"
+                        />
+                      </Link>
+                      <div className="blog-post-category-badge">{post.category}</div>
+                    </div>
+                    <div className="blog-post-content">
+                      <div className="blog-post-meta">
+                        {post.publishedAt && <span className="blog-post-date">{formatDate(post.publishedAt)}</span>}
+                        {post.views !== undefined && (
+                          <span className="blog-post-views">
+                            <i className="fas fa-eye"></i> {formatViews(post.views)}
+                          </span>
+                        )}
                       </div>
-                      <div className="blog-post-content">
-                        <div className="blog-post-meta">
-                          {post.publishedAt && <span className="blog-post-date">{formatDate(post.publishedAt)}</span>}
-                          {post.views !== undefined && (
-                            <span className="blog-post-views">
-                              <i className="fas fa-eye"></i> {formatViews(post.views)}
-                            </span>
-                          )}
-                        </div>
-                        <h3 className="blog-post-title">
-                          <Link to={`/article/${post.slug}`}>{post.title}</Link>
-                        </h3>
-                        <p className="blog-post-excerpt">{post.excerpt}</p>
-                        <Link to={`/article/${post.slug}`} className="blog-read-more">
-                          Read Recipe <i className="fas fa-arrow-right"></i>
-                        </Link>
-                      </div>
-                    </article>
-                  ))}
+                      <h3 className="blog-post-title">
+                        <Link to={`/article/${post.slug}`}>{post.title}</Link>
+                      </h3>
+                      <p className="blog-post-excerpt">{post.excerpt}</p>
+                      <Link to={`/article/${post.slug}`} className="blog-read-more">
+                        Read Recipe <i className="fas fa-arrow-right"></i>
+                      </Link>
+                    </div>
+                  </article>
+                ))}
               </div>
 
               {/* Pagination */}

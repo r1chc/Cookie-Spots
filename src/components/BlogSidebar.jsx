@@ -15,14 +15,14 @@ const BlogSidebar = () => {
     { name: 'Chocolate', image: '/images/cookie-types/chocolate-chip.webp' },
     { name: 'Gluten-Free', image: '/images/cookie-types/sugar-cookie.webp' },
     { name: 'No-Bake', image: '/images/cookie-types/oatmeal-raisin.webp' },
-    { name: 'Vegan', image: '/images/cookie-types/macaron.webp' },
+    { name: 'Vegan', image: '/images/cookie-types/Vegan Coconut Oatmeal Cookies with Maple Glaze.png' },
     { name: 'Classic', image: '/images/cookie-types/snickerdoodle.webp' },
     { name: 'Specialty', image: '/images/cookie-types/red-velvet.webp' },
     { name: 'Seasonal', image: '/images/cookie-types/gingerbread.webp' },
-    { name: 'Healthy', image: '/images/cookie-types/almond-biscotti.webp' },
-    { name: 'International', image: '/images/cookie-types/sugar-cookie.webp' },
+    { name: 'Keto', image: '/images/cookie-types/Keto-Friendly Chocolate Chip Cookies.png' },
+    { name: 'International', image: '/images/cookie-types/Dubai Chocolate Cookie - Kataifi & Pistachio Luxury.jpg' },
     { name: 'Sweet & Salty', image: '/images/cookie-types/peanut-butter.webp' },
-    { name: 'Fruit', image: '/images/cookie-types/white-chocolate-cranberry.webp' }
+    { name: 'Fruit', image: '/images/cookie-types/Lemon Blueberry White Chocolate Chip Cookies.jpg' }
   ];
 
   // Load articles and calculate statistics
@@ -62,12 +62,43 @@ const BlogSidebar = () => {
     loadArticles();
   }, []);
 
+  // Function to scroll to the top of the Search Recipes section
+  const scrollToArticlesTop = () => {
+    const searchSection = document.querySelector('.blog-main-content > div:first-child');
+    if (searchSection) {
+      const isMobile = window.innerWidth <= 770;
+      const isTablet = window.innerWidth > 770 && window.innerWidth <= 1024;
+      const offset = isMobile ? 70 : isTablet ? 85 : 100;
+      const elementPosition = searchSection.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - offset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
+    }
+  };
+
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     const searchInput = e.target.elements.search.value;
     if (searchInput.trim()) {
       navigate(`/blogsearch?q=${encodeURIComponent(searchInput.trim())}`);
+      // Add small timeout to ensure navigation occurs before scrolling
+      setTimeout(scrollToArticlesTop, 100);
     }
+  };
+
+  const handleTagClick = (tag) => {
+    navigate(`/blogsearch?q=${encodeURIComponent(tag)}`);
+    // Add small timeout to ensure navigation occurs before scrolling
+    setTimeout(scrollToArticlesTop, 100);
+  };
+
+  const handleCategoryClick = (categoryName) => {
+    navigate(`/blogsearch?q=${encodeURIComponent(categoryName)}`);
+    // Add small timeout to ensure navigation occurs before scrolling
+    setTimeout(scrollToArticlesTop, 100);
   };
 
   const formatDate = (dateString) => {
@@ -113,7 +144,7 @@ const BlogSidebar = () => {
           {popularTags.map((tag, index) => (
             <button
               key={index}
-              onClick={() => navigate(`/blogsearch?q=${encodeURIComponent(tag)}`)}
+              onClick={() => handleTagClick(tag)}
               className="blog-tag text-sm py-1 px-2"
             >
               {tag}
@@ -170,10 +201,16 @@ const BlogSidebar = () => {
         <ul className="blog-categories-list">
           {categories.map(category => (
             <li key={category.name}>
-              <Link to={`/blogsearch?q=${encodeURIComponent(category.name)}`}>
+              <a 
+                href="#" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleCategoryClick(category.name);
+                }}
+              >
                 {category.name}
                 <span className="count">{categoryCounts[category.name] || 0}</span>
-              </Link>
+              </a>
             </li>
           ))}
         </ul>

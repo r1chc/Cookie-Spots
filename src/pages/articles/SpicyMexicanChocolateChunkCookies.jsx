@@ -62,11 +62,11 @@ export const article = {
     <h2>Storage</h2>
     <p>Store these cookies in an airtight container at room temperature for up to 5 days. The flavor of the spices actually intensifies slightly after a day or two. The dough can also be frozen for up to 3 months—either freeze the prepared dough in a block, or pre-form cookie dough balls and freeze them individually for baking on demand.</p>
   `,
-  excerpt: "Bold and complex chocolate cookies with a warming blend of cinnamon and chili peppers inspired by traditional Mexican chocolate.",
-  publishedAt: "2025-04-15T16:30:00Z", // April 15, 2025
+  excerpt: "Spice up your cookie game with these bold Mexican Chocolate Chunk Cookies featuring a perfect balance of heat and sweet.",
+  publishedAt: "2025-03-22T14:30:00Z", // March 22, 2025
   category: "International",
-  image: "/images/cookie-types/double-chocolate.webp", // Using existing image
-  views: 4300,
+  image: "/images/cookie-types/Spicy Mexican Chocolate Chunk Cookies.jpg",
+  views: 4730,
   author: "Carlos Mendez",
   tags: ["chocolate", "spicy", "Mexican", "cinnamon", "cayenne", "international"]
 };

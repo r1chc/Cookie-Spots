@@ -60,7 +60,7 @@ export const article = {
   excerpt: "Delicious plant-based coconut oatmeal cookies drizzled with a sweet maple glaze - completely vegan and incredibly satisfying.",
   publishedAt: "2025-03-18T09:30:00Z", // March 18, 2025
   category: "Vegan",
-  image: "/images/cookie-types/oatmeal-raisin.webp", // Using existing image
+  image: "/images/cookie-types/Vegan Coconut Oatmeal Cookies with Maple Glaze.png",
   views: 3200,
   author: "Emma Green",
   tags: ["vegan", "coconut", "oatmeal", "plant-based", "dairy-free", "egg-free", "maple"]

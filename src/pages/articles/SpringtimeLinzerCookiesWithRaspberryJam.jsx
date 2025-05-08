@@ -62,7 +62,7 @@ export const article = {
   excerpt: "Welcome spring with these beautiful Linzer cookies featuring spring-themed cutouts and bright raspberry jam filling.",
   publishedAt: "2025-04-01T10:30:00Z", // April 1, 2025
   category: "Seasonal",
-  image: "/images/cookie-types/sugar-cookie.webp", // Using existing image
+  image: "/images/cookie-types/Springtime Linzer Cookies with Raspberry Jam.jpg",
   views: 2950,
   author: "Emily Johnson",
   tags: ["linzer", "raspberry", "spring", "seasonal", "almond", "jam"]

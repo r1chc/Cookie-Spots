@@ -141,10 +141,10 @@ const ArticlePage = () => {
     { name: 'Classic', image: '/images/cookie-types/snickerdoodle.webp', path: '/category/classic' },
     { name: 'Specialty', image: '/images/cookie-types/red-velvet.webp', path: '/category/specialty' },
     { name: 'Seasonal', image: '/images/cookie-types/gingerbread.webp', path: '/category/seasonal' },
-    { name: 'Healthy', image: '/images/cookie-types/almond-biscotti.webp', path: '/category/healthy' },
+    { name: 'Keto', image: '/images/cookie-types/Keto-Friendly Chocolate Chip Cookies.png', path: '/category/keto' },
     { name: 'Sweet & Salty', image: '/images/cookie-types/peanut-butter.webp', path: '/category/sweet-salty' },
-    { name: 'International', image: '/images/cookie-types/sugar-cookie.webp', path: '/category/international' },
-    { name: 'Fruit', image: '/images/cookie-types/white-chocolate-cranberry.webp', path: '/category/fruit' }
+    { name: 'International', image: '/images/cookie-types/Dubai Chocolate Cookie - Kataifi & Pistachio Luxury.jpg', path: '/category/international' },
+    { name: 'Fruit', image: '/images/cookie-types/Lemon Blueberry White Chocolate Chip Cookies.jpg', path: '/category/fruit' }
   ];
 
   // Function to count articles that match a category

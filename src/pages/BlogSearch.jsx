@@ -71,14 +71,14 @@ const BlogSearch = () => {
       { name: 'Chocolate', image: '/images/cookie-types/chocolate-chip.webp' },
       { name: 'Gluten-Free', image: '/images/cookie-types/sugar-cookie.webp' },
       { name: 'No-Bake', image: '/images/cookie-types/oatmeal-raisin.webp' },
-      { name: 'Vegan', image: '/images/cookie-types/macaron.webp' },
+      { name: 'Vegan', image: '/images/cookie-types/Vegan Coconut Oatmeal Cookies with Maple Glaze.jpg' },
       { name: 'Classic', image: '/images/cookie-types/snickerdoodle.webp' },
       { name: 'Specialty', image: '/images/cookie-types/red-velvet.webp' },
       { name: 'Seasonal', image: '/images/cookie-types/gingerbread.webp' },
-      { name: 'Healthy', image: '/images/cookie-types/almond-biscotti.webp' },
+      { name: 'Keto', image: '/images/cookie-types/Keto-Friendly Chocolate Chip Cookies.png' },
       { name: 'Sweet & Salty', image: '/images/cookie-types/peanut-butter.webp' },
-      { name: 'International', image: '/images/cookie-types/sugar-cookie.webp' },
-      { name: 'Fruit', image: '/images/cookie-types/white-chocolate-cranberry.webp' }
+      { name: 'International', image: '/images/cookie-types/Dubai Chocolate Cookie - Kataifi & Pistachio Luxury.jpg' },
+      { name: 'Fruit', image: '/images/cookie-types/Lemon Blueberry White Chocolate Chip Cookies.jpg' }
   ], []);
 
   // Update searchQuery when URL query parameter 'q' changes
@@ -215,6 +215,8 @@ const BlogSearch = () => {
     e.preventDefault();
     const searchInput = e.target.elements.search.value;
     navigate(`/blogsearch?q=${encodeURIComponent(searchInput)}`);
+    // Add small timeout to ensure navigation occurs before scrolling
+    setTimeout(scrollToSearchResults, 100);
   };
 
   // Effect for showing/hiding floating action buttons on scroll
@@ -246,12 +248,12 @@ const BlogSearch = () => {
   };
 
   const scrollToSearchResults = () => {
-    const searchResultsSection = document.querySelector('.blog-posts-grid');
-    if (searchResultsSection) {
+    const searchSection = document.querySelector('.blog-main-content > div:first-child');
+    if (searchSection) {
       const isMobile = window.innerWidth <= 770;
       const isTablet = window.innerWidth > 770 && window.innerWidth <= 1024;
       const offset = isMobile ? 70 : isTablet ? 85 : 100;
-      const elementPosition = searchResultsSection.getBoundingClientRect().top;
+      const elementPosition = searchSection.getBoundingClientRect().top;
       const offsetPosition = elementPosition + window.pageYOffset - offset;
 
       window.scrollTo({
@@ -259,6 +261,12 @@ const BlogSearch = () => {
         behavior: 'smooth'
       });
     }
+  };
+
+  const handleCategoryClick = (categoryName) => {
+    navigate(`/blogsearch?q=${encodeURIComponent(categoryName)}`);
+    // Add small timeout to ensure navigation occurs before scrolling
+    setTimeout(scrollToSearchResults, 100);
   };
 
   const handleDoubleChevronRight = () => {
@@ -364,6 +372,8 @@ const BlogSearch = () => {
               <form onSubmit={(e) => { 
                 e.preventDefault(); 
                 navigate(`/blogsearch?q=${encodeURIComponent(searchQuery)}`);
+                // Add small timeout to ensure navigation occurs before scrolling
+                setTimeout(scrollToSearchResults, 100);
               }} className="flex">
                 <input
                   type="search"
@@ -427,7 +437,7 @@ const BlogSearch = () => {
                   {categories.slice(0, 4).map((category, index) => (
                     <button 
                       key={index} 
-                      onClick={() => navigate(`/blogsearch?q=${encodeURIComponent(category.name)}`)}
+                      onClick={() => handleCategoryClick(category.name)}
                       className="px-4 py-2 bg-primary-100 text-primary-700 rounded-full hover:bg-primary-200 transition"
                     >
                       {category.name}
