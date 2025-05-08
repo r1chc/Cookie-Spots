@@ -1,97 +1,103 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 // Remove mockArticles import
 // import { mockArticles } from '../data/mockArticles';
-import { loadAllArticles } from '../utils/articleLoader'; // Import the new loader
+import { loadAllArticles, updateArticleViewCount } from '../utils/articleLoader'; // Import the new loader and update function
 
-const VIEWS_STORAGE_KEY = 'article_views';
+// Only store the last view timestamps to prevent spam
 const LAST_VIEW_STORAGE_KEY = 'last_article_views';
 
 const useArticleViews = (articleSlug) => {
-  const [views, setViews] = useState(0); // Initialize views to 0 initially
-  const [baseViews, setBaseViews] = useState(0); // State to hold base views once loaded
+  const [views, setViews] = useState(0);
+  const viewIncremented = useRef(false);
+  const initialViewsLoaded = useRef(false);
 
-  // Effect to load base views from dynamic loader
-  useEffect(() => {
-    if (!articleSlug) return; // Don't run if slug is not available yet
-
-    let isMounted = true;
-
-    const fetchBaseViews = async () => {
-      try {
-        const allArticles = await loadAllArticles();
-        const article = allArticles.find(a => a.slug === articleSlug);
-        if (isMounted) {
-          setBaseViews(article ? article.views : 0);
-        }
-      } catch (error) {
-        console.error("Error fetching base views for article:", articleSlug, error);
-        if (isMounted) {
-          setBaseViews(0); // Set base views to 0 on error
-        }
-      }
-    };
-
-    fetchBaseViews();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [articleSlug]);
-
-  // Effect to load additional views and update total views
-  useEffect(() => {
-    if (!articleSlug) return; // Don't run if slug is not available yet
-
-    const storedViews = localStorage.getItem(VIEWS_STORAGE_KEY);
-    const viewsData = storedViews ? JSON.parse(storedViews) : {};
-    const additionalViews = viewsData[articleSlug] || 0;
-
-    // Update total views once base views are set
-    setViews(baseViews + additionalViews);
-
-  }, [articleSlug, baseViews]); // Depend on baseViews now
-
-  // Effect to track article view (increment logic remains mostly the same)
+  // Load the initial view count
   useEffect(() => {
     if (!articleSlug) return;
 
-    // Delay tracking slightly to ensure base views are likely loaded
-    const timer = setTimeout(() => {
+    let isMounted = true;
+    
+    const loadInitialViews = async () => {
+      try {
+        const allArticles = await loadAllArticles();
+        const article = allArticles.find(a => a.slug === articleSlug || a.id === articleSlug);
+        
+        if (isMounted && article) {
+          console.log(`Initial views for ${articleSlug}: ${article.views}`);
+          setViews(article.views || 0);
+          initialViewsLoaded.current = true;
+        }
+      } catch (error) {
+        console.error("Error fetching views for article:", articleSlug, error);
+      }
+    };
+
+    loadInitialViews();
+
+    // Listen for view updates from other components
+    const handleViewsUpdate = (e) => {
+      const { articleId, views: newViews } = e.detail;
+      
+      // Match on either slug or ID
+      if ((articleId === articleSlug || parseInt(articleId) === parseInt(articleSlug)) && isMounted) {
+        console.log(`Updating views for ${articleSlug} to ${newViews}`);
+        setViews(newViews);
+      }
+    };
+
+    window.addEventListener('articleViewsUpdated', handleViewsUpdate);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('articleViewsUpdated', handleViewsUpdate);
+    };
+  }, [articleSlug]);
+
+  // Increment the view count - separate effect to run once after initial load
+  useEffect(() => {
+    // Only increment if we have a slug and initial data is loaded
+    if (!articleSlug || !initialViewsLoaded.current || viewIncremented.current) return;
+    
+    console.log(`Checking whether to increment view for ${articleSlug}`);
+    
+    const incrementViewOnce = () => {
+      // Check if we should increment (not viewed in last 30 min)
       const lastViewsData = localStorage.getItem(LAST_VIEW_STORAGE_KEY);
       const lastViews = lastViewsData ? JSON.parse(lastViewsData) : {};
       const lastViewTime = lastViews[articleSlug] || 0;
       const now = Date.now();
-
-      // Only count a view if it's been more than 30 minutes since last view
-      if (now - lastViewTime > 30 * 60 * 1000) {
-        const storedViews = localStorage.getItem(VIEWS_STORAGE_KEY);
-        const viewsData = storedViews ? JSON.parse(storedViews) : {};
-        
-        // Increment additional views
-        const newAdditionalViews = (viewsData[articleSlug] || 0) + 1;
-        viewsData[articleSlug] = newAdditionalViews;
-        
-        // Update last view time
+      
+      // For testing, make this a shorter interval (e.g., 10 seconds)
+      // In production, use 30 minutes: 30 * 60 * 1000
+      const TEST_MODE = false;
+      const viewThreshold = TEST_MODE ? 10 * 1000 : 30 * 60 * 1000;
+      
+      console.log(`Last view time for ${articleSlug}: ${new Date(lastViewTime).toLocaleString()}`);
+      console.log(`Current time: ${new Date(now).toLocaleString()}`);
+      console.log(`Time difference: ${(now - lastViewTime) / 1000} seconds`);
+      console.log(`Threshold: ${viewThreshold / 1000} seconds`);
+      
+      if (now - lastViewTime > viewThreshold) {
+        // Update last view time immediately
         lastViews[articleSlug] = now;
-        
-        // Save to localStorage
-        localStorage.setItem(VIEWS_STORAGE_KEY, JSON.stringify(viewsData));
         localStorage.setItem(LAST_VIEW_STORAGE_KEY, JSON.stringify(lastViews));
         
-        // Update state with total views (base + new additional)
-        const totalViews = baseViews + newAdditionalViews;
-        setViews(totalViews);
-
-        // Dispatch event for other components to update
-        window.dispatchEvent(new CustomEvent('articleViewsUpdated', {
-          detail: { articleSlug, views: totalViews }
-        }));
+        // Increment the view count
+        const newCount = views + 1;
+        console.log(`Incrementing view count for ${articleSlug} from ${views} to ${newCount}`);
+        updateArticleViewCount(articleSlug, newCount);
+        setViews(newCount);
+      } else {
+        console.log(`Not incrementing view for ${articleSlug} - viewed too recently`);
       }
-    }, 50); // 50ms delay
-
-    return () => clearTimeout(timer); // Clear timeout on unmount or slug change
-
-  }, [articleSlug, baseViews]); // Depend on baseViews here too
+      
+      viewIncremented.current = true;
+    };
+    
+    // Use a longer timeout to ensure views are loaded
+    const timer = setTimeout(incrementViewOnce, 1000);
+    return () => clearTimeout(timer);
+  }, [articleSlug, views]);
 
   return views;
 };

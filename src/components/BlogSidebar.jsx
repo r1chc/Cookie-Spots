@@ -62,6 +62,45 @@ const BlogSidebar = () => {
     loadArticles();
   }, []);
 
+  // Listen for view count updates from article pages
+  useEffect(() => {
+    const handleViewsUpdate = (e) => {
+      const { articleId: updatedId, views: updatedViews } = e.detail;
+      console.log(`BlogSidebar received view update for ${updatedId}: ${updatedViews} views`);
+      
+      // Update allArticles with new view count
+      setAllArticles(prev => {
+        // Update the view count for the affected article
+        const updated = prev.map(article => {
+          // Match by slug or ID
+          if (article.slug === updatedId || 
+              (article.id && article.id.toString() === updatedId) ||
+              parseInt(article.id) === parseInt(updatedId)) {
+            console.log(`Updating article "${article.title}" view count to ${updatedViews}`);
+            return { ...article, views: updatedViews };
+          }
+          return article;
+        });
+        
+        // Re-sort by views to keep popular recipes section updated
+        const sorted = [...updated].sort((a, b) => (b.views || 0) - (a.views || 0));
+        
+        // Log the updated popular articles
+        const newPopular = sorted.slice(0, 3);
+        console.log('Updated popular articles in sidebar:', 
+          newPopular.map(a => `${a.title}: ${a.views || 0} views`).join(', '));
+        
+        return sorted;
+      });
+    };
+    
+    window.addEventListener('articleViewsUpdated', handleViewsUpdate);
+    
+    return () => {
+      window.removeEventListener('articleViewsUpdated', handleViewsUpdate);
+    };
+  }, []);
+
   // Function to scroll to the top of the Search Recipes section
   const scrollToArticlesTop = () => {
     const searchSection = document.querySelector('.blog-main-content > div:first-child');

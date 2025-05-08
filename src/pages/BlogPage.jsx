@@ -158,6 +158,51 @@ const BlogPage = () => {
   const endIndex = startIndex + postsPerPage;
   const currentPosts = sortedPosts.slice(startIndex, endIndex);
 
+  // Listen for view count updates from article pages
+  useEffect(() => {
+    const handleViewsUpdate = (e) => {
+      const { articleId: updatedId, views: updatedViews } = e.detail;
+      console.log(`BlogPage received view update for ${updatedId}: ${updatedViews}`);
+      
+      // Update sortedPosts with new view count
+      setSortedPosts(prev => prev.map(post => 
+        post.slug === updatedId || post.id === parseInt(updatedId) 
+          ? { ...post, views: updatedViews } 
+          : post
+      ));
+      
+      // Update originalPosts with new view count
+      setOriginalPosts(prev => prev.map(post => 
+        post.slug === updatedId || post.id === parseInt(updatedId) 
+          ? { ...post, views: updatedViews } 
+          : post
+      ));
+      
+      // Re-sort if currently sorted by views
+      if (sortOrder === 'most_viewed' || sortOrder === 'least_viewed') {
+        const sorted = [...sortedPosts].map(post => 
+          post.slug === updatedId || post.id === parseInt(updatedId) 
+            ? { ...post, views: updatedViews } 
+            : post
+        );
+        
+        if (sortOrder === 'most_viewed') {
+          sorted.sort((a, b) => (b.views || 0) - (a.views || 0));
+        } else {
+          sorted.sort((a, b) => (a.views || 0) - (b.views || 0));
+        }
+        
+        setSortedPosts(sorted);
+      }
+    };
+    
+    window.addEventListener('articleViewsUpdated', handleViewsUpdate);
+    
+    return () => {
+      window.removeEventListener('articleViewsUpdated', handleViewsUpdate);
+    };
+  }, [sortOrder, sortedPosts]);
+
   const handleImageLoad = (postId) => {
     setImageLoadingStates(prev => ({
       ...prev,
