@@ -146,6 +146,9 @@ const SearchResultsPage = () => {
   // Add a ref to track the previous search to prevent duplicates
   const previousSearchRef = useRef(null);
 
+  // Add keyword state for cookie-specific filtering
+  const [cookieKeyword, setCookieKeyword] = useState('');
+  
   // Force white background
   useEffect(() => {
     document.body.classList.add('search-page');
@@ -581,6 +584,22 @@ const SearchResultsPage = () => {
     }
   }, [spotsToDisplay, loading, isLoadingExternal, error]);
 
+  // Add function to handle keyword filtering
+  const handleKeywordFilterChange = (e) => {
+    setCookieKeyword(e.target.value);
+  };
+  
+  const applyKeywordFilter = () => {
+    if (cookieKeyword.trim()) {
+      updateFilters({ keyword: cookieKeyword.trim() });
+    } else {
+      // If keyword is empty, clear the keyword filter
+      const updatedFilters = { ...filters };
+      delete updatedFilters.keyword;
+      updateFilters(updatedFilters);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white" style={{ backgroundColor: 'white !important' }}>
       <div className="container mx-auto px-4 py-8">
@@ -646,6 +665,50 @@ const SearchResultsPage = () => {
                   }}
                   colorClass="bg-green-100 text-green-800"
                 />
+              </div>
+              
+              {/* Keyword Filter for Reviews & Menu Items */}
+              <div className="mb-6">
+                <h3 className="font-medium mb-2">Filter by Keyword</h3>
+                <p className="text-sm text-gray-600 mb-2">
+                  Find places with specific cookies mentioned in reviews or menu items
+                </p>
+                <div className="flex flex-col">
+                  <div className="flex items-center">
+                    <input
+                      type="text"
+                      placeholder="e.g., chocolate chip, oatmeal"
+                      value={cookieKeyword}
+                      onChange={handleKeywordFilterChange}
+                      className="border border-gray-300 rounded-l px-3 py-2 text-sm flex-grow"
+                      onKeyDown={(e) => e.key === 'Enter' && applyKeywordFilter()}
+                    />
+                    <button
+                      onClick={applyKeywordFilter}
+                      className="bg-primary text-white rounded-r px-4 py-2 text-sm"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                  {filters.keyword && (
+                    <div className="mt-2 flex items-center">
+                      <span className="bg-blue-100 text-blue-800 rounded-full px-3 py-1 text-xs font-medium flex items-center">
+                        Filtering by: {filters.keyword}
+                        <button
+                          onClick={() => {
+                            const updatedFilters = { ...filters };
+                            delete updatedFilters.keyword;
+                            updateFilters(updatedFilters);
+                            setCookieKeyword('');
+                          }}
+                          className="ml-2 text-blue-800 hover:text-blue-900"
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
               
               {/* Additional Filters */}
@@ -717,7 +780,7 @@ const SearchResultsPage = () => {
                   </p>
                   <div className="flex justify-center space-x-4">
                     <button
-                      onClick={() => updateFilters({ search: '', cookieType: '', dietaryOption: '' })}
+                      onClick={() => updateFilters({ search: '', cookieType: '', dietaryOption: '', keyword: '' })}
                       className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
                     >
                       Clear all filters

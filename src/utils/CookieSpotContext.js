@@ -21,6 +21,7 @@ export const CookieSpotProvider = ({ children }) => {
     search: '',
     cookieType: '',
     dietaryOption: '',
+    keyword: '',
     sort: 'average_rating',
     order: 'desc'
   });
@@ -63,6 +64,7 @@ export const CookieSpotProvider = ({ children }) => {
       if (filters.search) params.search = filters.search;
       if (filters.cookieType) params.cookie_type = filters.cookieType;
       if (filters.dietaryOption) params.dietary_option = filters.dietaryOption;
+      if (filters.keyword) params.keyword = filters.keyword;
       
       console.log('Loading cookie spots from MongoDB with params:', params);
       
@@ -151,6 +153,7 @@ export const CookieSpotProvider = ({ children }) => {
       search: '',
       cookieType: '',
       dietaryOption: '',
+      keyword: '',
       sort: 'average_rating',
       order: 'desc'
     });
