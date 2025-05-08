@@ -122,6 +122,9 @@ const SearchResultsPage = () => {
   // Add a ref to track the previous search to prevent duplicates
   const previousSearchRef = useRef(null);
   
+  // Add cookie type selection state
+  const [selectedCookieTypes, setSelectedCookieTypes] = useState([]);
+  
   // Force white background
   useEffect(() => {
     document.body.classList.add('search-page');
@@ -187,139 +190,91 @@ const SearchResultsPage = () => {
     setIsInitialLoad(false);
   }, [location.search]);
 
-  // Effect to load external results after internal database results
+  // Add this function to filter spots by cookie types
+  const filterSpotsByCookieTypes = (spots) => {
+    if (!selectedCookieTypes.length) return spots;
+    
+    return spots.filter(spot => {
+      // Check menu items for cookie types
+      const menuItems = spot.menu_items || [];
+      const menuItemMatches = menuItems.some(item => 
+        selectedCookieTypes.some(type => 
+          item.name.toLowerCase().includes(type.toLowerCase()) ||
+          (item.description && item.description.toLowerCase().includes(type.toLowerCase()))
+        )
+      );
+      
+      // Check reviews for cookie types
+      const reviews = spot.reviews || [];
+      const reviewMatches = reviews.some(review => 
+        selectedCookieTypes.some(type => 
+          review.text.toLowerCase().includes(type.toLowerCase())
+        )
+      );
+      
+      // Check business description/tags
+      const description = (spot.description || '').toLowerCase();
+      const tags = (spot.tags || []).map(tag => tag.toLowerCase());
+      const descriptionMatches = selectedCookieTypes.some(type => 
+        description.includes(type.toLowerCase()) ||
+        tags.includes(type.toLowerCase())
+      );
+      
+      return menuItemMatches || reviewMatches || descriptionMatches;
+    });
+  };
+
+  // Modify the useEffect that handles search results
   useEffect(() => {
     const loadExternalResults = async () => {
       if (!location.search) return;
       
-      // Get the search term from the URL - either 'location' or 'search' parameter
       const searchParams = new URLSearchParams(location.search);
       const searchLocation = searchParams.get('location') || searchParams.get('search');
       
-      // Skip external fetching if no search term
       if (!searchLocation) {
         console.log('No search term, skipping external results load');
         return;
       }
       
-      // Avoid duplicate searches if the search term hasn't changed
       if (previousSearchRef.current === searchLocation) {
         console.log('Skipping duplicate search for:', searchLocation);
         return;
       }
       
-      // Track this search to avoid duplicates
       previousSearchRef.current = searchLocation;
-      
-      // Start loading state
       setIsLoadingExternal(true);
-      
-      console.log('Loading external results for:', searchLocation);
       
       try {
         setShowNoResults(false);
         
-        try {
-          // Fetch external API results
-          const result = await fetchAllSourceCookieSpots(searchLocation);
-          const externalSpots = result.spots || [];
+        const result = await fetchAllSourceCookieSpots(searchLocation);
+        const externalSpots = result.spots || [];
+        
+        if (externalSpots && externalSpots.length > 0) {
+          // Apply cookie type filtering
+          const filteredSpots = filterSpotsByCookieTypes(externalSpots);
+          setExternalResults(filteredSpots);
           
-          // Log the exact number of spots received
-          console.log(`RECEIVED ${externalSpots.length} spots from external API`);
-          
-          // Log additional information about multi-zipcode searches
-          if (result.search_metadata?.search_type === 'multi_zipcode') {
-            console.log(`Multi-zipcode search from ${result.search_metadata.zipcode_count} zip codes for ${searchLocation}`);
+          if (result.search_metadata) {
+            setSearchMetadata(result.search_metadata);
           }
           
-          // If we got results, store them
-          if (externalSpots && externalSpots.length > 0) {
-            setExternalResults(externalSpots);
-            
-            // Store metadata if available
-            if (result.search_metadata) {
-              console.log('Search metadata:', result.search_metadata);
-              setSearchMetadata(result.search_metadata);
-            }
-            
-            // Store viewport information
-            if (result.viewport) {
-              setSearchViewport(result.viewport);
-            }
-            
-            // Track if results came from cache
-            setIsFromCache(result.fromCache || false);
-            
-            // Combine with database results
-            const combined = [...cookieSpots];
-            const seenIds = new Set(cookieSpots.map(spot => spot._id));
-            const seenNames = new Map();
-            
-            // Create lookup for existing spots
-            cookieSpots.forEach(spot => {
-              if (spot && spot.name && spot.address) {
-                const key = `${spot.name.toLowerCase()}|${spot.address.toLowerCase()}`;
-                seenNames.set(key, true);
-              }
-            });
-            
-            // Add external results that aren't duplicates
-            externalSpots.forEach(spot => {
-              if (spot._id && seenIds.has(spot._id)) return;
-              
-              if (spot && spot.name && spot.address) {
-                const key = `${spot.name.toLowerCase()}|${spot.address.toLowerCase()}`;
-                if (seenNames.has(key)) return;
-                
-                combined.push(spot);
-                seenNames.set(key, true);
-              }
-            });
-            
-            // Log the final combined count
-            console.log(`COMBINED: Setting ${combined.length} spots in state (${cookieSpots.length} from DB + ${externalSpots.length - (combined.length - cookieSpots.length)} filtered out as duplicates)`);
-            
-            // Update state with combined results and ensure we don't show "no results"
-            setCombinedResults(combined);
-            setShowNoResults(false);
-          } else {
-            // If no external results, just use the MongoDB results
-            setCombinedResults(cookieSpots);
-            
-            // Only show "no results" if both sources returned nothing
-            if (cookieSpots.length === 0) {
-              // Wait a bit to be sure rendering is complete
-              setTimeout(() => {
-                setShowNoResults(true);
-              }, 1000);
-            }
+          if (result.viewport) {
+            setSearchViewport(result.viewport);
           }
-        } catch (error) {
-          console.error('Error fetching from external sources:', error);
-          // On error, use whatever MongoDB results we have
-          setCombinedResults(cookieSpots);
           
-          // Only show "no results" if MongoDB returned nothing
-          if (cookieSpots.length === 0) {
-            setTimeout(() => {
-              setShowNoResults(true);
-            }, 1000);
-          }
+          setIsFromCache(result.fromCache || false);
         }
       } catch (error) {
-        console.error('Error in loadExternalResults:', error);
-        setCombinedResults(cookieSpots);
+        console.error('Error loading external results:', error);
       } finally {
-        // Always ensure loading state is cleared
         setIsLoadingExternal(false);
       }
     };
     
-    // Only run this effect after internal database results are loaded
-    if (!loading && !isInitialLoad) {
-      loadExternalResults();
-    }
-  }, [location.search, isInitialLoad, cookieSpots]);
+    loadExternalResults();
+  }, [location.search, selectedCookieTypes]);
 
   // Calculate map bounds based on all spots
   useEffect(() => {
@@ -487,6 +442,35 @@ const SearchResultsPage = () => {
     setShowNoResults(false);
   }, [location.search]);
   
+  // Add cookie type selection handler
+  const handleCookieTypeSelect = (cookieType) => {
+    setSelectedCookieTypes(prev => {
+      if (prev.includes(cookieType)) {
+        return prev.filter(type => type !== cookieType);
+      }
+      return [...prev, cookieType];
+    });
+  };
+
+  // Add this to your JSX where you want to show the cookie type filters
+  const renderCookieTypeFilters = () => (
+    <div className="flex flex-wrap gap-2 mb-4">
+      {['chocolate chip', 'biscotti', 'sugar', 'oatmeal', 'peanut butter', 'snickerdoodle'].map(type => (
+        <button
+          key={type}
+          onClick={() => handleCookieTypeSelect(type)}
+          className={`px-4 py-2 rounded-full text-sm font-medium transition-colors
+            ${selectedCookieTypes.includes(type)
+              ? 'bg-primary text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+        >
+          {type}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-white" style={{ backgroundColor: 'white !important' }}>
       <div className="container mx-auto px-4 py-8">

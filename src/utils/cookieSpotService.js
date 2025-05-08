@@ -117,13 +117,14 @@ export const fetchCookieSpotsByLocation = async (location = null) => {
 };
 
 /**
- * Search for cookie spots by location string
+ * Enhanced search function that includes cookie type filtering
  * @param {string} locationQuery - Location search query
+ * @param {Array} cookieTypes - Array of cookie types to filter by
  * @returns {Array} Array of cookie spots matching the search
  */
-export const searchCookieSpots = async (locationQuery) => {
+export const searchCookieSpots = async (locationQuery, cookieTypes = []) => {
   try {
-    console.log(`Searching cache for cookie spots matching: "${locationQuery}"`);
+    console.log(`Searching cache for cookie spots matching: "${locationQuery}" with cookie types:`, cookieTypes);
     
     // Call the API with the search parameter to check cached results
     const response = await cookieSpotApi.getAllCookieSpots({ 
@@ -132,8 +133,42 @@ export const searchCookieSpots = async (locationQuery) => {
     });
     
     if (response && response.data && response.data.cookieSpots && response.data.cookieSpots.length > 0) {
-      console.log(`✓ Found ${response.data.cookieSpots.length} cookie spots in MongoDB for "${locationQuery}"`);
-      return response.data.cookieSpots;
+      let spots = response.data.cookieSpots;
+      
+      // If cookie types are specified, filter the results
+      if (cookieTypes.length > 0) {
+        spots = spots.filter(spot => {
+          // Check menu items
+          const menuItems = spot.menu_items || [];
+          const menuItemMatches = menuItems.some(item => 
+            cookieTypes.some(type => 
+              item.name.toLowerCase().includes(type.toLowerCase()) ||
+              (item.description && item.description.toLowerCase().includes(type.toLowerCase()))
+            )
+          );
+          
+          // Check reviews
+          const reviews = spot.reviews || [];
+          const reviewMatches = reviews.some(review => 
+            cookieTypes.some(type => 
+              review.text.toLowerCase().includes(type.toLowerCase())
+            )
+          );
+          
+          // Check business description/tags
+          const description = (spot.description || '').toLowerCase();
+          const tags = (spot.tags || []).map(tag => tag.toLowerCase());
+          const descriptionMatches = cookieTypes.some(type => 
+            description.includes(type.toLowerCase()) ||
+            tags.includes(type.toLowerCase())
+          );
+          
+          return menuItemMatches || reviewMatches || descriptionMatches;
+        });
+      }
+      
+      console.log(`✓ Found ${spots.length} cookie spots in MongoDB for "${locationQuery}"`);
+      return spots;
     } else {
       console.log(`No cookie spots found in MongoDB for "${locationQuery}" - will check external sources`);
       return [];
