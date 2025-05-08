@@ -6,6 +6,7 @@ import useArticleViews from '../hooks/useArticleViews';
 import BaseArticle from './articles/BaseArticle';
 import { loadAllArticles, getArticleBySlug } from '../utils/articleLoader';
 import FloatingActionButtons from '../components/FloatingActionButtons';
+import { isArticleInCategory, filterArticlesByCategory } from '../utils/categoryUtils';
 
 const ArticlePage = () => {
   // Use the scroll restoration hook
@@ -140,18 +141,15 @@ const ArticlePage = () => {
     { name: 'Classic', image: '/images/cookie-types/snickerdoodle.webp', path: '/category/classic' },
     { name: 'Specialty', image: '/images/cookie-types/red-velvet.webp', path: '/category/specialty' },
     { name: 'Seasonal', image: '/images/cookie-types/gingerbread.webp', path: '/category/seasonal' },
-    { name: 'Healthy', image: '/images/cookie-types/almond-biscotti.webp', path: '/category/healthy' }
+    { name: 'Keto', image: '/images/cookie-types/Keto-Friendly Chocolate Chip Cookies.png', path: '/category/keto' },
+    { name: 'Sweet & Salty', image: '/images/cookie-types/peanut-butter.webp', path: '/category/sweet-salty' },
+    { name: 'International', image: '/images/cookie-types/Dubai Chocolate Cookie - Kataifi & Pistachio Luxury.jpg', path: '/category/international' },
+    { name: 'Fruit', image: '/images/cookie-types/Lemon Blueberry White Chocolate Chip Cookies.jpg', path: '/category/fruit' }
   ];
 
   // Function to count articles that match a category
   const getCategoryCount = (categoryName) => {
-    const searchTerm = categoryName.toLowerCase();
-    return allArticles.filter(article => 
-      article.title.toLowerCase().includes(searchTerm) ||
-      article.category.toLowerCase().includes(searchTerm) ||
-      article.excerpt.toLowerCase().includes(searchTerm) ||
-      (article.tags && article.tags.some(tag => tag.toLowerCase().includes(searchTerm)))
-    ).length;
+    return filterArticlesByCategory(allArticles, categoryName).length;
   };
 
   // Handle category click

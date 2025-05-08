@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import '../styles/BlogArticle.css';
-import { mockArticles } from '../data/mockArticles';
 import useArticleViews from '../hooks/useArticleViews';
-import { getArticlesWithUpdatedViewCounts, getArticleViewCount } from '../utils/viewCountUtils';
+import { loadAllArticles, getArticlesWithUpdatedViewCounts, logAllViewCounts } from '../utils/articleLoader';
 
 const BlogArticle = () => {
   const { id } = useParams();
-  const articleId = parseInt(id);
   const [article, setArticle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [nextArticle, setNextArticle] = useState(null);
@@ -16,14 +14,14 @@ const BlogArticle = () => {
   const [imageLoading, setImageLoading] = useState(true);
   const [popularArticles, setPopularArticles] = useState([]);
   
-  // Get the current view count from our hook
-  const currentViews = useArticleViews(articleId);
-
-  // Function to fetch articles with updated view counts
-  const fetchArticles = async () => {
-    // Use the utility function for consistent view counts across components
-    return getArticlesWithUpdatedViewCounts();
-  };
+  // Log view counts on component mount for debugging
+  useEffect(() => {
+    console.log(`BlogArticle mounted for article ID: ${id}`);
+    logAllViewCounts();
+  }, [id]);
+  
+  // Get the current view count from our hook - using article slug
+  const currentViews = useArticleViews(article?.slug);
 
   // Function to handle image loading errors
   const handleImageError = (e) => {
@@ -44,26 +42,53 @@ const BlogArticle = () => {
       setImageLoading(true);
       setImageError(false);
       try {
-        // Fetch all articles to determine next/prev
-        const allArticles = await fetchArticles();
-        const currentIndex = allArticles.findIndex(a => a.id === parseInt(id));
+        // Fetch all articles with the latest view counts
+        const allArticles = await loadAllArticles();
+        console.log(`Loaded ${allArticles.length} articles`);
         
-        // Set current article
-        if (currentIndex !== -1) {
-          setArticle(allArticles[currentIndex]);
+        // Find the article by ID or slug
+        let currentArticle = null;
+        
+        // First try direct slug match
+        currentArticle = allArticles.find(a => a.slug === id);
+        
+        // If not found, try ID match
+        if (!currentArticle) {
+          currentArticle = allArticles.find(a => 
+            (a.id && a.id.toString() === id) || 
+            parseInt(a.id) === parseInt(id)
+          );
+        }
+        
+        if (currentArticle) {
+          console.log(`Found article: "${currentArticle.title}" with slug: ${currentArticle.slug}, views: ${currentArticle.views || 0}`);
+          setArticle(currentArticle);
+          
+          // Find current index to determine next/prev
+          const currentIndex = allArticles.indexOf(currentArticle);
           
           // Set next and previous articles
           if (currentIndex > 0) {
             setPrevArticle(allArticles[currentIndex - 1]);
+          } else {
+            setPrevArticle(null);
           }
+          
           if (currentIndex < allArticles.length - 1) {
             setNextArticle(allArticles[currentIndex + 1]);
+          } else {
+            setNextArticle(null);
           }
+          
+          // Set popular articles sorted by view count
+          const sortedByViews = [...allArticles]
+            .sort((a, b) => (b.views || 0) - (a.views || 0))
+            .slice(0, 3);
+          console.log('Popular articles:', sortedByViews.map(a => `${a.title}: ${a.views || 0} views`));
+          setPopularArticles(sortedByViews);
+        } else {
+          console.error(`Article not found: ${id}`);
         }
-        
-        // Set popular articles sorted by view count
-        const sortedByViews = [...allArticles].sort((a, b) => b.views - a.views).slice(0, 3);
-        setPopularArticles(sortedByViews);
       } catch (error) {
         console.error('Error fetching article:', error);
       } finally {
@@ -73,12 +98,29 @@ const BlogArticle = () => {
 
     fetchArticle();
     
-    // Listen for view count updates from other components
+    // Listen for view count updates
     const handleViewsUpdate = (e) => {
-      const { articleId: updatedId, views: updatedViews } = e.detail;
-      setPopularArticles(prev => prev.map(article => 
-        article.id === updatedId ? { ...article, views: updatedViews } : article
-      ).sort((a, b) => b.views - a.views));
+      const { articleId, views } = e.detail;
+      console.log(`Received view update in BlogArticle: ${articleId} - ${views} views`);
+      
+      // Update current article if it's the one that changed
+      setArticle(prev => {
+        if (prev && (prev.slug === articleId || prev.id === parseInt(articleId))) {
+          console.log(`Updating article view count for ${prev.title} to ${views}`);
+          return { ...prev, views };
+        }
+        return prev;
+      });
+      
+      // Update popular articles when any article's view count changes
+      setPopularArticles(prev => {
+        const updated = prev.map(article => 
+          article.slug === articleId || (article.id && article.id.toString() === articleId)
+            ? { ...article, views } 
+            : article
+        );
+        return [...updated].sort((a, b) => (b.views || 0) - (a.views || 0));
+      });
     };
     
     window.addEventListener('articleViewsUpdated', handleViewsUpdate);
@@ -115,7 +157,7 @@ const BlogArticle = () => {
       {/* Navigation Buttons */}
       {prevArticle && (
         <button
-          onClick={() => window.location.href = `/article/${prevArticle.id}`}
+          onClick={() => window.location.href = `/article/${prevArticle.slug}`}
           className="fixed top-4 right-4 p-2 sm:p-3 rounded-full bg-primary-600 text-white shadow-lg transition-all duration-300 border-2 border-white hover:bg-primary-700 hover:scale-110 focus:outline-none z-[9999]"
           aria-label="Previous article"
         >
@@ -137,7 +179,7 @@ const BlogArticle = () => {
       )}
       {nextArticle && (
         <button
-          onClick={() => window.location.href = `/article/${nextArticle.id}`}
+          onClick={() => window.location.href = `/article/${nextArticle.slug}`}
           className="fixed top-20 right-4 p-2 sm:p-3 rounded-full bg-primary-600 text-white shadow-lg transition-all duration-300 border-2 border-white hover:bg-primary-700 hover:scale-110 focus:outline-none z-[9999]"
           aria-label="Next article"
         >
@@ -169,13 +211,13 @@ const BlogArticle = () => {
       {/* Next/Previous Navigation */}
       <div className="article-floating-nav pagination">
         {nextArticle && (
-          <Link to={`/article/${nextArticle.id}`} className="floating-nav-button">
+          <Link to={`/article/${nextArticle.slug}`} className="floating-nav-button">
             Next Article
             <i className="fas fa-arrow-right"></i>
           </Link>
         )}
         {prevArticle && (
-          <Link to={`/article/${prevArticle.id}`} className="floating-nav-button">
+          <Link to={`/article/${prevArticle.slug}`} className="floating-nav-button">
             <i className="fas fa-arrow-left"></i>
             Previous Article
           </Link>
@@ -188,7 +230,7 @@ const BlogArticle = () => {
             <span className="article-category">{article.category}</span>
             <span className="article-date">{article.date}</span>
             <span className="article-views">
-              <i className="fas fa-eye"></i> {articleId === article.id ? currentViews.toLocaleString() : article.views.toLocaleString()} views
+              <i className="fas fa-eye"></i> {currentViews.toLocaleString()} views
             </span>
           </div>
           <h1 className="article-title">{article.title}</h1>
@@ -242,7 +284,7 @@ const BlogArticle = () => {
           <ul className="blog-popular-posts">
             {popularArticles.map((popularArticle) => (
               <li key={popularArticle.id} className="blog-popular-post">
-                <Link to={`/article/${popularArticle.id}`}>
+                <Link to={`/article/${popularArticle.slug}`}>
                   <img 
                     src={popularArticle.image} 
                     alt={popularArticle.title}
@@ -252,7 +294,7 @@ const BlogArticle = () => {
                 </Link>
                 <div className="blog-popular-post-content">
                   <h4>
-                    <Link to={`/article/${popularArticle.id}`}>{popularArticle.title}</Link>
+                    <Link to={`/article/${popularArticle.slug}`}>{popularArticle.title}</Link>
                   </h4>
                   <div>
                     <span className="blog-popular-post-date">{popularArticle.date}</span>

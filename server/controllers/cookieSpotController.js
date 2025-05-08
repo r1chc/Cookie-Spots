@@ -17,7 +17,8 @@ exports.getAllCookieSpots = async (req, res) => {
       dietary_option,
       search,
       near,
-      max_distance = 10000 // Default 10km
+      max_distance = 10000, // Default 10km
+      keyword, // New parameter for filtering by keyword in reviews/menu items
     } = req.query;
 
     const query = {};
@@ -79,12 +80,80 @@ exports.getAllCookieSpots = async (req, res) => {
     const total = await CookieSpot.countDocuments(query);
     
     // Get paginated results
-    const cookieSpots = await CookieSpot.find(query)
+    let cookieSpots = await CookieSpot.find(query)
       .sort(sortOptions)
       .skip(skip)
       .limit(parseInt(limit))
       .populate('cookie_types', 'name')
       .populate('dietary_options', 'name');
+    
+    // If keyword parameter exists, filter results based on reviews and menu items
+    if (keyword) {
+      const keywordLower = keyword.toLowerCase();
+      
+      // For each cookie spot, fetch its reviews
+      const spotsWithKeywordInfo = await Promise.all(cookieSpots.map(async (spot) => {
+        const spotObj = spot.toObject();
+        
+        // Check if menu items contain the keyword
+        const hasKeywordInMenu = spotObj.menu_items && 
+          spotObj.menu_items.some(item => 
+            item.name.toLowerCase().includes(keywordLower) || 
+            (item.description && item.description.toLowerCase().includes(keywordLower))
+          );
+        
+        // Check if description contains the keyword
+        const hasKeywordInDescription = spotObj.description && 
+          spotObj.description.toLowerCase().includes(keywordLower);
+        
+        // Get reviews for this spot
+        const reviews = await Review.find({
+          cookie_spot_id: spot._id,
+          status: 'published'
+        });
+        
+        // Check if any review contains the keyword
+        const hasKeywordInReviews = reviews.some(review => 
+          review.text.toLowerCase().includes(keywordLower)
+        );
+        
+        // Add this information to the spot object
+        spotObj.keyword_match = {
+          in_menu: hasKeywordInMenu,
+          in_description: hasKeywordInDescription,
+          in_reviews: hasKeywordInReviews,
+          // Save matching reviews for display
+          matching_reviews: reviews
+            .filter(review => review.text.toLowerCase().includes(keywordLower))
+            .map(review => ({ 
+              id: review._id, 
+              text: review.text,
+              // Extract the portion of the review containing the keyword for highlighting
+              highlight: extractKeywordContext(review.text, keywordLower)
+            }))
+        };
+        
+        // Return true if the spot matches the keyword in any way
+        return {
+          ...spotObj,
+          matches_keyword: hasKeywordInMenu || hasKeywordInDescription || hasKeywordInReviews
+        };
+      }));
+      
+      // Filter spots to only include those that match the keyword
+      cookieSpots = spotsWithKeywordInfo.filter(spot => spot.matches_keyword);
+      
+      // Adjust total count for pagination
+      const filteredTotal = cookieSpots.length;
+      
+      return res.json({
+        cookieSpots,
+        totalPages: Math.ceil(filteredTotal / parseInt(limit)),
+        currentPage: parseInt(page),
+        total: filteredTotal,
+        filtered_by_keyword: true
+      });
+    }
     
     res.json({
       cookieSpots,
@@ -100,6 +169,27 @@ exports.getAllCookieSpots = async (req, res) => {
     });
   }
 };
+
+// Helper function to extract context around a keyword in text
+function extractKeywordContext(text, keyword, contextLength = 50) {
+  if (!text) return '';
+  
+  const lowerText = text.toLowerCase();
+  const keywordIndex = lowerText.indexOf(keyword);
+  
+  if (keywordIndex === -1) return '';
+  
+  const startIndex = Math.max(0, keywordIndex - contextLength);
+  const endIndex = Math.min(text.length, keywordIndex + keyword.length + contextLength);
+  
+  let excerpt = text.substring(startIndex, endIndex);
+  
+  // Add ellipsis if we're not starting from the beginning or ending at the end
+  if (startIndex > 0) excerpt = '...' + excerpt;
+  if (endIndex < text.length) excerpt = excerpt + '...';
+  
+  return excerpt;
+}
 
 // @desc    Get cookie spot by ID
 // @route   GET /api/cookie-spots/:id

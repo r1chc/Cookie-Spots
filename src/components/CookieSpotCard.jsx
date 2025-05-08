@@ -238,6 +238,39 @@ const CookieSpotCard = ({ cookieSpot, spot }) => {
             
             {description && <p className="text-gray-700 text-sm mb-3">{description}</p>}
             
+            {/* Display keyword matches if available */}
+            {data.keyword_match && (
+              <div className="mt-2 mb-3">
+                {data.keyword_match.in_reviews && data.keyword_match.matching_reviews && data.keyword_match.matching_reviews.length > 0 && (
+                  <div className="border-l-2 border-amber-400 pl-2 mb-2">
+                    <h4 className="text-xs font-semibold text-amber-800 mb-1">Found in reviews:</h4>
+                    {data.keyword_match.matching_reviews.slice(0, 2).map((review, idx) => (
+                      <p key={idx} className="text-xs text-gray-600 italic mb-1">
+                        "{review.highlight}"
+                      </p>
+                    ))}
+                    {data.keyword_match.matching_reviews.length > 2 && (
+                      <p className="text-xs text-blue-600">
+                        +{data.keyword_match.matching_reviews.length - 2} more matches
+                      </p>
+                    )}
+                  </div>
+                )}
+                
+                {data.keyword_match.in_menu && (
+                  <div className="border-l-2 border-green-400 pl-2">
+                    <h4 className="text-xs font-semibold text-green-800">Found in menu items</h4>
+                  </div>
+                )}
+                
+                {data.keyword_match.in_description && (
+                  <div className="border-l-2 border-blue-400 pl-2">
+                    <h4 className="text-xs font-semibold text-blue-800">Found in description</h4>
+                  </div>
+                )}
+              </div>
+            )}
+            
             <div className="flex flex-wrap gap-1">
               {cookieTypes.slice(0, 3).map((type, index) => (
                 <span key={index} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
@@ -253,7 +286,7 @@ const CookieSpotCard = ({ cookieSpot, spot }) => {
           </div>
         </div>
       ) : (
-        <Link to={`/cookie-spot/${id}`}>
+        <Link to={`/cookie-spot/${id}`} className="block">
           {renderImage()}
           <div className="p-4">
             <h3 className="text-lg font-bold mb-1">{name}</h3>
@@ -289,6 +322,39 @@ const CookieSpotCard = ({ cookieSpot, spot }) => {
             )}
             
             {description && <p className="text-gray-700 text-sm mb-3">{description}</p>}
+            
+            {/* Display keyword matches if available */}
+            {data.keyword_match && (
+              <div className="mt-2 mb-3">
+                {data.keyword_match.in_reviews && data.keyword_match.matching_reviews && data.keyword_match.matching_reviews.length > 0 && (
+                  <div className="border-l-2 border-amber-400 pl-2 mb-2">
+                    <h4 className="text-xs font-semibold text-amber-800 mb-1">Found in reviews:</h4>
+                    {data.keyword_match.matching_reviews.slice(0, 2).map((review, idx) => (
+                      <p key={idx} className="text-xs text-gray-600 italic mb-1">
+                        "{review.highlight}"
+                      </p>
+                    ))}
+                    {data.keyword_match.matching_reviews.length > 2 && (
+                      <p className="text-xs text-blue-600">
+                        +{data.keyword_match.matching_reviews.length - 2} more matches
+                      </p>
+                    )}
+                  </div>
+                )}
+                
+                {data.keyword_match.in_menu && (
+                  <div className="border-l-2 border-green-400 pl-2">
+                    <h4 className="text-xs font-semibold text-green-800">Found in menu items</h4>
+                  </div>
+                )}
+                
+                {data.keyword_match.in_description && (
+                  <div className="border-l-2 border-blue-400 pl-2">
+                    <h4 className="text-xs font-semibold text-blue-800">Found in description</h4>
+                  </div>
+                )}
+              </div>
+            )}
             
             <div className="flex flex-wrap gap-1">
               {cookieTypes.slice(0, 3).map((type, index) => (

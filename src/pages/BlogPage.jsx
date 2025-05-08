@@ -8,6 +8,8 @@ import 'slick-carousel/slick/slick-theme.css';
 import { loadAllArticles, getArticlesWithUpdatedViewCounts } from '../utils/articleLoader';
 import FloatingActionButtons from '../components/FloatingActionButtons';
 import SearchButton from '../components/SearchButton';
+import BlogSidebar from '../components/BlogSidebar';
+import { getCategoryCounts } from '../utils/categoryUtils';
 
 const BlogPage = () => {
   // Use the scroll restoration hook
@@ -30,7 +32,7 @@ const BlogPage = () => {
   const [isLargeTablet, setIsLargeTablet] = useState(window.innerWidth <= 992 && window.innerWidth > 770);
   const [categoryCount, setCategoryCount] = useState({});
   const [sidebarCategoryCount, setSidebarCategoryCount] = useState({});
-  const totalPages = Math.ceil(Math.max(0, sortedPosts.length - 1) / postsPerPage);
+  const totalPages = Math.ceil((sortedPosts.length - 1) / postsPerPage);
   const navigate = useNavigate();
   const [sliderPosition, setSliderPosition] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -52,6 +54,14 @@ const BlogPage = () => {
       setLoading(true);
       try {
         const loadedPosts = await loadAllArticles();
+        
+        // Debug log to see all articles
+        console.log("All loaded articles:", loadedPosts.map(post => ({
+          title: post.title,
+          slug: post.slug,
+          date: post.publishedAt,
+          category: post.category
+        })));
         
         // Initial sort (newest first)
         const initialSortedPosts = [...loadedPosts].sort((a, b) => 
@@ -80,24 +90,17 @@ const BlogPage = () => {
     if (!originalPosts || originalPosts.length === 0) return;
 
     // --- Calculate Category Counts (for both featured and sidebar) ---
-    const counts = {};
-    const sidebarCounts = {};
-    // Define categories structure here or import from a shared place
     const categoriesData = [
       { name: 'Chocolate' }, { name: 'Gluten-Free' }, { name: 'No-Bake' }, 
       { name: 'Vegan' }, { name: 'Classic' }, { name: 'Specialty' }, 
-      { name: 'Seasonal' }, { name: 'Healthy' }
+      { name: 'Seasonal' }, { name: 'Keto' }, { name: 'International' }, 
+      { name: 'Sweet & Salty' }, { name: 'Fruit' }
     ];
 
-    categoriesData.forEach(category => {
-      const categoryNameLower = category.name.toLowerCase();
-      // Count for both featured and sidebar using exact match
-      const count = originalPosts.filter(post => post.category.toLowerCase() === categoryNameLower).length;
-      sidebarCounts[category.name] = count;
-      counts[category.name] = count; // Use the same count for featured section
-    });
-    setCategoryCount(counts); // For featured section
-    setSidebarCategoryCount(sidebarCounts); // For sidebar list
+    // Get counts for both sets
+    const counts = getCategoryCounts(originalPosts, categoriesData);
+    setCategoryCount(counts);
+    setSidebarCategoryCount(counts);
 
     // --- Calculate Popular Tags ---
     const tagScores = {};
@@ -134,19 +137,71 @@ const BlogPage = () => {
     { name: 'Chocolate', image: '/images/cookie-types/chocolate-chip.webp', path: '/category/chocolate' },
     { name: 'Gluten-Free', image: '/images/cookie-types/sugar-cookie.webp', path: '/category/gluten-free' },
     { name: 'No-Bake', image: '/images/cookie-types/oatmeal-raisin.webp', path: '/category/no-bake' },
-    { name: 'Vegan', image: '/images/cookie-types/macaron.webp', path: '/category/vegan' },
+    { name: 'Vegan', image: '/images/cookie-types/Vegan Coconut Oatmeal Cookies with Maple Glaze.png', path: '/category/vegan' },
     { name: 'Classic', image: '/images/cookie-types/snickerdoodle.webp', path: '/category/classic' },
     { name: 'Specialty', image: '/images/cookie-types/red-velvet.webp', path: '/category/specialty' },
     { name: 'Seasonal', image: '/images/cookie-types/gingerbread.webp', path: '/category/seasonal' },
-    { name: 'Healthy', image: '/images/cookie-types/almond-biscotti.webp', path: '/category/healthy' }
+    { name: 'Keto', image: '/images/cookie-types/Keto-Friendly Chocolate Chip Cookies.png', path: '/category/keto' },
+    { name: 'Sweet & Salty', image: '/images/cookie-types/peanut-butter.webp', path: '/category/sweet-salty' },
+    { name: 'International', image: '/images/cookie-types/Dubai Chocolate Cookie - Kataifi & Pistachio Luxury.jpg', path: '/category/international' },
+    { name: 'Fruit', image: '/images/cookie-types/Lemon Blueberry White Chocolate Chip Cookies.jpg', path: '/category/fruit' }
   ];
 
   // Calculate current posts to display
-  const indexOfLastPost = currentPage * postsPerPage;
-  const indexOfFirstPost = currentPage === 1 ? 1 : indexOfLastPost - postsPerPage;
-  const currentPosts = currentPage === 1 
-    ? sortedPosts.slice(1, postsPerPage + 1)
-    : sortedPosts.slice(indexOfFirstPost, indexOfLastPost);
+  // Page 1 shows the featured post (index 0) separately, and then posts 1-4 (if postsPerPage=4)
+  // Page 2 should show posts 5-8, Page 3 should show posts 9-12, etc.
+  const featuredPost = sortedPosts[0]; // First post is always the featured one
+  
+  // For page 1, display posts 1 to postsPerPage (not including featured post)
+  // For other pages, continue from where page 1 ended
+  const startIndex = currentPage === 1 ? 1 : 1 + (currentPage - 1) * postsPerPage;
+  const endIndex = startIndex + postsPerPage;
+  const currentPosts = sortedPosts.slice(startIndex, endIndex);
+
+  // Listen for view count updates from article pages
+  useEffect(() => {
+    const handleViewsUpdate = (e) => {
+      const { articleId: updatedId, views: updatedViews } = e.detail;
+      console.log(`BlogPage received view update for ${updatedId}: ${updatedViews}`);
+      
+      // Update sortedPosts with new view count
+      setSortedPosts(prev => prev.map(post => 
+        post.slug === updatedId || post.id === parseInt(updatedId) 
+          ? { ...post, views: updatedViews } 
+          : post
+      ));
+      
+      // Update originalPosts with new view count
+      setOriginalPosts(prev => prev.map(post => 
+        post.slug === updatedId || post.id === parseInt(updatedId) 
+          ? { ...post, views: updatedViews } 
+          : post
+      ));
+      
+      // Re-sort if currently sorted by views
+      if (sortOrder === 'most_viewed' || sortOrder === 'least_viewed') {
+        const sorted = [...sortedPosts].map(post => 
+          post.slug === updatedId || post.id === parseInt(updatedId) 
+            ? { ...post, views: updatedViews } 
+            : post
+        );
+        
+        if (sortOrder === 'most_viewed') {
+          sorted.sort((a, b) => (b.views || 0) - (a.views || 0));
+        } else {
+          sorted.sort((a, b) => (a.views || 0) - (b.views || 0));
+        }
+        
+        setSortedPosts(sorted);
+      }
+    };
+    
+    window.addEventListener('articleViewsUpdated', handleViewsUpdate);
+    
+    return () => {
+      window.removeEventListener('articleViewsUpdated', handleViewsUpdate);
+    };
+  }, [sortOrder, sortedPosts]);
 
   const handleImageLoad = (postId) => {
     setImageLoadingStates(prev => ({
@@ -177,6 +232,35 @@ const BlogPage = () => {
     setCurrentPage(1);
     setDisplayPages([1, 2, 3]);
   };
+
+  // Apply sorting effect when sortOrder changes
+  useEffect(() => {
+    if (!originalPosts || originalPosts.length === 0) return;
+    
+    const sorted = [...originalPosts];
+    switch (sortOrder) {
+      case 'newest':
+        sorted.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+        break;
+      case 'oldest':
+        sorted.sort((a, b) => new Date(a.publishedAt) - new Date(b.publishedAt));
+        break;
+      case 'most_viewed':
+        sorted.sort((a, b) => (b.views || 0) - (a.views || 0));
+        break;
+      case 'least_viewed':
+        sorted.sort((a, b) => (a.views || 0) - (b.views || 0));
+        break;
+      case 'alphabetical':
+        sorted.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      default:
+        // Default to newest first
+        sorted.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+    }
+    
+    setSortedPosts(sorted);
+  }, [originalPosts, sortOrder]);
 
   const formatDate = (dateString) => {
     try {
@@ -445,7 +529,7 @@ const BlogPage = () => {
             height="500"
           />
           <div className="blog-hero-overlay">
-            <h2>CookieSpots Blog</h2>
+            <h2>CookieSpots Recipes & Blog</h2>
             <p>Discover delicious cookie recipes, baking tips, and sweet inspiration for every occasion.</p>
             <div className="blog-hero-buttons">
               <button onClick={scrollToLatestRecipes} className="blog-cta-button">Explore Recipes</button>
@@ -515,70 +599,70 @@ const BlogPage = () => {
                 {currentPage === 1 && (
                   <article className="blog-post blog-featured-post">
                     <div className="blog-featured-image">
-                      <Link to={`/article/${sortedPosts[0].slug}`}>
+                      <Link to={`/article/${featuredPost.slug}`}>
                         <img
-                          src={sortedPosts[0].image}
-                          alt={sortedPosts[0].title}
+                          src={featuredPost.image}
+                          alt={featuredPost.title}
                           loading="eager"
-                          onLoad={() => handleImageLoad(sortedPosts[0].id)}
-                          onError={(e) => handleImageError(sortedPosts[0].id, e)}
+                          onLoad={() => handleImageLoad(featuredPost.id)}
+                          onError={(e) => handleImageError(featuredPost.id, e)}
                           crossOrigin="anonymous"
                         />
                       </Link>
-                      <div className="blog-post-category-badge">{sortedPosts[0].category}</div>
+                      <div className="blog-post-category-badge">{featuredPost.category}</div>
                     </div>
                     <div className="blog-featured-content">
                       <div className="blog-post-meta">
-                        <span className="blog-post-date">{sortedPosts[0].date}</span>
+                        <span className="blog-post-date">{formatDate(featuredPost.publishedAt)}</span>
                         <span className="blog-post-views">
-                          <i className="fas fa-eye"></i> {sortedPosts[0].views.toLocaleString()} views
+                          <i className="fas fa-eye"></i> {featuredPost.views.toLocaleString()} views
                         </span>
                       </div>
                       <h3 className="blog-post-title">
-                        <Link to={`/article/${sortedPosts[0].slug}`}>{sortedPosts[0].title}</Link>
+                        <Link to={`/article/${featuredPost.slug}`}>{featuredPost.title}</Link>
                       </h3>
-                      <p className="blog-post-excerpt">{sortedPosts[0].excerpt}</p>
-                      <Link to={`/article/${sortedPosts[0].slug}`} className="blog-read-more">
+                      <p className="blog-post-excerpt">{featuredPost.excerpt}</p>
+                      <Link to={`/article/${featuredPost.slug}`} className="blog-read-more">
                         Read Recipe <i className="fas fa-arrow-right"></i>
                       </Link>
                     </div>
                   </article>
                 )}
 
-                {currentPosts
-                  .filter((post, index) => currentPage === 1 ? index > 0 : true)
-                  .map(post => (
-                    <article key={post.id} className="blog-post">
-                      <div className={`blog-post-image ${imageLoadingStates[post.id] ? 'loading' : ''}`}>
-                        <Link to={`/article/${post.slug}`}>
-                          <img
-                            src={post.image}
-                            alt={post.title}
-                            loading="eager"
-                            onLoad={() => handleImageLoad(post.id)}
-                            onError={(e) => handleImageError(post.id, e)}
-                            crossOrigin="anonymous"
-                          />
-                        </Link>
-                        <div className="blog-post-category-badge">{post.category}</div>
-                      </div>
-                      <div className="blog-post-content">
-                        <div className="blog-post-meta">
-                          <span className="blog-post-date">{post.date}</span>
+                {currentPosts.map(post => (
+                  <article key={post.id} className="blog-post">
+                    <div className={`blog-post-image ${imageLoadingStates[post.id] ? 'loading' : ''}`}>
+                      <Link to={`/article/${post.slug}`}>
+                        <img
+                          src={post.image}
+                          alt={post.title}
+                          loading="eager"
+                          onLoad={() => handleImageLoad(post.id)}
+                          onError={(e) => handleImageError(post.id, e)}
+                          crossOrigin="anonymous"
+                        />
+                      </Link>
+                      <div className="blog-post-category-badge">{post.category}</div>
+                    </div>
+                    <div className="blog-post-content">
+                      <div className="blog-post-meta">
+                        {post.publishedAt && <span className="blog-post-date">{formatDate(post.publishedAt)}</span>}
+                        {post.views !== undefined && (
                           <span className="blog-post-views">
-                            <i className="fas fa-eye"></i> {post.views.toLocaleString()} views
+                            <i className="fas fa-eye"></i> {formatViews(post.views)}
                           </span>
-                        </div>
-                        <h3 className="blog-post-title">
-                          <Link to={`/article/${post.slug}`}>{post.title}</Link>
-                        </h3>
-                        <p className="blog-post-excerpt">{post.excerpt}</p>
-                        <Link to={`/article/${post.slug}`} className="blog-read-more">
-                          Read Recipe <i className="fas fa-arrow-right"></i>
-                        </Link>
+                        )}
                       </div>
-                    </article>
-                  ))}
+                      <h3 className="blog-post-title">
+                        <Link to={`/article/${post.slug}`}>{post.title}</Link>
+                      </h3>
+                      <p className="blog-post-excerpt">{post.excerpt}</p>
+                      <Link to={`/article/${post.slug}`} className="blog-read-more">
+                        Read Recipe <i className="fas fa-arrow-right"></i>
+                      </Link>
+                    </div>
+                  </article>
+                ))}
               </div>
 
               {/* Pagination */}
@@ -638,96 +722,8 @@ const BlogPage = () => {
             </section>
           </main>
 
-          <aside className="blog-sidebar">
-            <div className="blog-sidebar-section pb-6">
-              <h3 className="blog-sidebar-title">Search Recipes</h3>
-              <form className="blog-search-form mb-3" onSubmit={handleSearchSubmit}>
-                <input type="text" placeholder="Search Recipes..." name="search" />
-                <button type="submit" className="text-blue-500"><i className="fas fa-search"></i></button>
-              </form>
-              <h4 className="blog-sidebar-subtitle text-sm mb-2">Popular Tags:</h4>
-              <div className="blog-tags-cloud">
-                {popularTags.map((tag, index) => (
-                  <button
-                    key={index}
-                    onClick={() => navigate(`/blogsearch?q=${encodeURIComponent(tag)}`)}
-                    className="blog-tag text-sm py-1 px-2"
-                  >
-                    {tag}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="blog-sidebar-section">
-              <h3 className="blog-sidebar-title">Popular Recipes</h3>
-              <ul className="blog-popular-posts">
-                {sortedPosts
-                  .sort((a, b) => (b.views || 0) - (a.views || 0))
-                  .slice(0, 3)
-                  .map(post => (
-                    <li key={post.id} className="blog-popular-post">
-                      <Link to={`/article/${post.slug}`}>
-                        <img
-                          src={post.image}
-                          alt={post.title}
-                          className="blog-popular-post-image"
-                        />
-                      </Link>
-                      <div className="blog-popular-post-content">
-                        <h4>
-                          <Link to={`/article/${post.slug}`}>{post.title}</Link>
-                        </h4>
-                        <div>
-                          <span className="blog-popular-post-date">{formatDate(post.date)}</span>
-                          <span className="blog-popular-post-views">
-                            <i className="fas fa-eye"></i>
-                            {formatViews(post.views)}
-                          </span>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-              </ul>
-            </div>
-
-            <div className="blog-sidebar-section">
-              <h3 className="blog-sidebar-title">Categories</h3>
-              <ul className="blog-categories-list">
-                {categories.map(category => {
-                  const categoryName = category.name.toLowerCase();
-                  const count = articlesWithViews.filter(post => 
-                    post.title.toLowerCase().includes(categoryName) ||
-                    post.category.toLowerCase().includes(categoryName) ||
-                    post.excerpt.toLowerCase().includes(categoryName) ||
-                    (post.tags && post.tags.some(tag => tag.toLowerCase().includes(categoryName)))
-                  ).length;
-                  
-                  return (
-                    <li key={category.name}>
-                      <Link to={`/blogsearch?q=${encodeURIComponent(category.name)}`}>
-                        {category.name} <span className="count">{count}</span>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-
-            <div className="blog-sidebar-section">
-              <h3 className="blog-sidebar-title">Categories</h3>
-              <ul className="blog-categories-list">
-                {categories.map(category => (
-                  <li key={category.name}>
-                    <Link to={`/blogsearch?q=${encodeURIComponent(category.name)}`}>
-                      {category.name} 
-                      <span className="count">{sidebarCategoryCount[category.name] || 0}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </aside>
+          {/* Use the shared BlogSidebar component */}
+          <BlogSidebar />
         </div>
       </div>
 

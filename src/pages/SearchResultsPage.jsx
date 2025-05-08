@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useCookieSpots } from '../utils/CookieSpotContext';
 import CookieSpotCard from '../components/CookieSpotCard';
@@ -7,6 +7,30 @@ import { loadGoogleMaps } from '../utils/googleMapsLoader';
 import { fetchAllSourceCookieSpots } from '../utils/cookieSpotService';
 import MapComponent from '../components/Map';
 import useScrollRestoration from '../hooks/useScrollRestoration';
+
+// Helper function to get filter keyword (name) from its ID
+const getFilterKeyword = (filterId, items) => {
+  if (!filterId || !items || items.length === 0) return null;
+  if (filterId === 'all' || filterId === '') return null; 
+  const item = items.find(opt => opt._id === filterId);
+  return item ? item.name.toLowerCase() : null;
+};
+
+// Helper function to check if a spot matches a keyword in its name, description, or specific arrays
+const spotMatchesKeyword = (spot, keyword, fieldArrayName = null) => {
+  if (!keyword) return true; 
+  const lowerKeyword = keyword.toLowerCase();
+
+  const nameMatch = spot.name && spot.name.toLowerCase().includes(lowerKeyword);
+  const descriptionMatch = spot.description && spot.description.toLowerCase().includes(lowerKeyword);
+  
+  let fieldArrayValuesMatch = false;
+  if (fieldArrayName && spot[fieldArrayName] && Array.isArray(spot[fieldArrayName])) {
+    fieldArrayValuesMatch = spot[fieldArrayName].some(val => typeof val === 'string' && val.toLowerCase().includes(lowerKeyword));
+  }
+
+  return nameMatch || descriptionMatch || fieldArrayValuesMatch;
+};
 
 // Google Map component
 const GoogleMap = ({ center, bounds, spots, hoveredSpot, clickedSpot, searchMetadata }) => {
@@ -121,9 +145,9 @@ const SearchResultsPage = () => {
   
   // Add a ref to track the previous search to prevent duplicates
   const previousSearchRef = useRef(null);
-  
-  // Add cookie type selection state
-  const [selectedCookieTypes, setSelectedCookieTypes] = useState([]);
+
+  // Add keyword state for cookie-specific filtering
+  const [cookieKeyword, setCookieKeyword] = useState('');
   
   // Force white background
   useEffect(() => {
@@ -190,91 +214,139 @@ const SearchResultsPage = () => {
     setIsInitialLoad(false);
   }, [location.search]);
 
-  // Add this function to filter spots by cookie types
-  const filterSpotsByCookieTypes = (spots) => {
-    if (!selectedCookieTypes.length) return spots;
-    
-    return spots.filter(spot => {
-      // Check menu items for cookie types
-      const menuItems = spot.menu_items || [];
-      const menuItemMatches = menuItems.some(item => 
-        selectedCookieTypes.some(type => 
-          item.name.toLowerCase().includes(type.toLowerCase()) ||
-          (item.description && item.description.toLowerCase().includes(type.toLowerCase()))
-        )
-      );
-      
-      // Check reviews for cookie types
-      const reviews = spot.reviews || [];
-      const reviewMatches = reviews.some(review => 
-        selectedCookieTypes.some(type => 
-          review.text.toLowerCase().includes(type.toLowerCase())
-        )
-      );
-      
-      // Check business description/tags
-      const description = (spot.description || '').toLowerCase();
-      const tags = (spot.tags || []).map(tag => tag.toLowerCase());
-      const descriptionMatches = selectedCookieTypes.some(type => 
-        description.includes(type.toLowerCase()) ||
-        tags.includes(type.toLowerCase())
-      );
-      
-      return menuItemMatches || reviewMatches || descriptionMatches;
-    });
-  };
-
-  // Modify the useEffect that handles search results
+  // Effect to load external results after internal database results
   useEffect(() => {
     const loadExternalResults = async () => {
       if (!location.search) return;
       
+      // Get the search term from the URL - either 'location' or 'search' parameter
       const searchParams = new URLSearchParams(location.search);
       const searchLocation = searchParams.get('location') || searchParams.get('search');
       
+      // Skip external fetching if no search term
       if (!searchLocation) {
         console.log('No search term, skipping external results load');
         return;
       }
       
+      // Avoid duplicate searches if the search term hasn't changed
       if (previousSearchRef.current === searchLocation) {
         console.log('Skipping duplicate search for:', searchLocation);
         return;
       }
       
+      // Track this search to avoid duplicates
       previousSearchRef.current = searchLocation;
+      
+      // Start loading state
       setIsLoadingExternal(true);
+      
+      console.log('Loading external results for:', searchLocation);
       
       try {
         setShowNoResults(false);
         
-        const result = await fetchAllSourceCookieSpots(searchLocation);
-        const externalSpots = result.spots || [];
-        
-        if (externalSpots && externalSpots.length > 0) {
-          // Apply cookie type filtering
-          const filteredSpots = filterSpotsByCookieTypes(externalSpots);
-          setExternalResults(filteredSpots);
+        try {
+          // Fetch external API results
+          const result = await fetchAllSourceCookieSpots(searchLocation);
+          const externalSpots = result.spots || [];
           
-          if (result.search_metadata) {
-            setSearchMetadata(result.search_metadata);
+          // Log the exact number of spots received
+          console.log(`RECEIVED ${externalSpots.length} spots from external API`);
+          
+          // Log additional information about multi-zipcode searches
+          if (result.search_metadata?.search_type === 'multi_zipcode') {
+            console.log(`Multi-zipcode search from ${result.search_metadata.zipcode_count} zip codes for ${searchLocation}`);
           }
           
-          if (result.viewport) {
-            setSearchViewport(result.viewport);
+          // If we got results, store them
+          if (externalSpots && externalSpots.length > 0) {
+            setExternalResults(externalSpots);
+            
+            // Store metadata if available
+            if (result.search_metadata) {
+              console.log('Search metadata:', result.search_metadata);
+              setSearchMetadata(result.search_metadata);
+            }
+            
+            // Store viewport information
+            if (result.viewport) {
+              setSearchViewport(result.viewport);
+            }
+            
+            // Track if results came from cache
+            setIsFromCache(result.fromCache || false);
+            
+            // Combine with database results
+            const combined = [...cookieSpots];
+            const seenIds = new Set(cookieSpots.map(spot => spot._id));
+            const seenNames = new Map();
+            
+            // Create lookup for existing spots
+            cookieSpots.forEach(spot => {
+              if (spot && spot.name && spot.address) {
+                const key = `${spot.name.toLowerCase()}|${spot.address.toLowerCase()}`;
+                seenNames.set(key, true);
+              }
+            });
+            
+            // Add external results that aren't duplicates
+            externalSpots.forEach(spot => {
+              if (spot._id && seenIds.has(spot._id)) return;
+              
+              if (spot && spot.name && spot.address) {
+                const key = `${spot.name.toLowerCase()}|${spot.address.toLowerCase()}`;
+                if (seenNames.has(key)) return;
+                
+                combined.push(spot);
+                seenNames.set(key, true);
+              }
+            });
+            
+            // Log the final combined count
+            console.log(`COMBINED: Setting ${combined.length} spots in state (${cookieSpots.length} from DB + ${externalSpots.length - (combined.length - cookieSpots.length)} filtered out as duplicates)`);
+            
+            // Update state with combined results and ensure we don't show "no results"
+            setCombinedResults(combined);
+            setShowNoResults(false);
+          } else {
+            // If no external results, just use the MongoDB results
+            setCombinedResults(cookieSpots);
+            
+            // Only show "no results" if both sources returned nothing
+            if (cookieSpots.length === 0) {
+              // Wait a bit to be sure rendering is complete
+              setTimeout(() => {
+                setShowNoResults(true);
+              }, 1000);
+            }
           }
+        } catch (error) {
+          console.error('Error fetching from external sources:', error);
+          // On error, use whatever MongoDB results we have
+          setCombinedResults(cookieSpots);
           
-          setIsFromCache(result.fromCache || false);
+          // Only show "no results" if MongoDB returned nothing
+          if (cookieSpots.length === 0) {
+            setTimeout(() => {
+              setShowNoResults(true);
+            }, 1000);
+          }
         }
       } catch (error) {
-        console.error('Error loading external results:', error);
+        console.error('Error in loadExternalResults:', error);
+        setCombinedResults(cookieSpots);
       } finally {
+        // Always ensure loading state is cleared
         setIsLoadingExternal(false);
       }
     };
     
-    loadExternalResults();
-  }, [location.search, selectedCookieTypes]);
+    // Only run this effect after internal database results are loaded
+    if (!loading && !isInitialLoad) {
+      loadExternalResults();
+    }
+  }, [location.search, isInitialLoad, cookieSpots]);
 
   // Calculate map bounds based on all spots
   useEffect(() => {
@@ -429,47 +501,104 @@ const SearchResultsPage = () => {
     setClickedSpot(cookieSpot);
   };
 
-  // Get all spots to display (combined results or just cookieSpots)
-  const spotsToDisplay = combinedResults.length > 0 ? combinedResults : cookieSpots;
-  
-  // Force "no results" to false when loading
-  if (loading || isLoadingExternal) {
-    if (showNoResults) setShowNoResults(false);
-  }
-  
-  // Reset showNoResults when a new search starts
-  useEffect(() => {
-    setShowNoResults(false);
-  }, [location.search]);
-  
-  // Add cookie type selection handler
-  const handleCookieTypeSelect = (cookieType) => {
-    setSelectedCookieTypes(prev => {
-      if (prev.includes(cookieType)) {
-        return prev.filter(type => type !== cookieType);
-      }
-      return [...prev, cookieType];
-    });
-  };
+  const finalFilteredSpots = useMemo(() => {
+    if (loading || !combinedResults) {
+        return [];
+    }
+    if (combinedResults.length === 0) {
+        return [];
+    }
 
-  // Add this to your JSX where you want to show the cookie type filters
-  const renderCookieTypeFilters = () => (
-    <div className="flex flex-wrap gap-2 mb-4">
-      {['chocolate chip', 'biscotti', 'sugar', 'oatmeal', 'peanut butter', 'snickerdoodle'].map(type => (
-        <button
-          key={type}
-          onClick={() => handleCookieTypeSelect(type)}
-          className={`px-4 py-2 rounded-full text-sm font-medium transition-colors
-            ${selectedCookieTypes.includes(type)
-              ? 'bg-primary text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-        >
-          {type}
-        </button>
-      ))}
-    </div>
-  );
+    const activeCookieTypeKeyword = getFilterKeyword(filters.cookieType, cookieTypes);
+    const activeDietaryOptionKeyword = getFilterKeyword(filters.dietaryOption, dietaryOptions);
+    
+    if (!activeCookieTypeKeyword && !activeDietaryOptionKeyword) {
+      return combinedResults;
+    }
+
+    return combinedResults.filter(spot => {
+      const isExternal = spot.source === 'google' || spot.place_id;
+
+      if (activeCookieTypeKeyword) {
+        let matchesCookieType = false;
+        if (isExternal) {
+          matchesCookieType = spotMatchesKeyword(spot, activeCookieTypeKeyword, 'cookie_types');
+        } else { 
+          const internalSpotInContext = cookieSpots.find(cs => cs._id === spot._id);
+          if (internalSpotInContext && internalSpotInContext.cookie_types && Array.isArray(internalSpotInContext.cookie_types)) {
+            matchesCookieType = internalSpotInContext.cookie_types.some(ct => 
+               (typeof ct === 'string' && ct.toLowerCase().includes(activeCookieTypeKeyword)) || 
+               (ct.name && ct.name.toLowerCase().includes(activeCookieTypeKeyword))
+            );
+          } else {
+            matchesCookieType = spotMatchesKeyword(spot, activeCookieTypeKeyword, 'cookie_types');
+          }
+        }
+        if (!matchesCookieType) return false;
+      }
+
+      if (activeDietaryOptionKeyword) {
+        let matchesDietaryOption = false;
+        if (isExternal) {
+          matchesDietaryOption = spotMatchesKeyword(spot, activeDietaryOptionKeyword, 'dietary_options');
+        } else { 
+          const internalSpotInContext = cookieSpots.find(cs => cs._id === spot._id);
+          if (internalSpotInContext && internalSpotInContext.dietary_options && Array.isArray(internalSpotInContext.dietary_options)) {
+            matchesDietaryOption = internalSpotInContext.dietary_options.some(opt => 
+               (typeof opt === 'string' && opt.toLowerCase().includes(activeDietaryOptionKeyword)) ||
+               (opt.name && opt.name.toLowerCase().includes(activeDietaryOptionKeyword))
+            );
+          } else {
+            matchesDietaryOption = spotMatchesKeyword(spot, activeDietaryOptionKeyword, 'dietary_options');
+          }
+        }
+        if (!matchesDietaryOption) return false;
+      }
+      return true; 
+    });
+  }, [combinedResults, filters.cookieType, filters.dietaryOption, cookieTypes, dietaryOptions, cookieSpots, loading]);
+
+  // Get all spots to display
+  const spotsToDisplay = finalFilteredSpots;
+
+  // Effect to manage the showNoResults flag based on final results and loading states
+  useEffect(() => {
+    // If we are still loading data from any source, or if there's an error,
+    // the main loading/error messages should be shown, so don't decide on "no results" yet.
+    if (loading || isLoadingExternal || error) {
+      // It might be good to ensure showNoResults is false here if not handled elsewhere,
+      // to prevent briefly showing "no results" if loading states toggle quickly.
+      // For now, the main goal is to set it to true when appropriate.
+      // setShowNoResults(false); // Consider if this is needed or if existing resets are sufficient.
+      return;
+    }
+
+    // At this point, all loading is done, and there's no error.
+    // Now, check if there are any spots to display.
+    if (spotsToDisplay.length === 0) {
+      // No spots left after all fetching and client-side filtering.
+      setShowNoResults(true);
+    } else {
+      // There are spots to display.
+      setShowNoResults(false);
+    }
+  }, [spotsToDisplay, loading, isLoadingExternal, error]);
+
+  // Add function to handle keyword filtering
+  const handleKeywordFilterChange = (e) => {
+    setCookieKeyword(e.target.value);
+  };
+  
+  const applyKeywordFilter = () => {
+    if (cookieKeyword.trim()) {
+      updateFilters({ keyword: cookieKeyword.trim() });
+    } else {
+      // If keyword is empty, clear the keyword filter
+      const updatedFilters = { ...filters };
+      delete updatedFilters.keyword;
+      updateFilters(updatedFilters);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white" style={{ backgroundColor: 'white !important' }}>
@@ -515,8 +644,11 @@ const SearchResultsPage = () => {
                 <h3 className="font-medium mb-2">Cookie Types</h3>
                 <FilterButtons
                   items={cookieTypes}
-                  selectedId={filters.cookieType}
-                  onSelect={(id) => updateFilters({ cookieType: id })}
+                  selectedId={filters.cookieType || 'all'}
+                  onSelect={(id) => {
+                    const newCookieType = filters.cookieType === id ? null : id;
+                    updateFilters({ ...filters, cookieType: newCookieType });
+                  }}
                   colorClass="bg-blue-100 text-primary"
                 />
               </div>
@@ -526,10 +658,57 @@ const SearchResultsPage = () => {
                 <h3 className="font-medium mb-2">Dietary Options</h3>
                 <FilterButtons
                   items={dietaryOptions}
-                  selectedId={filters.dietaryOption}
-                  onSelect={(id) => updateFilters({ dietaryOption: id })}
+                  selectedId={filters.dietaryOption || 'all'}
+                  onSelect={(id) => {
+                    const newDietaryOption = filters.dietaryOption === id ? null : id;
+                    updateFilters({ ...filters, dietaryOption: newDietaryOption });
+                  }}
                   colorClass="bg-green-100 text-green-800"
                 />
+              </div>
+              
+              {/* Keyword Filter for Reviews & Menu Items */}
+              <div className="mb-6">
+                <h3 className="font-medium mb-2">Filter by Keyword</h3>
+                <p className="text-sm text-gray-600 mb-2">
+                  Find places with specific cookies mentioned in reviews or menu items
+                </p>
+                <div className="flex flex-col">
+                  <div className="flex items-center">
+                    <input
+                      type="text"
+                      placeholder="e.g., chocolate chip, oatmeal"
+                      value={cookieKeyword}
+                      onChange={handleKeywordFilterChange}
+                      className="border border-gray-300 rounded-l px-3 py-2 text-sm flex-grow"
+                      onKeyDown={(e) => e.key === 'Enter' && applyKeywordFilter()}
+                    />
+                    <button
+                      onClick={applyKeywordFilter}
+                      className="bg-primary text-white rounded-r px-4 py-2 text-sm"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                  {filters.keyword && (
+                    <div className="mt-2 flex items-center">
+                      <span className="bg-blue-100 text-blue-800 rounded-full px-3 py-1 text-xs font-medium flex items-center">
+                        Filtering by: {filters.keyword}
+                        <button
+                          onClick={() => {
+                            const updatedFilters = { ...filters };
+                            delete updatedFilters.keyword;
+                            updateFilters(updatedFilters);
+                            setCookieKeyword('');
+                          }}
+                          className="ml-2 text-blue-800 hover:text-blue-900"
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
               
               {/* Additional Filters */}
@@ -601,7 +780,7 @@ const SearchResultsPage = () => {
                   </p>
                   <div className="flex justify-center space-x-4">
                     <button
-                      onClick={() => updateFilters({ search: '', cookieType: '', dietaryOption: '' })}
+                      onClick={() => updateFilters({ search: '', cookieType: '', dietaryOption: '', keyword: '' })}
                       className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
                     >
                       Clear all filters
