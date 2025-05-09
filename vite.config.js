@@ -20,7 +20,7 @@ export default defineConfig({
     sourcemap: false,
     minify: true,
     rollupOptions: {
-      input: path.resolve(__dirname, 'index.html'),
+      input: 'index.html',
     },
   },
   server: {
