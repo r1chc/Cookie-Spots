@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
-const CookieSpotCard = ({ cookieSpot, spot }) => {
+// Modified to accept showGoogleMapsLink prop to indicate we're on the home page
+const CookieSpotCard = ({ cookieSpot, spot, showGoogleMapsLink }) => {
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   
   // Handle both data formats - either cookieSpot (from API) or spot (from static data)
@@ -249,47 +250,48 @@ const CookieSpotCard = ({ cookieSpot, spot }) => {
                         "{review.highlight}"
                       </p>
                     ))}
-                    {data.keyword_match.matching_reviews.length > 2 && (
-                      <p className="text-xs text-blue-600">
-                        +{data.keyword_match.matching_reviews.length - 2} more matches
-                      </p>
-                    )}
-                  </div>
-                )}
-                
-                {data.keyword_match.in_menu && (
-                  <div className="border-l-2 border-green-400 pl-2">
-                    <h4 className="text-xs font-semibold text-green-800">Found in menu items</h4>
-                  </div>
-                )}
-                
-                {data.keyword_match.in_description && (
-                  <div className="border-l-2 border-blue-400 pl-2">
-                    <h4 className="text-xs font-semibold text-blue-800">Found in description</h4>
                   </div>
                 )}
               </div>
             )}
             
-            <div className="flex flex-wrap gap-1">
-              {cookieTypes.slice(0, 3).map((type, index) => (
-                <span key={index} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                  {type}
-                </span>
-              ))}
-              {cookieTypes.length > 3 && (
-                <span className="text-gray-500 text-xs px-2 py-1">
-                  +{cookieTypes.length - 3} more
-                </span>
-              )}
-            </div>
+            {/* Google Maps Link */}
+            {showGoogleMapsLink && (
+              <div className="mt-2">
+                <a 
+                  href={
+                    data.place_id
+                      ? `https://www.google.com/maps/place/?q=place_id:${data.place_id}`
+                      : data.location && data.location.coordinates
+                      ? `https://www.google.com/maps/search/?api=1&query=${data.location.coordinates[1]},${data.location.coordinates[0]}`
+                      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name + ' ' + locationText)}`
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-primary-600 hover:text-primary-800 flex items-center"
+                >
+                  <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd"></path>
+                  </svg>
+                  View on Google Maps
+                </a>
+              </div>
+            )}
           </div>
         </div>
       ) : (
-        <Link to={`/cookie-spot/${id}`} className="block">
-          {renderImage()}
+        // For internal DB results
+        <div>
+          {/* Use Link for internal results */}
+          <Link to={`/cookie-spot/${id}`}>
+            {renderImage()}
+          </Link>
+          
           <div className="p-4">
-            <h3 className="text-lg font-bold mb-1">{name}</h3>
+            <Link to={`/cookie-spot/${id}`} className="text-gray-900 hover:text-primary-600">
+              <h3 className="text-lg font-bold mb-1">{name}</h3>
+            </Link>
+            
             <p className="text-gray-600 text-sm mb-2">{locationText}</p>
             
             <div className="flex items-center text-sm text-gray-600 mb-3">
@@ -300,6 +302,13 @@ const CookieSpotCard = ({ cookieSpot, spot }) => {
               </span>
               <span>{reviewCount} reviews</span>
             </div>
+            
+            {data.price_level && (
+              <div className="text-sm text-gray-600 mb-3">
+                <span className="font-medium">Price: </span>
+                <span>{'$'.repeat(data.price_level)}</span>
+              </div>
+            )}
             
             {todayHours && (
               <div className="text-sm text-gray-600 mb-3 flex items-center">
@@ -321,55 +330,46 @@ const CookieSpotCard = ({ cookieSpot, spot }) => {
               </div>
             )}
             
-            {description && <p className="text-gray-700 text-sm mb-3">{description}</p>}
-            
-            {/* Display keyword matches if available */}
-            {data.keyword_match && (
+            {/* Google Maps Link */}
+            {showGoogleMapsLink && (
               <div className="mt-2 mb-3">
-                {data.keyword_match.in_reviews && data.keyword_match.matching_reviews && data.keyword_match.matching_reviews.length > 0 && (
-                  <div className="border-l-2 border-amber-400 pl-2 mb-2">
-                    <h4 className="text-xs font-semibold text-amber-800 mb-1">Found in reviews:</h4>
-                    {data.keyword_match.matching_reviews.slice(0, 2).map((review, idx) => (
-                      <p key={idx} className="text-xs text-gray-600 italic mb-1">
-                        "{review.highlight}"
-                      </p>
-                    ))}
-                    {data.keyword_match.matching_reviews.length > 2 && (
-                      <p className="text-xs text-blue-600">
-                        +{data.keyword_match.matching_reviews.length - 2} more matches
-                      </p>
-                    )}
-                  </div>
-                )}
-                
-                {data.keyword_match.in_menu && (
-                  <div className="border-l-2 border-green-400 pl-2">
-                    <h4 className="text-xs font-semibold text-green-800">Found in menu items</h4>
-                  </div>
-                )}
-                
-                {data.keyword_match.in_description && (
-                  <div className="border-l-2 border-blue-400 pl-2">
-                    <h4 className="text-xs font-semibold text-blue-800">Found in description</h4>
-                  </div>
-                )}
+                <a 
+                  href={
+                    data.place_id
+                      ? `https://www.google.com/maps/place/?q=place_id:${data.place_id}`
+                      : data.location && data.location.coordinates
+                      ? `https://www.google.com/maps/search/?api=1&query=${data.location.coordinates[1]},${data.location.coordinates[0]}`
+                      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name + ' ' + locationText)}`
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-primary-600 hover:text-primary-800 flex items-center"
+                >
+                  <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd"></path>
+                  </svg>
+                  View on Google Maps
+                </a>
               </div>
             )}
             
             <div className="flex flex-wrap gap-1">
-              {cookieTypes.slice(0, 3).map((type, index) => (
-                <span key={index} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+              {cookieTypes.slice(0, 3).map((type, idx) => (
+                <span 
+                  key={idx} 
+                  className="inline-block bg-blue-100 rounded-full px-2 py-1 text-xs font-medium text-blue-800"
+                >
                   {type}
                 </span>
               ))}
               {cookieTypes.length > 3 && (
-                <span className="text-gray-500 text-xs px-2 py-1">
+                <span className="inline-block bg-gray-100 rounded-full px-2 py-1 text-xs font-medium text-gray-800">
                   +{cookieTypes.length - 3} more
                 </span>
               )}
             </div>
           </div>
-        </Link>
+        </div>
       )}
     </div>
   );
