@@ -456,7 +456,10 @@ const SearchResultsPage = () => {
     const value = e.target.value;
     let sort = 'average_rating';
     let order = 'desc';
+    let clientSort = value;  // Store the client-side sort preference
     
+    // For server API requests, always use valid parameters
+    // to prevent server errors
     if (value === 'rating_high') {
       sort = 'average_rating';
       order = 'desc';
@@ -464,14 +467,16 @@ const SearchResultsPage = () => {
       sort = 'average_rating';
       order = 'asc';
     } else if (value === 'reviews') {
-      sort = 'review_count';
+      // Use a safe sort parameter for server API
+      sort = 'average_rating';
       order = 'desc';
     } else if (value === 'newest') {
-      sort = 'createdAt';
+      // Use a safe sort parameter for server API 
+      sort = 'average_rating';
       order = 'desc';
     }
     
-    updateFilters({ sort, order });
+    updateFilters({ sort, order, clientSort });
   };
   
   // Get current sort value for select
@@ -558,30 +563,36 @@ const SearchResultsPage = () => {
       });
     }
     
-    // Then apply sorting
-    const { sort, order } = filters;
+    // Then apply sorting - use clientSort if available, otherwise use sort/order
+    const clientSort = filters.clientSort || getCurrentSortValue();
     
     // Create a sorted copy of the filtered results
     return [...filteredSpots].sort((a, b) => {
-      // For average_rating
-      if (sort === 'average_rating') {
+      // For highest/lowest rating
+      if (clientSort === 'rating_high') {
         const ratingA = a.average_rating || 0;
         const ratingB = b.average_rating || 0;
-        return order === 'desc' ? ratingB - ratingA : ratingA - ratingB;
+        return ratingB - ratingA;
+      }
+      
+      if (clientSort === 'rating_low') {
+        const ratingA = a.average_rating || 0;
+        const ratingB = b.average_rating || 0;
+        return ratingA - ratingB;
       }
       
       // For review_count
-      if (sort === 'review_count') {
+      if (clientSort === 'reviews') {
         const countA = a.review_count || 0;
         const countB = b.review_count || 0;
-        return order === 'desc' ? countB - countA : countA - countB;
+        return countB - countA;
       }
       
-      // For createdAt
-      if (sort === 'createdAt') {
+      // For newest
+      if (clientSort === 'newest') {
         const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
         const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
-        return order === 'desc' ? dateB - dateA : dateA - dateB;
+        return dateB - dateA;
       }
       
       // Default sort by average_rating desc
@@ -589,7 +600,7 @@ const SearchResultsPage = () => {
       const defaultRatingB = b.average_rating || 0;
       return defaultRatingB - defaultRatingA;
     });
-  }, [combinedResults, filters.cookieType, filters.dietaryOption, filters.sort, filters.order, cookieTypes, dietaryOptions, cookieSpots, loading]);
+  }, [combinedResults, filters, cookieTypes, dietaryOptions, cookieSpots, loading]);
 
   // Get all spots to display
   const spotsToDisplay = finalFilteredSpots;
