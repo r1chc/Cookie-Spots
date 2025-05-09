@@ -4,12 +4,16 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const config = require('./config/config');
+const security = require('./config/security');
+const logger = require('./config/logger');
 const cron = require('node-cron');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
 const hpp = require('hpp');
+const compression = require('compression');
+const morgan = require('morgan');
 const axios = require('axios');
 
 // Import routes
@@ -23,24 +27,39 @@ const dietaryOptionRoutes = require('./routes/dietaryOptionRoutes');
 const tripRoutes = require('./routes/tripRoutes');
 const externalApiRoutes = require('./routes/externalApiRoutes');
 const cookieSpots = require('./routes/cookieSpots');
+const healthRoutes = require('./routes/healthRoutes');
 
 const app = express();
 
 // Security Middleware
-app.use(helmet()); // Set security HTTP headers
-app.use(mongoSanitize()); // Sanitize data against NoSQL query injection
-app.use(xss()); // Sanitize data against XSS attacks
-app.use(hpp()); // Prevent parameter pollution
+app.use(helmet(security.helmetConfig));
+app.use(mongoSanitize());
+app.use(xss());
+app.use(hpp());
 
 // Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
-});
-app.use('/api/', limiter);
+app.use('/api/', security.apiLimiter);
+app.use('/api/auth', security.authLimiter);
+
+// Compression middleware
+app.use(compression());
+
+// Logging middleware
+app.use(morgan('combined', { stream: logger.stream }));
+
+// CORS configuration
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? [process.env.FRONTEND_URL, 'https://cookiespots.com'] 
+    : '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  maxAge: 86400 // 24 hours
+};
+app.use(cors(corsOptions));
 
 // Middleware
-app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -49,16 +68,14 @@ let isConnecting = false;
 let isConnected = false;
 
 const connectDB = async () => {
-  // Prevent multiple simultaneous connection attempts
   if (isConnecting) {
-    console.log('Already attempting to connect to MongoDB...');
+    logger.info('Already attempting to connect to MongoDB...');
     return;
   }
   
   isConnecting = true;
   
   try {
-    // Use MongoDB Atlas connection string from environment variable or config
     const mongoURI = process.env.MONGO_URI || config.mongoURI;
     
     if (!mongoURI) {
@@ -68,23 +85,21 @@ const connectDB = async () => {
     await mongoose.connect(mongoURI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
-      socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
     });
     
-    console.log('MongoDB Atlas connected successfully');
+    logger.info('MongoDB Atlas connected successfully');
     isConnected = true;
     
-    // Handle connection errors after initial connection
     mongoose.connection.on('error', err => {
-      console.error('MongoDB connection error:', err);
+      logger.error('MongoDB connection error:', err);
       isConnected = false;
     });
 
     mongoose.connection.on('disconnected', () => {
-      console.log('MongoDB disconnected. Attempting to reconnect...');
+      logger.warn('MongoDB disconnected. Attempting to reconnect...');
       isConnected = false;
-      // Attempt to reconnect after a delay
       setTimeout(() => {
         isConnecting = false;
         connectDB();
@@ -92,14 +107,13 @@ const connectDB = async () => {
     });
 
     mongoose.connection.on('reconnected', () => {
-      console.log('MongoDB reconnected successfully');
+      logger.info('MongoDB reconnected successfully');
       isConnected = true;
     });
 
   } catch (error) {
-    console.error('MongoDB connection error:', error.message);
-    // Don't exit the process, just log the error
-    console.error('Failed to connect to MongoDB. Will retry on next request.');
+    logger.error('MongoDB connection error:', error.message);
+    logger.error('Failed to connect to MongoDB. Will retry on next request.');
     isConnected = false;
   } finally {
     isConnecting = false;
@@ -109,7 +123,7 @@ const connectDB = async () => {
 // Middleware to ensure database connection before processing requests
 const ensureDBConnection = async (req, res, next) => {
   if (!isConnected && !isConnecting) {
-    console.log('Database not connected. Attempting to connect...');
+    logger.info('Database not connected. Attempting to connect...');
     await connectDB();
   }
   next();
@@ -129,13 +143,11 @@ app.use('/api/cookie-types', cookieTypeRoutes);
 app.use('/api/dietary-options', dietaryOptionRoutes);
 app.use('/api/trips', tripRoutes);
 app.use('/api/external', externalApiRoutes);
-
-// Use our new enhanced cookie spots route
 app.use('/api/cookie-spots/all-sources', cookieSpots);
+app.use('/health', healthRoutes);
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {
-  // Set static folder
   app.use(express.static(path.join(__dirname, '../build')));
   
   app.get('*', (req, res) => {
@@ -150,23 +162,34 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+// Create logs directory if it doesn't exist
+const logsDir = path.join(__dirname, '../logs');
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
+
 // Serve uploaded files
 app.use('/uploads', express.static(uploadsDir));
 
-// Error handling middleware
+// Enhanced error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({
+  logger.error('Error:', err);
+  
+  const statusCode = err.statusCode || 500;
+  const message = err.message || 'Something went wrong!';
+  
+  res.status(statusCode).json({
     status: 'error',
-    message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    message,
+    error: process.env.NODE_ENV === 'development' ? err : undefined,
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
   });
 });
 
 const PORT = process.env.PORT || config.port;
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  logger.info(`Server running on port ${PORT}`);
 });
 
 module.exports = app;

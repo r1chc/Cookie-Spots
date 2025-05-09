@@ -40,33 +40,36 @@ function App() {
   };
 
   return (
-    <AuthProvider>
-      <CookieSpotProvider>
-        <div className="flex flex-col min-h-screen">
-          <Header />
-          <main className="flex-grow bg-white">
-            <ScrollToTop />
-            <Routes>
-              <Route path="/" element={<HomePage onSearch={handleSearch} />} />
-              <Route path="/search" element={<SearchResultsPage />} />
-              <Route path="/cookie-spot/:id" element={<CookieSpotDetailPage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/add-cookie-spot" element={<AddCookieSpotPage />} />
-              <Route path="/blog" element={<BlogPage />} />
-              <Route path="/blogsearch" element={<BlogSearch />} />
-              <Route path="/article/:slug" element={<ArticlePage />} />
-              <Route path="/about" element={<AboutPage />} />
-              <Route path="/contact" element={<ContactPage />} />
-              <Route path="*" element={<div>Page not found</div>} />
-            </Routes>
-          </main>
-          <Footer />
-          <BackToTopButton />
-        </div>
-      </CookieSpotProvider>
-    </AuthProvider>
+    <>
+      <AuthProvider>
+        <CookieSpotProvider>
+          <div className="flex flex-col min-h-screen">
+            <Header />
+            <main className="flex-grow bg-white">
+              <ScrollToTop />
+              <Routes>
+                <Route path="/" element={<HomePage onSearch={handleSearch} />} />
+                <Route path="/search" element={<SearchResultsPage />} />
+                <Route path="/cookie-spot/:id" element={<CookieSpotDetailPage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/add-cookie-spot" element={<AddCookieSpotPage />} />
+                <Route path="/blog" element={<BlogPage />} />
+                <Route path="/blogsearch" element={<BlogSearch />} />
+                <Route path="/article/:slug" element={<ArticlePage />} />
+                <Route path="/about" element={<AboutPage />} />
+                <Route path="/contact" element={<ContactPage />} />
+                <Route path="*" element={<div>Page not found</div>} />
+              </Routes>
+            </main>
+            <Footer />
+            <BackToTopButton />
+          </div>
+        </CookieSpotProvider>
+      </AuthProvider>
+      <div id="suggestions-portal"></div>
+    </>
   );
 }
 

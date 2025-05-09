@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import SearchBar from '../components/SearchBar'
 import CookieSpotCard from '../components/CookieSpotCard'
 import FilterButtons from '../components/FilterButtons'
@@ -20,11 +20,28 @@ const homePageCache = {
 
 const HomePage = ({ onSearch }) => {
   useScrollRestoration();
+  const location = useLocation();
   
   const [featuredSpots, setFeaturedSpots] = useState([]);
   const [userLocation, setUserLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Effect to scroll to newsletter section if coming from Subscribe button
+  useEffect(() => {
+    // Check if we have state indicating we should scroll to newsletter
+    if (location.state && location.state.scrollToNewsletter) {
+      // Small delay to ensure the DOM is fully loaded
+      const timer = setTimeout(() => {
+        const newsletterSection = document.getElementById('newsletter');
+        if (newsletterSection) {
+          newsletterSection.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     // Function to get user location and fetch nearby cookie spots
@@ -156,7 +173,9 @@ const HomePage = ({ onSearch }) => {
         <div className="container mx-auto px-4 text-center hero-content">
           <h1 className="text-4xl md:text-5xl font-bold mb-4 text-white">Find Cookie Spots Nearby</h1>
           <p className="text-xl mb-8 text-white">Discover the best cookies in your area</p>
-          <SearchBar onSearch={handleSearch} />
+          <div className="max-w-md mx-auto">
+            <SearchBar onSearch={handleSearch} />
+          </div>
         </div>
       </section>
 
@@ -178,10 +197,10 @@ const HomePage = ({ onSearch }) => {
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mt-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
               {Array.isArray(featuredSpots) && featuredSpots.map(spot => (
-                <div key={spot.id || spot._id} className="bg-white rounded-lg shadow-md transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
-                  <CookieSpotCard spot={spot} />
+                <div key={spot.id || spot._id} className="h-full">
+                  <CookieSpotCard spot={spot} showGoogleMapsLink={true} />
                 </div>
               ))}
             </div>
@@ -247,7 +266,7 @@ const HomePage = ({ onSearch }) => {
       */}
 
       {/* Newsletter Section */}
-      <section className="py-16 bg-white">
+      <section className="py-16 bg-white" id="newsletter">
         <div className="container mx-auto px-4">
           {/* Newsletter container with custom background color */}
           <div className="max-w-3xl mx-auto rounded-lg shadow-lg border border-gray-200 p-10 px-12 text-center" style={{ backgroundColor: '#92AFD7' }}>

@@ -90,7 +90,7 @@ const FloatingActionButtons = () => {
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="Search..."
+              placeholder="Search Recipes & Blog..."
               className="search-input"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}

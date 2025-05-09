@@ -7,6 +7,7 @@ import { loadGoogleMaps } from '../utils/googleMapsLoader';
 import { fetchAllSourceCookieSpots } from '../utils/cookieSpotService';
 import MapComponent from '../components/Map';
 import useScrollRestoration from '../hooks/useScrollRestoration';
+import SearchBar from '../components/SearchBar';
 
 // Helper function to get filter keyword (name) from its ID
 const getFilterKeyword = (filterId, items) => {
@@ -158,7 +159,7 @@ const SearchResultsPage = () => {
       body.search-page, 
       body.search-page #root, 
       body.search-page main, 
-      body.search-page [class*="bg-primary"] {
+      body.search-page main [class*="bg-primary"]:not(button) {
         background-color: white !important;
       }
     `;
@@ -456,7 +457,10 @@ const SearchResultsPage = () => {
     const value = e.target.value;
     let sort = 'average_rating';
     let order = 'desc';
+    let clientSort = value;  // Store the client-side sort preference
     
+    // For server API requests, always use valid parameters
+    // to prevent server errors
     if (value === 'rating_high') {
       sort = 'average_rating';
       order = 'desc';
@@ -464,24 +468,29 @@ const SearchResultsPage = () => {
       sort = 'average_rating';
       order = 'asc';
     } else if (value === 'reviews') {
-      sort = 'review_count';
-      order = 'desc';
-    } else if (value === 'newest') {
-      sort = 'createdAt';
+      // Use a safe sort parameter for server API
+      sort = 'average_rating';
       order = 'desc';
     }
     
-    updateFilters({ sort, order });
+    updateFilters({ sort, order, clientSort });
   };
   
   // Get current sort value for select
   const getCurrentSortValue = () => {
+    // First check if we have a clientSort value
+    if (filters.clientSort) {
+      // If clientSort is 'newest' (from previous version), default to 'rating_high'
+      if (filters.clientSort === 'newest') return 'rating_high';
+      return filters.clientSort;
+    }
+    
+    // Fall back to legacy sort/order logic
     const { sort, order } = filters;
     
     if (sort === 'average_rating' && order === 'desc') return 'rating_high';
     if (sort === 'average_rating' && order === 'asc') return 'rating_low';
     if (sort === 'review_count') return 'reviews';
-    if (sort === 'createdAt') return 'newest';
     
     return 'rating_high'; // Default
   };
@@ -512,51 +521,83 @@ const SearchResultsPage = () => {
     const activeCookieTypeKeyword = getFilterKeyword(filters.cookieType, cookieTypes);
     const activeDietaryOptionKeyword = getFilterKeyword(filters.dietaryOption, dietaryOptions);
     
-    if (!activeCookieTypeKeyword && !activeDietaryOptionKeyword) {
-      return combinedResults;
-    }
+    // First apply all filters
+    let filteredSpots = combinedResults;
+    
+    if (activeCookieTypeKeyword || activeDietaryOptionKeyword) {
+      filteredSpots = combinedResults.filter(spot => {
+        const isExternal = spot.source === 'google' || spot.place_id;
 
-    return combinedResults.filter(spot => {
-      const isExternal = spot.source === 'google' || spot.place_id;
-
-      if (activeCookieTypeKeyword) {
-        let matchesCookieType = false;
-        if (isExternal) {
-          matchesCookieType = spotMatchesKeyword(spot, activeCookieTypeKeyword, 'cookie_types');
-        } else { 
-          const internalSpotInContext = cookieSpots.find(cs => cs._id === spot._id);
-          if (internalSpotInContext && internalSpotInContext.cookie_types && Array.isArray(internalSpotInContext.cookie_types)) {
-            matchesCookieType = internalSpotInContext.cookie_types.some(ct => 
-               (typeof ct === 'string' && ct.toLowerCase().includes(activeCookieTypeKeyword)) || 
-               (ct.name && ct.name.toLowerCase().includes(activeCookieTypeKeyword))
-            );
-          } else {
+        if (activeCookieTypeKeyword) {
+          let matchesCookieType = false;
+          if (isExternal) {
             matchesCookieType = spotMatchesKeyword(spot, activeCookieTypeKeyword, 'cookie_types');
+          } else { 
+            const internalSpotInContext = cookieSpots.find(cs => cs._id === spot._id);
+            if (internalSpotInContext && internalSpotInContext.cookie_types && Array.isArray(internalSpotInContext.cookie_types)) {
+              matchesCookieType = internalSpotInContext.cookie_types.some(ct => 
+                (typeof ct === 'string' && ct.toLowerCase().includes(activeCookieTypeKeyword)) || 
+                (ct.name && ct.name.toLowerCase().includes(activeCookieTypeKeyword))
+              );
+            } else {
+              matchesCookieType = spotMatchesKeyword(spot, activeCookieTypeKeyword, 'cookie_types');
+            }
           }
+          if (!matchesCookieType) return false;
         }
-        if (!matchesCookieType) return false;
-      }
 
-      if (activeDietaryOptionKeyword) {
-        let matchesDietaryOption = false;
-        if (isExternal) {
-          matchesDietaryOption = spotMatchesKeyword(spot, activeDietaryOptionKeyword, 'dietary_options');
-        } else { 
-          const internalSpotInContext = cookieSpots.find(cs => cs._id === spot._id);
-          if (internalSpotInContext && internalSpotInContext.dietary_options && Array.isArray(internalSpotInContext.dietary_options)) {
-            matchesDietaryOption = internalSpotInContext.dietary_options.some(opt => 
-               (typeof opt === 'string' && opt.toLowerCase().includes(activeDietaryOptionKeyword)) ||
-               (opt.name && opt.name.toLowerCase().includes(activeDietaryOptionKeyword))
-            );
-          } else {
+        if (activeDietaryOptionKeyword) {
+          let matchesDietaryOption = false;
+          if (isExternal) {
             matchesDietaryOption = spotMatchesKeyword(spot, activeDietaryOptionKeyword, 'dietary_options');
+          } else { 
+            const internalSpotInContext = cookieSpots.find(cs => cs._id === spot._id);
+            if (internalSpotInContext && internalSpotInContext.dietary_options && Array.isArray(internalSpotInContext.dietary_options)) {
+              matchesDietaryOption = internalSpotInContext.dietary_options.some(opt => 
+                (typeof opt === 'string' && opt.toLowerCase().includes(activeDietaryOptionKeyword)) ||
+                (opt.name && opt.name.toLowerCase().includes(activeDietaryOptionKeyword))
+              );
+            } else {
+              matchesDietaryOption = spotMatchesKeyword(spot, activeDietaryOptionKeyword, 'dietary_options');
+            }
           }
+          if (!matchesDietaryOption) return false;
         }
-        if (!matchesDietaryOption) return false;
+        return true; 
+      });
+    }
+    
+    // Then apply sorting - use clientSort if available, otherwise use sort/order
+    const clientSort = filters.clientSort || getCurrentSortValue();
+    
+    // Create a sorted copy of the filtered results
+    return [...filteredSpots].sort((a, b) => {
+      // For highest/lowest rating
+      if (clientSort === 'rating_high') {
+        const ratingA = a.average_rating || 0;
+        const ratingB = b.average_rating || 0;
+        return ratingB - ratingA;
       }
-      return true; 
+      
+      if (clientSort === 'rating_low') {
+        const ratingA = a.average_rating || 0;
+        const ratingB = b.average_rating || 0;
+        return ratingA - ratingB;
+      }
+      
+      // For review_count
+      if (clientSort === 'reviews') {
+        const countA = a.review_count || 0;
+        const countB = b.review_count || 0;
+        return countB - countA;
+      }
+      
+      // Default sort by average_rating desc
+      const defaultRatingA = a.average_rating || 0;
+      const defaultRatingB = b.average_rating || 0;
+      return defaultRatingB - defaultRatingA;
     });
-  }, [combinedResults, filters.cookieType, filters.dietaryOption, cookieTypes, dietaryOptions, cookieSpots, loading]);
+  }, [combinedResults, filters, cookieTypes, dietaryOptions, cookieSpots, loading]);
 
   // Get all spots to display
   const spotsToDisplay = finalFilteredSpots;
@@ -611,31 +652,50 @@ const SearchResultsPage = () => {
         </div>
         
         {/* Search Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-          <h1 className="text-3xl font-bold mb-2 md:mb-0">
+        <div className="flex flex-col mb-6">
+          <h1 className="text-3xl font-bold mb-2">
             {filters.search ? `Results for "${filters.search}"` : 'All Cookie Spots'}
           </h1>
-          <div className="flex items-center space-x-4">
+          <div className="mb-4 w-full md:max-w-lg">
+            <SearchBar 
+              variant="square"
+              onSearch={(searchText, locationData) => {
+                // Build URL params
+                const params = new URLSearchParams();
+                params.set('location', searchText);
+                
+                // Add coordinates if available
+                if (locationData && locationData.latitude && locationData.longitude) {
+                  params.set('lat', locationData.latitude);
+                  params.set('lng', locationData.longitude);
+                }
+                
+                // Update URL and navigate
+                navigate(`/search?${params.toString()}`, { replace: true });
+              }} 
+            />
+          </div>
+          <div className="flex items-center mb-4">
             <div>
-              <label htmlFor="sort" className="sr-only">Sort by</label>
+              <label htmlFor="sort" className="mr-2 text-gray-700 font-medium">Sort by:</label>
               <select
                 id="sort"
                 value={getCurrentSortValue()}
                 onChange={handleSortChange}
-                className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md"
+                className="border border-primary text-base pl-3 pr-10 py-2 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-lg"
+                style={{ borderColor: 'var(--color-primary, #3b82f6)' }}
               >
                 <option value="rating_high">Highest Rated</option>
                 <option value="rating_low">Lowest Rated</option>
                 <option value="reviews">Most Reviewed</option>
-                <option value="newest">Newest</option>
               </select>
             </div>
           </div>
         </div>
         
         <div className="flex flex-col lg:flex-row">
-          {/* Filters Sidebar - Left Column */}
-          <div className="lg:w-1/5 lg:pr-6 mb-6 lg:mb-0">
+          {/* Filters Sidebar - Left Column - Now hidden */}
+          <div className="hidden">
             <div className="bg-white rounded-lg shadow-md p-4 sticky top-4">
               <h2 className="text-lg font-semibold mb-4">Filters</h2>
               
@@ -746,8 +806,8 @@ const SearchResultsPage = () => {
             </div>
           </div>
           
-          {/* Results - Middle Column */}
-          <div className="lg:w-2/5 px-3">
+          {/* Results - Left Column (expanded) */}
+          <div className="lg:w-1/2 px-3">
             <div className="bg-white rounded-lg shadow-md">
               {/* Initial loading state */}
               {loading ? (
@@ -884,8 +944,8 @@ const SearchResultsPage = () => {
             </div>
           </div>
           
-          {/* Map - Right Column */}
-          <div className="lg:w-2/5 lg:pl-6 mt-6 lg:mt-0">
+          {/* Map - Right Column (expanded) */}
+          <div className="lg:w-1/2 lg:pl-6 mt-6 lg:mt-0">
             <div className="bg-white rounded-lg shadow-md overflow-hidden sticky top-4">
               <div className="h-[calc(100vh-2rem)] min-h-[600px]">
                 {spotsToDisplay && spotsToDisplay.length > 0 && (
