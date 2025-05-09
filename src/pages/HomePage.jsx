@@ -197,9 +197,9 @@ const HomePage = ({ onSearch }) => {
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mt-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
               {Array.isArray(featuredSpots) && featuredSpots.map(spot => (
-                <div key={spot.id || spot._id} className="bg-white rounded-lg shadow-md transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+                <div key={spot.id || spot._id} className="h-full">
                   <CookieSpotCard spot={spot} showGoogleMapsLink={true} />
                 </div>
               ))}

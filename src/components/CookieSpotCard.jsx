@@ -200,11 +200,11 @@ const CookieSpotCard = ({ cookieSpot, spot, showGoogleMapsLink }) => {
   );
 
   return (
-    <div className="cookie-spot-card bg-white rounded-lg shadow-md overflow-hidden">
+    <div className="h-full bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
       {isExternalSpot ? (
-        <div>
+        <div className="h-full flex flex-col">
           {renderImage()}
-          <div className="p-4">
+          <div className="p-4 flex-grow">
             <h3 className="text-lg font-bold mb-1">{name}</h3>
             <p className="text-gray-600 text-sm mb-2">{locationText}</p>
             
@@ -254,24 +254,19 @@ const CookieSpotCard = ({ cookieSpot, spot, showGoogleMapsLink }) => {
                 )}
               </div>
             )}
-            
+
             {/* Google Maps Link */}
-            {showGoogleMapsLink && (
-              <div className="mt-2">
-                <a 
-                  href={
-                    data.place_id
-                      ? `https://www.google.com/maps/place/?q=place_id:${data.place_id}`
-                      : data.location && data.location.coordinates
-                      ? `https://www.google.com/maps/search/?api=1&query=${data.location.coordinates[1]},${data.location.coordinates[0]}`
-                      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name + ' ' + locationText)}`
-                  }
+            {showGoogleMapsLink && data.place_id && (
+              <div className="mt-auto pt-3">
+                <a
+                  href={`https://www.google.com/maps/place/?q=place_id:${data.place_id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-primary-600 hover:text-primary-800 flex items-center"
+                  className="text-primary-600 hover:text-primary-800 text-sm flex items-center"
                 >
-                  <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                    <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd"></path>
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                   View on Google Maps
                 </a>
@@ -280,18 +275,10 @@ const CookieSpotCard = ({ cookieSpot, spot, showGoogleMapsLink }) => {
           </div>
         </div>
       ) : (
-        // For internal DB results
-        <div>
-          {/* Use Link for internal results */}
-          <Link to={`/cookie-spot/${id}`}>
-            {renderImage()}
-          </Link>
-          
-          <div className="p-4">
-            <Link to={`/cookie-spot/${id}`} className="text-gray-900 hover:text-primary-600">
-              <h3 className="text-lg font-bold mb-1">{name}</h3>
-            </Link>
-            
+        <Link to={`/cookie-spot/${id}`} className="h-full flex flex-col">
+          {renderImage()}
+          <div className="p-4 flex-grow">
+            <h3 className="text-lg font-bold mb-1">{name}</h3>
             <p className="text-gray-600 text-sm mb-2">{locationText}</p>
             
             <div className="flex items-center text-sm text-gray-600 mb-3">
@@ -302,13 +289,6 @@ const CookieSpotCard = ({ cookieSpot, spot, showGoogleMapsLink }) => {
               </span>
               <span>{reviewCount} reviews</span>
             </div>
-            
-            {data.price_level && (
-              <div className="text-sm text-gray-600 mb-3">
-                <span className="font-medium">Price: </span>
-                <span>{'$'.repeat(data.price_level)}</span>
-              </div>
-            )}
             
             {todayHours && (
               <div className="text-sm text-gray-600 mb-3 flex items-center">
@@ -330,46 +310,27 @@ const CookieSpotCard = ({ cookieSpot, spot, showGoogleMapsLink }) => {
               </div>
             )}
             
+            {description && <p className="text-gray-700 text-sm mb-3">{description}</p>}
+
             {/* Google Maps Link */}
-            {showGoogleMapsLink && (
-              <div className="mt-2 mb-3">
-                <a 
-                  href={
-                    data.place_id
-                      ? `https://www.google.com/maps/place/?q=place_id:${data.place_id}`
-                      : data.location && data.location.coordinates
-                      ? `https://www.google.com/maps/search/?api=1&query=${data.location.coordinates[1]},${data.location.coordinates[0]}`
-                      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name + ' ' + locationText)}`
-                  }
+            {showGoogleMapsLink && data.place_id && (
+              <div className="mt-auto pt-3">
+                <a
+                  href={`https://www.google.com/maps/place/?q=place_id:${data.place_id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-primary-600 hover:text-primary-800 flex items-center"
+                  className="text-primary-600 hover:text-primary-800 text-sm flex items-center"
                 >
-                  <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                    <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd"></path>
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                   View on Google Maps
                 </a>
               </div>
             )}
-            
-            <div className="flex flex-wrap gap-1">
-              {cookieTypes.slice(0, 3).map((type, idx) => (
-                <span 
-                  key={idx} 
-                  className="inline-block bg-blue-100 rounded-full px-2 py-1 text-xs font-medium text-blue-800"
-                >
-                  {type}
-                </span>
-              ))}
-              {cookieTypes.length > 3 && (
-                <span className="inline-block bg-gray-100 rounded-full px-2 py-1 text-xs font-medium text-gray-800">
-                  +{cookieTypes.length - 3} more
-                </span>
-              )}
-            </div>
           </div>
-        </div>
+        </Link>
       )}
     </div>
   );
