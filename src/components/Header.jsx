@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { getCurrentLocation, reverseGeocode } from '../utils/geolocation'
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isSticky, setIsSticky] = useState(false)
+  const [isLocating, setIsLocating] = useState(false)
+  const navigate = useNavigate()
+  const location = useLocation()
 
   const debounce = (func, wait) => {
     let timeout
@@ -36,13 +40,11 @@ const Header = () => {
   const handleLogoClick = (e) => {
     const currentPath = window.location.pathname;
     
-    // If we're already on the home page, smoothly scroll to top
     if (currentPath === '/') {
-      e.preventDefault(); // Prevent navigation
+      e.preventDefault(); 
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
     
-    // Close the mobile menu if it's open
     setIsMenuOpen(false);
   }
 
@@ -50,29 +52,67 @@ const Header = () => {
     const targetPath = e.currentTarget.getAttribute('href');
     const currentPath = window.location.pathname;
     
-    // If we're already on the target page, smoothly scroll to top
     if (targetPath === currentPath) {
-      e.preventDefault(); // Prevent navigation
+      e.preventDefault(); 
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      // For new page navigation, let the page start at top (handled by useScrollRestoration)
       window.scrollTo(0, 0);
     }
     
-    // Close the mobile menu if it's open
     setIsMenuOpen(false);
   }
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
-    // Dispatch event for navigation state change
     window.dispatchEvent(new CustomEvent('navigationStateChange', {
       detail: { isOpen: !isMenuOpen }
     }));
   }
 
+  const handleCookiesNearYouClick = async () => {
+    setIsLocating(true);
+    try {
+      const coords = await getCurrentLocation();
+      const locationData = await reverseGeocode(coords);
+      
+      const searchUrl = `/search?location=${encodeURIComponent(locationData.formattedLocation)}&lat=${coords.latitude}&lng=${coords.longitude}`;
+      
+      if (location.pathname === '/search') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        navigate(searchUrl, { replace: true });
+      } else {
+        navigate(searchUrl);
+      }
+      
+    } catch (error) {
+      console.error("Error getting location for 'Cookies Near You':", error);
+      alert("Could not get your location. Please ensure location services are enabled in your browser and try again.");
+    } finally {
+      setIsLocating(false);
+      setIsMenuOpen(false);
+    }
+  };
+
+  const handleSubscribeClick = (e) => {
+    e.preventDefault();
+    
+    // Navigate to home page if not already there
+    if (location.pathname !== '/') {
+      // Use navigate with a callback to scroll after navigation completes
+      navigate('/', { state: { scrollToNewsletter: true } });
+    } else {
+      // Already on home page, just scroll to the newsletter section
+      const newsletterSection = document.getElementById('newsletter');
+      if (newsletterSection) {
+        newsletterSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+    
+    setIsMenuOpen(false);
+  };
+
   return (
-    <div className="sticky top-0 z-50">
+    <div className="sticky top-0 z-[9999]">
       <header 
         className={`bg-white border-b border-gray-200 shadow-sm transition-all duration-300 ease-in-out ${
           isSticky ? 'shadow-lg' : 'shadow-none'
@@ -86,11 +126,13 @@ const Header = () => {
               src="/images/Cookie_Spots_Logo.png" 
               alt="Cookie Spots Logo" 
               className="h-8 w-auto mr-2"
+              style={{ outline: 'none', border: 'none' }}
             />
             <img 
               src="/images/Cookie_Spots_Logo_Words.png" 
               alt="Cookie Spots" 
               className="h-8 w-auto"
+              style={{ outline: 'none', border: 'none' }}
             />
           </Link>
 
@@ -116,13 +158,18 @@ const Header = () => {
                 )}
               </button>
             
-              <Link to="/add-cookie-spot" className="hidden lg:block bg-primary text-white px-4 py-2 rounded-md text-sm font-medium hover:opacity-90">
-              Cookies Near You
-            </Link>
+              <button 
+                onClick={handleCookiesNearYouClick}
+                disabled={isLocating}
+                className="hidden lg:block bg-primary text-white px-4 py-2 rounded-md text-sm font-medium hover:opacity-90 disabled:opacity-70"
+                style={{ backgroundColor: 'var(--color-primary, #3b82f6) !important', color: 'white !important' }}
+              >
+                {isLocating ? 'Locating...' : 'Cookies Near You'}
+              </button>
             
-              <Link to="/login" className="hidden lg:block bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-md text-sm font-medium">
-              Subscribe
-            </Link>
+              <Link to="/#newsletter" className="hidden lg:block bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-md text-sm font-medium" onClick={handleSubscribeClick}>
+                Subscribe
+              </Link>
           </div>
         </div>
 
@@ -142,8 +189,15 @@ const Header = () => {
                 <div className="w-full max-w-[300px] border-b border-gray-200"></div>
                 <Link to="/contact" className="block py-2 text-gray-700 text-base text-center hover:text-primary w-full max-w-[200px]" onClick={handleNavClick}>Contact Us</Link>
                 <div className="mt-3"></div>
-                <Link to="/add-cookie-spot" className="block py-2 text-white bg-primary rounded-md text-center my-2 hover:opacity-90 w-full max-w-[200px]" onClick={handleNavClick}>Cookies Near You</Link>
-                <Link to="/login" className="block py-2 text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-md text-center my-2 w-full max-w-[200px]" onClick={handleNavClick}>Subscribe</Link>
+                <button 
+                  onClick={handleCookiesNearYouClick}
+                  disabled={isLocating}
+                  className="block py-2 text-white bg-primary rounded-md text-center my-2 hover:opacity-90 disabled:opacity-70 w-full max-w-[200px]"
+                  style={{ backgroundColor: 'var(--color-primary, #3b82f6) !important', color: 'white !important' }}
+                >
+                  {isLocating ? 'Locating...' : 'Cookies Near You'}
+                </button>
+                <Link to="/#newsletter" className="block py-2 text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-md text-center my-2 w-full max-w-[200px]" onClick={handleSubscribeClick}>Subscribe</Link>
               </div>
           </nav>
           </div>

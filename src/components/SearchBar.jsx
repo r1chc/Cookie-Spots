@@ -3,7 +3,7 @@ import { loadGoogleMaps } from '../utils/googleMapsLoader'
 import { getCurrentLocation, reverseGeocode } from '../utils/geolocation'
 import ReactDOM from 'react-dom'
 
-const SearchBar = ({ onSearch }) => {
+const SearchBar = ({ onSearch, variant = 'rounded' }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [isApiLoaded, setIsApiLoaded] = useState(false)
   const [apiError, setApiError] = useState(null)
@@ -42,6 +42,23 @@ const SearchBar = ({ onSearch }) => {
       window.removeEventListener('resize', updatePosition);
     };
   }, [showSuggestions, suggestions]);
+  
+  // Create suggestions portal container
+  useEffect(() => {
+    let portalContainer = document.getElementById('suggestions-portal');
+    
+    // Create portal container if it doesn't exist
+    if (!portalContainer) {
+      portalContainer = document.createElement('div');
+      portalContainer.id = 'suggestions-portal';
+      document.body.appendChild(portalContainer);
+    }
+    
+    // Clean up when component unmounts
+    return () => {
+      // We don't remove the container since it might be used by other SearchBar instances
+    };
+  }, []);
   
   // Load Google Maps API using the shared loader
   useEffect(() => {
@@ -233,7 +250,7 @@ const SearchBar = ({ onSearch }) => {
   // Handle suggestion selection
   const handleSuggestionClick = (suggestion) => {
     console.log("Selected suggestion:", suggestion)
-    setSearchTerm(suggestion.description)
+    setSearchTerm(suggestion.description || suggestion.formatted_address)
     setSuggestions([])
     setShowSuggestions(false)
     
@@ -251,68 +268,63 @@ const SearchBar = ({ onSearch }) => {
           if (status === google.maps.places.PlacesServiceStatus.OK && place) {
             console.log("Place details:", place)
             
+            const locationData = {
+              latitude: place.geometry.location.lat(),
+              longitude: place.geometry.location.lng(),
+              name: place.name,
+              address: place.formatted_address
+            }
+            
+            // Call the onSearch callback with the suggestion and location data
             if (onSearch) {
-              const locationData = {
-                name: place.name || suggestion.description,
-                address: place.formatted_address,
-                latitude: place.geometry.location.lat(),
-                longitude: place.geometry.location.lng()
-              }
-              onSearch(suggestion.description, locationData)
-            } else {
-              // If no onSearch handler, redirect to search page with query params
-              const params = new URLSearchParams()
-              params.set('location', suggestion.description)
-              
-              if (place.geometry && place.geometry.location) {
-                params.set('lat', place.geometry.location.lat())
-                params.set('lng', place.geometry.location.lng())
-              }
-              
-              window.location.href = `/search?${params.toString()}`
+              onSearch(suggestion.description || suggestion.formatted_address, locationData)
             }
           } else {
-            // Only run this code when place details are NOT available
-            console.log("Fallback to basic search - place details not available")
+            // If we can't get details, just navigate with the suggestion text
             if (onSearch) {
-              onSearch(suggestion.description)
-            } else {
-              window.location.href = `/search?location=${encodeURIComponent(suggestion.description)}`
+              onSearch(suggestion.description || suggestion.formatted_address)
             }
           }
         })
-        
-        // Create a new session token for the next request
-        sessionToken.current = new google.maps.places.AutocompleteSessionToken()
       } catch (error) {
         console.error("Error getting place details:", error)
+        
+        // If something goes wrong, at least navigate with the suggestion text
         if (onSearch) {
-          onSearch(suggestion.description)
-        } else {
-          window.location.href = `/search?location=${encodeURIComponent(suggestion.description)}`
+          onSearch(suggestion.description || suggestion.formatted_address)
         }
       }
     } else {
-      // Fallback if API is not loaded
-      console.log("Fallback to basic search - API not loaded")
+      // If Places API isn't available, just navigate with the suggestion text
       if (onSearch) {
-        onSearch(suggestion.description)
-      } else {
-        window.location.href = `/search?location=${encodeURIComponent(suggestion.description)}`
+        onSearch(suggestion.description || suggestion.formatted_address)
       }
     }
   }
   
   const handleSubmit = (e) => {
     e.preventDefault()
-    console.log("Form submitted with:", searchTerm)
     
-    if (onSearch) {
-      onSearch(searchTerm)
-    } else {
-      window.location.href = `/search?location=${encodeURIComponent(searchTerm)}`
+    if (searchTerm.trim()) {
+      if (onSearch) {
+        onSearch(searchTerm)
+      } else {
+        // If no onSearch handler, redirect to search page with query params
+        window.location.href = `/search?location=${encodeURIComponent(searchTerm)}`;
+      }
+      setShowSuggestions(false);
     }
-    setShowSuggestions(false)
+  }
+
+  // Get the appropriate border radius based on variant
+  const getBorderRadius = () => {
+    switch (variant) {
+      case 'square':
+        return '0.5rem'; // More square but still has slightly rounded corners
+      case 'rounded':
+      default:
+        return '9999px'; // Very rounded (pill shape)
+    }
   }
 
   // Inline styles
@@ -375,161 +387,116 @@ const SearchBar = ({ onSearch }) => {
     backgroundColor: '#F9FAFB'
   }
 
-  // Component for the dropdown list (will be used in portal)
-  const SuggestionsDropdown = () => (
-    <div 
-      className="suggestions-dropdown" 
-      style={{
-        ...suggestionsContainerStyle,
-        position: 'fixed',
-        top: `${dropdownPosition.top}px`,
-        left: `${dropdownPosition.left}px`,
-        width: `${dropdownPosition.width}px`,
-        zIndex: 99999
-      }}
-    >
-      {/* Current Location option always appears first */}
+  // Check if we need to render the portal
+  const createSuggestionsPortal = () => {
+    if (!showSuggestions) return null;
+    
+    const suggestionsElement = document.getElementById('suggestions-portal');
+    if (!suggestionsElement) return null;
+    
+    return ReactDOM.createPortal(
       <div 
-        style={{...suggestionItemStyle, backgroundColor: '#F0F4FF'}}
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          console.log("Clicked on Current Location");
-          // Direct navigation for current location
-          getCurrentLocation()
-            .then(coords => {
-              reverseGeocode(coords)
-                .then(locationData => {
-                  console.log("Got location:", locationData);
-                  // Set search term
-                  setSearchTerm(locationData.formattedLocation);
-                  // Navigate directly
-                  const params = new URLSearchParams();
-                  params.set('location', locationData.formattedLocation);
-                  params.set('lat', coords.latitude);
-                  params.set('lng', coords.longitude);
-                  window.location.href = `/search?${params.toString()}`;
-                })
-                .catch(err => {
-                  console.error("Geocode error:", err);
-                  alert("Error getting your location details. Please try again.");
-                });
-            })
-            .catch(err => {
-              console.error("Location error:", err);
-              alert("Couldn't access your location. Please check your browser permissions and try again.");
-            });
+        className="suggestions-dropdown border border-gray-200 bg-white shadow-lg overflow-hidden z-50"
+        style={{
+          position: 'absolute',
+          top: `${dropdownPosition.top}px`,
+          left: `${dropdownPosition.left}px`,
+          width: `${dropdownPosition.width}px`,
+          maxHeight: '400px',
+          overflowY: 'auto',
+          borderRadius: variant === 'square' ? '0.5rem' : '0.75rem'
         }}
       >
-        <div style={{ marginRight: '10px' }}>
-          {isLoadingLocation ? (
-            <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-500"></div>
-          ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="#4F46E5" width="20" height="20">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+        {/* Current Location Option */}
+        <div
+          className="p-3 cursor-pointer hover:bg-gray-100 flex items-center"
+          onClick={handleCurrentLocationClick}
+        >
+          <div className="mr-3 text-blue-500">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-          )}
-        </div>
-        <div>
-          <div style={{ color: '#4F46E5', fontWeight: 500 }}>
+          </div>
+          <div>
             {isLoadingLocation ? 'Getting your location...' : 'Use current location'}
           </div>
         </div>
-      </div>
-      
-      {/* Prediction results */}
-      {suggestions.map((suggestion, index) => (
-        <div
-          key={suggestion.place_id || index}
-          style={suggestionItemStyle}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log("Clicked on suggestion:", suggestion.description);
-            
-            // Simple direct navigation that should work regardless of other issues
-            const params = new URLSearchParams();
-            params.set('location', suggestion.description);
-            
-            // If Google Places API is loaded, try to get coordinates too
-            if (isApiLoaded && google?.maps?.places && suggestion.place_id) {
-              try {
-                console.log("Getting place details for:", suggestion.place_id);
-                const placesService = new google.maps.places.PlacesService(document.createElement('div'));
-                
-                placesService.getDetails({
-                  placeId: suggestion.place_id,
-                  fields: ['geometry'],
-                  sessionToken: sessionToken.current
-                }, (place, status) => {
-                  if (status === google.maps.places.PlacesServiceStatus.OK && place?.geometry?.location) {
-                    params.set('lat', place.geometry.location.lat());
-                    params.set('lng', place.geometry.location.lng());
-                  }
-                  
-                  // Always navigate, even if getting coordinates fails
-                  window.location.href = `/search?${params.toString()}`;
-                });
-              } catch (error) {
-                console.error("Error with place details:", error);
-                // Fallback direct navigation
-                window.location.href = `/search?${params.toString()}`;
-              }
-            } else {
-              // Fallback for when Places API isn't available
-              window.location.href = `/search?${params.toString()}`;
-            }
-            
-            // Update UI state (may not be needed since we're navigating away)
-            setSearchTerm(suggestion.description);
-            setSuggestions([]);
-            setShowSuggestions(false);
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = highlightedStyle.backgroundColor
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = ''
-          }}
-        >
-          <div style={{ marginRight: '10px' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="20" height="20">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
-            </svg>
+        
+        {/* Divider */}
+        <div className="border-t border-gray-200"></div>
+        
+        {/* Suggestions */}
+        {suggestions.map((suggestion, index) => (
+          <div
+            key={suggestion.place_id || index}
+            className="p-3 cursor-pointer hover:bg-gray-100 flex items-center"
+            onClick={() => handleSuggestionClick(suggestion)}
+          >
+            <div className="mr-3 text-gray-500">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </div>
+            <div>
+              {suggestion.description || suggestion.formatted_address || "Unknown location"}
+            </div>
           </div>
-          <div>{suggestion.description}</div>
-        </div>
-      ))}
-    </div>
-  );
+        ))}
+      </div>,
+      suggestionsElement
+    );
+  }
 
   return (
-    <div ref={wrapperRef} style={searchContainerStyle}>
-      <form onSubmit={handleSubmit}>
-        <div style={{ position: 'relative' }}>
-          <span style={searchIconStyle}>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="20" height="20">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-            </svg>
-          </span>
-          <input
-            ref={inputRef}
-            type="text"
-            placeholder="Search for cities, neighborhoods, or zip codes"
-            value={searchTerm}
-            onChange={handleInputChange}
-            onFocus={handleInputFocus}
-            style={inputStyle}
-          />
+    <div className="w-full relative" ref={wrapperRef}>
+      <form onSubmit={handleSubmit} className="relative">
+        <div className="relative">
+          {variant === 'rounded' ? (
+            <input
+              ref={inputRef}
+              type="text"
+              value={searchTerm}
+              onChange={handleInputChange}
+              onFocus={handleInputFocus}
+              style={inputStyle}
+              placeholder="Search for cookie spots near you..."
+              aria-label="Search for cookie spots"
+            />
+          ) : (
+            <input
+              ref={inputRef}
+              type="text"
+              value={searchTerm}
+              onChange={handleInputChange}
+              onFocus={handleInputFocus}
+              className="w-full p-4 pl-12 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent shadow-md bg-white text-gray-800"
+              style={{ 
+                borderRadius: '0.5rem', 
+                transition: 'all 0.2s ease'
+              }}
+              placeholder="Search for cookie spots near you..."
+              aria-label="Search for cookie spots"
+            />
+          )}
+          {variant === 'rounded' ? (
+            <span style={searchIconStyle}>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="20" height="20">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
+            </span>
+          ) : (
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="20" height="20">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
+            </div>
+          )}
         </div>
             
         {/* Mount dropdown to body but position relative to search bar */}
-        {showSuggestions && ReactDOM.createPortal(
-          <SuggestionsDropdown />,
-          document.body
-        )}
+        {createSuggestionsPortal()}
       </form>
     </div>
   )

@@ -7,6 +7,7 @@ import { loadGoogleMaps } from '../utils/googleMapsLoader';
 import { fetchAllSourceCookieSpots } from '../utils/cookieSpotService';
 import MapComponent from '../components/Map';
 import useScrollRestoration from '../hooks/useScrollRestoration';
+import SearchBar from '../components/SearchBar';
 
 // Helper function to get filter keyword (name) from its ID
 const getFilterKeyword = (filterId, items) => {
@@ -158,7 +159,7 @@ const SearchResultsPage = () => {
       body.search-page, 
       body.search-page #root, 
       body.search-page main, 
-      body.search-page [class*="bg-primary"] {
+      body.search-page main [class*="bg-primary"]:not(button) {
         background-color: white !important;
       }
     `;
@@ -655,6 +656,25 @@ const SearchResultsPage = () => {
           <h1 className="text-3xl font-bold mb-2">
             {filters.search ? `Results for "${filters.search}"` : 'All Cookie Spots'}
           </h1>
+          <div className="mb-4 w-full md:max-w-lg">
+            <SearchBar 
+              variant="square"
+              onSearch={(searchText, locationData) => {
+                // Build URL params
+                const params = new URLSearchParams();
+                params.set('location', searchText);
+                
+                // Add coordinates if available
+                if (locationData && locationData.latitude && locationData.longitude) {
+                  params.set('lat', locationData.latitude);
+                  params.set('lng', locationData.longitude);
+                }
+                
+                // Update URL and navigate
+                navigate(`/search?${params.toString()}`, { replace: true });
+              }} 
+            />
+          </div>
           <div className="flex items-center mb-4">
             <div>
               <label htmlFor="sort" className="mr-2 text-gray-700 font-medium">Sort by:</label>
