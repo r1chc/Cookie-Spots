@@ -470,10 +470,6 @@ const SearchResultsPage = () => {
       // Use a safe sort parameter for server API
       sort = 'average_rating';
       order = 'desc';
-    } else if (value === 'newest') {
-      // Use a safe sort parameter for server API 
-      sort = 'average_rating';
-      order = 'desc';
     }
     
     updateFilters({ sort, order, clientSort });
@@ -483,6 +479,8 @@ const SearchResultsPage = () => {
   const getCurrentSortValue = () => {
     // First check if we have a clientSort value
     if (filters.clientSort) {
+      // If clientSort is 'newest' (from previous version), default to 'rating_high'
+      if (filters.clientSort === 'newest') return 'rating_high';
       return filters.clientSort;
     }
     
@@ -492,7 +490,6 @@ const SearchResultsPage = () => {
     if (sort === 'average_rating' && order === 'desc') return 'rating_high';
     if (sort === 'average_rating' && order === 'asc') return 'rating_low';
     if (sort === 'review_count') return 'reviews';
-    if (sort === 'createdAt') return 'newest';
     
     return 'rating_high'; // Default
   };
@@ -594,13 +591,6 @@ const SearchResultsPage = () => {
         return countB - countA;
       }
       
-      // For newest
-      if (clientSort === 'newest') {
-        const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
-        const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
-        return dateB - dateA;
-      }
-      
       // Default sort by average_rating desc
       const defaultRatingA = a.average_rating || 0;
       const defaultRatingB = b.average_rating || 0;
@@ -661,23 +651,23 @@ const SearchResultsPage = () => {
         </div>
         
         {/* Search Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-          <h1 className="text-3xl font-bold mb-2 md:mb-0">
+        <div className="flex flex-col mb-6">
+          <h1 className="text-3xl font-bold mb-2">
             {filters.search ? `Results for "${filters.search}"` : 'All Cookie Spots'}
           </h1>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center mb-4">
             <div>
-              <label htmlFor="sort" className="sr-only">Sort by</label>
+              <label htmlFor="sort" className="mr-2 text-gray-700 font-medium">Sort by:</label>
               <select
                 id="sort"
                 value={getCurrentSortValue()}
                 onChange={handleSortChange}
-                className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md"
+                className="border border-primary text-base pl-3 pr-10 py-2 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-lg"
+                style={{ borderColor: 'var(--color-primary, #3b82f6)' }}
               >
                 <option value="rating_high">Highest Rated</option>
                 <option value="rating_low">Lowest Rated</option>
                 <option value="reviews">Most Reviewed</option>
-                <option value="newest">Newest</option>
               </select>
             </div>
           </div>
