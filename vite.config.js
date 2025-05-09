@@ -20,11 +20,11 @@ export default defineConfig(({ command }) => {
           manualChunks: {
             vendor: ['react', 'react-dom', 'react-router-dom'],
             maps: ['@googlemaps/js-api-loader', '@googlemaps/markerclusterer', 'google-map-react'],
-            ui: ['@heroicons/react', 'react-slick', 'slick-carousel']
-          }
-        }
-      }
-    }
+            ui: ['@heroicons/react', 'react-slick', 'slick-carousel'],
+          },
+        },
+      },
+    },
   }
 
   if (command === 'serve') {
