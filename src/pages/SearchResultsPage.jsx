@@ -512,51 +512,84 @@ const SearchResultsPage = () => {
     const activeCookieTypeKeyword = getFilterKeyword(filters.cookieType, cookieTypes);
     const activeDietaryOptionKeyword = getFilterKeyword(filters.dietaryOption, dietaryOptions);
     
-    if (!activeCookieTypeKeyword && !activeDietaryOptionKeyword) {
-      return combinedResults;
-    }
+    // First apply all filters
+    let filteredSpots = combinedResults;
+    
+    if (activeCookieTypeKeyword || activeDietaryOptionKeyword) {
+      filteredSpots = combinedResults.filter(spot => {
+        const isExternal = spot.source === 'google' || spot.place_id;
 
-    return combinedResults.filter(spot => {
-      const isExternal = spot.source === 'google' || spot.place_id;
-
-      if (activeCookieTypeKeyword) {
-        let matchesCookieType = false;
-        if (isExternal) {
-          matchesCookieType = spotMatchesKeyword(spot, activeCookieTypeKeyword, 'cookie_types');
-        } else { 
-          const internalSpotInContext = cookieSpots.find(cs => cs._id === spot._id);
-          if (internalSpotInContext && internalSpotInContext.cookie_types && Array.isArray(internalSpotInContext.cookie_types)) {
-            matchesCookieType = internalSpotInContext.cookie_types.some(ct => 
-               (typeof ct === 'string' && ct.toLowerCase().includes(activeCookieTypeKeyword)) || 
-               (ct.name && ct.name.toLowerCase().includes(activeCookieTypeKeyword))
-            );
-          } else {
+        if (activeCookieTypeKeyword) {
+          let matchesCookieType = false;
+          if (isExternal) {
             matchesCookieType = spotMatchesKeyword(spot, activeCookieTypeKeyword, 'cookie_types');
+          } else { 
+            const internalSpotInContext = cookieSpots.find(cs => cs._id === spot._id);
+            if (internalSpotInContext && internalSpotInContext.cookie_types && Array.isArray(internalSpotInContext.cookie_types)) {
+              matchesCookieType = internalSpotInContext.cookie_types.some(ct => 
+                (typeof ct === 'string' && ct.toLowerCase().includes(activeCookieTypeKeyword)) || 
+                (ct.name && ct.name.toLowerCase().includes(activeCookieTypeKeyword))
+              );
+            } else {
+              matchesCookieType = spotMatchesKeyword(spot, activeCookieTypeKeyword, 'cookie_types');
+            }
           }
+          if (!matchesCookieType) return false;
         }
-        if (!matchesCookieType) return false;
-      }
 
-      if (activeDietaryOptionKeyword) {
-        let matchesDietaryOption = false;
-        if (isExternal) {
-          matchesDietaryOption = spotMatchesKeyword(spot, activeDietaryOptionKeyword, 'dietary_options');
-        } else { 
-          const internalSpotInContext = cookieSpots.find(cs => cs._id === spot._id);
-          if (internalSpotInContext && internalSpotInContext.dietary_options && Array.isArray(internalSpotInContext.dietary_options)) {
-            matchesDietaryOption = internalSpotInContext.dietary_options.some(opt => 
-               (typeof opt === 'string' && opt.toLowerCase().includes(activeDietaryOptionKeyword)) ||
-               (opt.name && opt.name.toLowerCase().includes(activeDietaryOptionKeyword))
-            );
-          } else {
+        if (activeDietaryOptionKeyword) {
+          let matchesDietaryOption = false;
+          if (isExternal) {
             matchesDietaryOption = spotMatchesKeyword(spot, activeDietaryOptionKeyword, 'dietary_options');
+          } else { 
+            const internalSpotInContext = cookieSpots.find(cs => cs._id === spot._id);
+            if (internalSpotInContext && internalSpotInContext.dietary_options && Array.isArray(internalSpotInContext.dietary_options)) {
+              matchesDietaryOption = internalSpotInContext.dietary_options.some(opt => 
+                (typeof opt === 'string' && opt.toLowerCase().includes(activeDietaryOptionKeyword)) ||
+                (opt.name && opt.name.toLowerCase().includes(activeDietaryOptionKeyword))
+              );
+            } else {
+              matchesDietaryOption = spotMatchesKeyword(spot, activeDietaryOptionKeyword, 'dietary_options');
+            }
           }
+          if (!matchesDietaryOption) return false;
         }
-        if (!matchesDietaryOption) return false;
+        return true; 
+      });
+    }
+    
+    // Then apply sorting
+    const { sort, order } = filters;
+    
+    // Create a sorted copy of the filtered results
+    return [...filteredSpots].sort((a, b) => {
+      // For average_rating
+      if (sort === 'average_rating') {
+        const ratingA = a.average_rating || 0;
+        const ratingB = b.average_rating || 0;
+        return order === 'desc' ? ratingB - ratingA : ratingA - ratingB;
       }
-      return true; 
+      
+      // For review_count
+      if (sort === 'review_count') {
+        const countA = a.review_count || 0;
+        const countB = b.review_count || 0;
+        return order === 'desc' ? countB - countA : countA - countB;
+      }
+      
+      // For createdAt
+      if (sort === 'createdAt') {
+        const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+        const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+        return order === 'desc' ? dateB - dateA : dateA - dateB;
+      }
+      
+      // Default sort by average_rating desc
+      const defaultRatingA = a.average_rating || 0;
+      const defaultRatingB = b.average_rating || 0;
+      return defaultRatingB - defaultRatingA;
     });
-  }, [combinedResults, filters.cookieType, filters.dietaryOption, cookieTypes, dietaryOptions, cookieSpots, loading]);
+  }, [combinedResults, filters.cookieType, filters.dietaryOption, filters.sort, filters.order, cookieTypes, dietaryOptions, cookieSpots, loading]);
 
   // Get all spots to display
   const spotsToDisplay = finalFilteredSpots;
