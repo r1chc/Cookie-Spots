@@ -8,6 +8,7 @@ const __dirname = path.dirname(__filename)
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  root: process.cwd(),
   plugins: [react()],
   resolve: {
     alias: {
@@ -20,7 +21,7 @@ export default defineConfig({
     minify: true,
     rollupOptions: {
       input: {
-        main: path.resolve(__dirname, 'index.html'),
+        main: path.resolve(process.cwd(), 'index.html'),
       },
       output: {
         manualChunks: {
