@@ -16,6 +16,9 @@ export default defineConfig(({ command }) => {
       sourcemap: command === 'serve',
       minify: command === 'build',
       rollupOptions: {
+        input: {
+          main: path.resolve(__dirname, 'index.html'),
+        },
         output: {
           manualChunks: {
             vendor: ['react', 'react-dom', 'react-router-dom'],
