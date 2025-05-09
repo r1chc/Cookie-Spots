@@ -18,7 +18,10 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     sourcemap: false,
-    minify: true
+    minify: true,
+    rollupOptions: {
+      input: path.resolve(__dirname, 'index.html'),
+    },
   },
   server: {
     port: 5173,
