@@ -15,7 +15,6 @@ export default defineConfig({
     sourcemap: false,
     minify: true,
     rollupOptions: {
-      input: path.resolve(__dirname, 'src/index.html'),
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
