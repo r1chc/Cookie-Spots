@@ -634,8 +634,8 @@ const SearchResultsPage = () => {
         </div>
         
         <div className="flex flex-col lg:flex-row">
-          {/* Filters Sidebar - Left Column */}
-          <div className="lg:w-1/5 lg:pr-6 mb-6 lg:mb-0">
+          {/* Filters Sidebar - Left Column - Now hidden */}
+          <div className="hidden">
             <div className="bg-white rounded-lg shadow-md p-4 sticky top-4">
               <h2 className="text-lg font-semibold mb-4">Filters</h2>
               
@@ -746,8 +746,8 @@ const SearchResultsPage = () => {
             </div>
           </div>
           
-          {/* Results - Middle Column */}
-          <div className="lg:w-2/5 px-3">
+          {/* Results - Left Column (expanded) */}
+          <div className="lg:w-1/2 px-3">
             <div className="bg-white rounded-lg shadow-md">
               {/* Initial loading state */}
               {loading ? (
@@ -884,8 +884,8 @@ const SearchResultsPage = () => {
             </div>
           </div>
           
-          {/* Map - Right Column */}
-          <div className="lg:w-2/5 lg:pl-6 mt-6 lg:mt-0">
+          {/* Map - Right Column (expanded) */}
+          <div className="lg:w-1/2 lg:pl-6 mt-6 lg:mt-0">
             <div className="bg-white rounded-lg shadow-md overflow-hidden sticky top-4">
               <div className="h-[calc(100vh-2rem)] min-h-[600px]">
                 {spotsToDisplay && spotsToDisplay.length > 0 && (
