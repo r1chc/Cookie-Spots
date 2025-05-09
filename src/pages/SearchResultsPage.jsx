@@ -481,6 +481,12 @@ const SearchResultsPage = () => {
   
   // Get current sort value for select
   const getCurrentSortValue = () => {
+    // First check if we have a clientSort value
+    if (filters.clientSort) {
+      return filters.clientSort;
+    }
+    
+    // Fall back to legacy sort/order logic
     const { sort, order } = filters;
     
     if (sort === 'average_rating' && order === 'desc') return 'rating_high';
