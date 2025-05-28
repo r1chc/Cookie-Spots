@@ -1,6 +1,7 @@
 const { connectToDatabase } = require('./utils/mongodb');
 
-exports.handler = async (event, context) => {
+// Export the handler function
+const handler = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -61,4 +62,7 @@ exports.handler = async (event, context) => {
       })
     };
   }
-}; 
+};
+
+// Export the handler function
+module.exports = { handler }; 

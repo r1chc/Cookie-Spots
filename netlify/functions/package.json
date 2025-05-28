@@ -1,0 +1,13 @@
+{
+  "name": "cookie-spots-functions",
+  "version": "1.0.0",
+  "description": "Netlify serverless functions for Cookie Spots",
+  "main": "index.js",
+  "dependencies": {
+    "mongodb": "^6.3.0",
+    "axios": "^1.6.7"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+} 
