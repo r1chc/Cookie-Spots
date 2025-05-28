@@ -27,7 +27,7 @@ const handler = async (event, context) => {
     }
 
     // Get Google Places API key from environment variables
-    const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+    const apiKey = process.env.VITE_GOOGLE_PLACES_API_KEY;
     if (!apiKey) {
       throw new Error('Google Places API key is not configured');
     }
