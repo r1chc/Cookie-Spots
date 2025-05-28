@@ -42,7 +42,7 @@ const handler = async (event, context) => {
       {
         headers: {
           'X-Goog-Api-Key': apiKey,
-          'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount'
+          'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.photos,places.regularOpeningHours,places.internationalPhoneNumber,places.nationalPhoneNumber,places.websiteUri,places.googleMapsUri,places.priceLevel,places.businessStatus'
         }
       }
     );
@@ -59,7 +59,25 @@ const handler = async (event, context) => {
       average_rating: place.rating || 0,
       review_count: place.userRatingCount || 0,
       source: 'google',
-      place_id: place.id
+      place_id: place.id,
+      // Add photos
+      photos: place.photos ? place.photos.slice(0, 5).map(photo => ({
+        url: `https://places.googleapis.com/v1/${photo.name}/media?maxHeightPx=400&maxWidthPx=400&key=${apiKey}`,
+        width: photo.widthPx || 400,
+        height: photo.heightPx || 400
+      })) : [],
+      // Add contact information
+      phone: place.internationalPhoneNumber || place.nationalPhoneNumber || '',
+      website: place.websiteUri || '',
+      google_maps_url: place.googleMapsUri || '',
+      // Add hours
+      hours: place.regularOpeningHours ? {
+        weekday_text: place.regularOpeningHours.weekdayDescriptions || [],
+        periods: place.regularOpeningHours.periods || []
+      } : null,
+      // Add business status and price level
+      business_status: place.businessStatus || 'OPERATIONAL',
+      price_level: place.priceLevel || null
     }));
 
     return {
