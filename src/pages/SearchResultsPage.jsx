@@ -272,11 +272,12 @@ const SearchResultsPage = () => {
         
         try {
           const response = await cookieSpotApi.searchExternalSources(searchLocation);
-          setExternalResults(response.data.results);
-          setSearchMetadata(response.data.metadata);
+          const results = response.data?.results || [];
+          setExternalResults(results);
+          setSearchMetadata(response.data?.metadata);
           
           // Combine internal and external results
-          setCombinedResults([...cookieSpots, ...response.data.results]);
+          setCombinedResults([...cookieSpots, ...results]);
         } catch (err) {
           console.error('Error fetching external results:', err);
           setExternalResults([]);
