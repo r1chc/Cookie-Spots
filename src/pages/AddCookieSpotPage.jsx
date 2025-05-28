@@ -137,7 +137,7 @@ const AddCookieSpotPage = () => {
       setError('Please select at least one cookie type')
       return
     }
-
+    
     try {
       // Create FormData object for multipart/form-data
       const formDataToSend = new FormData()

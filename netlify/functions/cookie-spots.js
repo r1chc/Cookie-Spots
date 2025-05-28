@@ -20,6 +20,8 @@ const handler = async (event, context) => {
   try {
     const db = await connectToDatabase();
     const cookieSpots = db.collection('cookieSpots');
+    const cookieTypes = db.collection('cookieTypes');
+    const dietaryOptions = db.collection('dietaryOptions');
 
     // Parse the path to determine the operation
     const path = event.path.split('/').pop();
@@ -27,11 +29,51 @@ const handler = async (event, context) => {
     switch (event.httpMethod) {
       case 'GET':
         if (path === 'cookie-spots') {
-          const spots = await cookieSpots.find({}).toArray();
+          // Parse query parameters
+          const queryParams = event.queryStringParameters || {};
+          const page = parseInt(queryParams.page) || 1;
+          const limit = parseInt(queryParams.limit) || 10;
+          const skip = (page - 1) * limit;
+          
+          // Build query filter
+          let filter = {};
+          if (queryParams.search) {
+            filter.$or = [
+              { name: { $regex: queryParams.search, $options: 'i' } },
+              { description: { $regex: queryParams.search, $options: 'i' } },
+              { address: { $regex: queryParams.search, $options: 'i' } }
+            ];
+          }
+          
+          // Get total count for pagination
+          const totalItems = await cookieSpots.countDocuments(filter);
+          const totalPages = Math.ceil(totalItems / limit);
+          
+          // Get cookie spots with pagination
+          const spots = await cookieSpots.find(filter)
+            .skip(skip)
+            .limit(limit)
+            .toArray();
+          
+          // Get cookie types and dietary options
+          const [allCookieTypes, allDietaryOptions] = await Promise.all([
+            cookieTypes.find({}).toArray(),
+            dietaryOptions.find({}).toArray()
+          ]);
+          
           return {
             statusCode: 200,
             headers,
-            body: JSON.stringify(spots)
+            body: JSON.stringify({
+              cookieSpots: spots,
+              pagination: {
+                currentPage: page,
+                totalPages,
+                totalItems
+              },
+              cookieTypes: allCookieTypes,
+              dietaryOptions: allDietaryOptions
+            })
           };
         }
         // Handle single spot GET
