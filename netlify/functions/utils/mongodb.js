@@ -1,8 +1,5 @@
 const { MongoClient } = require('mongodb');
 
-// Create a new MongoDB client
-const client = new MongoClient(process.env.MONGODB_URI);
-
 // Create a cached connection variable
 let cachedDb = null;
 
@@ -13,16 +10,51 @@ async function connectToDatabase() {
     return cachedDb;
   }
 
-  // If no connection is cached, create a new one
-  const db = await client.connect();
-  
-  // Cache the database connection
-  cachedDb = db.db(process.env.MONGODB_DATABASE);
-  
-  return cachedDb;
+  // Debug environment variables
+  console.log('Environment variables check:', {
+    hasMongoUri: !!process.env.MONGODB_URI,
+    hasMongoDatabase: !!process.env.MONGODB_DATABASE,
+    mongoUriLength: process.env.MONGODB_URI ? process.env.MONGODB_URI.length : 0,
+    nodeEnv: process.env.NODE_ENV
+  });
+
+  // Validate environment variables
+  if (!process.env.MONGODB_URI) {
+    throw new Error('MONGODB_URI environment variable is not set. Please check your Netlify environment variables.');
+  }
+
+  if (!process.env.MONGODB_DATABASE) {
+    throw new Error('MONGODB_DATABASE environment variable is not set. Please check your Netlify environment variables.');
+  }
+
+  // Validate MongoDB URI format
+  if (!process.env.MONGODB_URI.startsWith('mongodb://') && !process.env.MONGODB_URI.startsWith('mongodb+srv://')) {
+    throw new Error('Invalid MongoDB URI format. Must start with mongodb:// or mongodb+srv://');
+  }
+
+  try {
+    // Create a new MongoDB client
+    const client = new MongoClient(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
+
+    // Connect to MongoDB
+    await client.connect();
+    console.log('Connected to MongoDB successfully');
+
+    // Cache the database connection
+    cachedDb = client.db(process.env.MONGODB_DATABASE);
+    
+    return cachedDb;
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    throw new Error(`Failed to connect to MongoDB: ${error.message}`);
+  }
 }
 
 module.exports = {
-  connectToDatabase,
-  client
+  connectToDatabase
 }; 
