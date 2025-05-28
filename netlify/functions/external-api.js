@@ -47,10 +47,35 @@ const handler = async (event, context) => {
       }
     );
 
+    // Transform Google Places API response to match expected format
+    const places = response.data.places || [];
+    const transformedResults = places.map(place => ({
+      _id: place.id,
+      name: place.displayName?.text || 'Unknown',
+      address: place.formattedAddress || '',
+      location: {
+        coordinates: place.location ? [place.location.longitude, place.location.latitude] : [0, 0]
+      },
+      average_rating: place.rating || 0,
+      review_count: place.userRatingCount || 0,
+      source: 'google',
+      place_id: place.id
+    }));
+
     return {
       statusCode: 200,
-      headers,
-      body: JSON.stringify(response.data)
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        results: transformedResults,
+        metadata: {
+          search_location: location,
+          total_results: transformedResults.length,
+          source: 'google_places_api'
+        }
+      })
     };
   } catch (error) {
     console.error('Error in external-api function:', error);
