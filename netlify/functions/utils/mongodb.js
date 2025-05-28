@@ -12,15 +12,15 @@ async function connectToDatabase() {
 
   // Debug environment variables
   console.log('Environment variables check:', {
-    hasMongoUri: !!process.env.MONGODB_URI,
+    hasMongoUri: !!process.env.MONGO_URI,
     hasMongoDatabase: !!process.env.MONGODB_DATABASE,
-    mongoUriLength: process.env.MONGODB_URI ? process.env.MONGODB_URI.length : 0,
+    mongoUriLength: process.env.MONGO_URI ? process.env.MONGO_URI.length : 0,
     nodeEnv: process.env.NODE_ENV
   });
 
   // Validate environment variables
-  if (!process.env.MONGODB_URI) {
-    throw new Error('MONGODB_URI environment variable is not set. Please check your Netlify environment variables.');
+  if (!process.env.MONGO_URI) {
+    throw new Error('MONGO_URI environment variable is not set. Please check your Netlify environment variables.');
   }
 
   if (!process.env.MONGODB_DATABASE) {
@@ -28,13 +28,13 @@ async function connectToDatabase() {
   }
 
   // Validate MongoDB URI format
-  if (!process.env.MONGODB_URI.startsWith('mongodb://') && !process.env.MONGODB_URI.startsWith('mongodb+srv://')) {
+  if (!process.env.MONGO_URI.startsWith('mongodb://') && !process.env.MONGO_URI.startsWith('mongodb+srv://')) {
     throw new Error('Invalid MongoDB URI format. Must start with mongodb:// or mongodb+srv://');
   }
 
   try {
     // Create a new MongoDB client
-    const client = new MongoClient(process.env.MONGODB_URI, {
+    const client = new MongoClient(process.env.MONGO_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
       serverSelectionTimeoutMS: 5000,

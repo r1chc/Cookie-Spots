@@ -19,10 +19,10 @@ const handler = async (event, context) => {
   try {
     // Log environment variables (without sensitive data)
     const envCheck = {
-      hasMongoUri: !!process.env.MONGODB_URI,
+      hasMongoUri: !!process.env.MONGO_URI,
       hasMongoDatabase: !!process.env.MONGODB_DATABASE,
-      mongoUriLength: process.env.MONGODB_URI ? process.env.MONGODB_URI.length : 0,
-      mongoUriPrefix: process.env.MONGODB_URI ? process.env.MONGODB_URI.substring(0, 10) + '...' : 'undefined',
+      mongoUriLength: process.env.MONGO_URI ? process.env.MONGO_URI.length : 0,
+      mongoUriPrefix: process.env.MONGO_URI ? process.env.MONGO_URI.substring(0, 10) + '...' : 'undefined',
       nodeEnv: process.env.NODE_ENV
     };
     
@@ -53,10 +53,10 @@ const handler = async (event, context) => {
         message: error.message,
         stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
         environment: {
-          hasMongoUri: !!process.env.MONGODB_URI,
+          hasMongoUri: !!process.env.MONGO_URI,
           hasMongoDatabase: !!process.env.MONGODB_DATABASE,
-          mongoUriLength: process.env.MONGODB_URI ? process.env.MONGODB_URI.length : 0,
-          mongoUriPrefix: process.env.MONGODB_URI ? process.env.MONGODB_URI.substring(0, 10) + '...' : 'undefined',
+          mongoUriLength: process.env.MONGO_URI ? process.env.MONGO_URI.length : 0,
+          mongoUriPrefix: process.env.MONGO_URI ? process.env.MONGO_URI.substring(0, 10) + '...' : 'undefined',
           nodeEnv: process.env.NODE_ENV
         }
       })
