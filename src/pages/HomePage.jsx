@@ -4,9 +4,9 @@ import SearchBar from '../components/SearchBar'
 import CookieSpotCard from '../components/CookieSpotCard'
 import FilterButtons from '../components/FilterButtons'
 import { getCurrentLocation, reverseGeocode, getDefaultLocation } from '../utils/geolocation'
-import { fetchCookieSpotsByLocation, fetchAllSourceCookieSpots } from '../utils/cookieSpotService'
 import useScrollRestoration from '../hooks/useScrollRestoration'
 import FloatingActionButtons from '../components/FloatingActionButtons'
+import { cookieSpotApi } from '../utils/api'
 import '../styles/HomePage.css'
 
 // In-memory cache for the homepage to avoid duplicate API calls
@@ -83,15 +83,20 @@ const HomePage = ({ onSearch }) => {
         
         try {
           // Fetch cookie spots based on the user's location
-          const spots = await fetchCookieSpotsByLocation(userLocationData);
-          // Check if spots is an array or an object with spots property
-          const spotsArray = Array.isArray(spots) ? spots : (spots?.spots || []);
+          const response = await cookieSpotApi.getNearbyCookieSpots(
+            userLocationData.latitude,
+            userLocationData.longitude,
+            5000, // 5km radius
+            5 // Limit to 5 spots
+          );
           
-          if (spotsArray.length > 0) {
-            // Sort by rating and limit to top 5
-            const sortedSpots = [...spotsArray].sort((a, b) => 
+          const spots = response.data;
+          
+          if (spots.length > 0) {
+            // Sort by rating
+            const sortedSpots = [...spots].sort((a, b) => 
               (b.average_rating || 0) - (a.average_rating || 0)
-            ).slice(0, 5);
+            );
             
             setFeaturedSpots(sortedSpots);
             
@@ -117,15 +122,20 @@ const HomePage = ({ onSearch }) => {
         
         try {
           // Fetch default cookie spots
-          const defaultSpots = await fetchCookieSpotsByLocation(defaultLocation);
-          // Check if spots is an array or an object with spots property
-          const spotsArray = Array.isArray(defaultSpots) ? defaultSpots : (defaultSpots?.spots || []);
+          const response = await cookieSpotApi.getNearbyCookieSpots(
+            defaultLocation.latitude,
+            defaultLocation.longitude,
+            5000, // 5km radius
+            5 // Limit to 5 spots
+          );
           
-          if (spotsArray.length > 0) {
-            // Sort by rating and limit to top 5
-            const sortedSpots = [...spotsArray].sort((a, b) => 
+          const spots = response.data;
+          
+          if (spots.length > 0) {
+            // Sort by rating
+            const sortedSpots = [...spots].sort((a, b) => 
               (b.average_rating || 0) - (a.average_rating || 0)
-            ).slice(0, 5);
+            );
             
             setFeaturedSpots(sortedSpots);
             

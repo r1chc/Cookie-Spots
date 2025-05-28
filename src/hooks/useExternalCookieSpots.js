@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchAllSourceCookieSpots } from '../utils/cookieSpotService';
+import { cookieSpotApi } from '../utils/api';
 
 export const useExternalCookieSpots = (searchQuery, searchLocation, enabled = true) => {
   const [externalResults, setExternalResults] = useState([]);
@@ -23,16 +23,16 @@ export const useExternalCookieSpots = (searchQuery, searchLocation, enabled = tr
       
       try {
         console.log('Fetching from external sources...', { searchQuery, searchLocation });
-        const data = await fetchAllSourceCookieSpots(searchQuery || searchLocation);
-        console.log('External Service Response:', data);
+        const response = await cookieSpotApi.searchExternalSources(searchQuery || searchLocation);
+        console.log('External Service Response:', response.data);
         
-        if (data && data.spots) {
-          const resultsWithSource = data.spots.map(spot => ({ ...spot, source: 'external' }));
+        if (response.data && response.data.results) {
+          const resultsWithSource = response.data.results.map(spot => ({ ...spot, source: 'external' }));
           setExternalResults(resultsWithSource);
-          setSearchViewport(data.viewport || null);
+          setSearchViewport(response.data.viewport || null);
           console.log(`Received ${resultsWithSource.length} external spots.`);
         } else {
-          console.warn('No spots found in external source response or unexpected data format.', data);
+          console.warn('No spots found in external source response or unexpected data format.', response.data);
           setExternalResults([]);
         }
       } catch (error) {

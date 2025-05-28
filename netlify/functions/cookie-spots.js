@@ -1,6 +1,6 @@
 const { connectToDatabase } = require('./utils/mongodb');
 
-exports.handler = async (event, context) => {
+const handler = async (event, context) => {
   // Set CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -79,10 +79,13 @@ exports.handler = async (event, context) => {
         };
     }
   } catch (error) {
+    console.error('Error in cookie-spots function:', error);
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({ error: error.message })
     };
   }
-}; 
+};
+
+module.exports = { handler }; 

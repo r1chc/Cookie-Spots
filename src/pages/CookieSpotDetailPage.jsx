@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useCookieSpots } from '../utils/CookieSpotContext';
 import { useAuth } from '../utils/AuthContext';
-import { reviewApi, photoApi, favoriteApi } from '../utils/api';
+import { cookieSpotApi, reviewApi, photoApi, favoriteApi } from '../utils/api';
 
 const CookieSpotDetailPage = () => {
   const { id } = useParams();
-  const { getCookieSpotById, getNearbyCookieSpots, loading, error } = useCookieSpots();
   const { isAuthenticated, user } = useAuth();
   
   const [cookieSpot, setCookieSpot] = useState(null);
@@ -23,38 +21,40 @@ const CookieSpotDetailPage = () => {
   const [reviewError, setReviewError] = useState('');
   const [reviewSuccess, setReviewSuccess] = useState('');
   const [loadingData, setLoadingData] = useState(true);
+  const [error, setError] = useState(null);
 
   // Load cookie spot data
   useEffect(() => {
     const loadCookieSpotData = async () => {
       setLoadingData(true);
       try {
-        const data = await getCookieSpotById(id);
-        if (data) {
-          setCookieSpot(data.cookieSpot);
-          setPhotos(data.photos);
-          setReviews(data.reviews);
-          
-          // Load nearby cookie spots
-          if (data.cookieSpot.location && data.cookieSpot.location.coordinates) {
-            const [lng, lat] = data.cookieSpot.location.coordinates;
-            const nearby = await getNearbyCookieSpots(lat, lng, 5000, 5);
-            // Filter out the current cookie spot
-            setNearbyCookieSpots(nearby.filter(spot => spot._id !== id));
-          }
-          
-          // Check if user has favorited this cookie spot
-          if (isAuthenticated) {
-            try {
-              const favoriteRes = await favoriteApi.checkFavorite(id);
-              setIsFavorite(favoriteRes.data.isFavorite);
-            } catch (err) {
-              console.error('Error checking favorite status:', err);
-            }
+        const response = await cookieSpotApi.getCookieSpotById(id);
+        const data = response.data;
+        
+        setCookieSpot(data.cookieSpot);
+        setPhotos(data.photos);
+        setReviews(data.reviews);
+        
+        // Load nearby cookie spots
+        if (data.cookieSpot.location && data.cookieSpot.location.coordinates) {
+          const [lng, lat] = data.cookieSpot.location.coordinates;
+          const nearbyResponse = await cookieSpotApi.getNearbyCookieSpots(lat, lng, 5000, 5);
+          // Filter out the current cookie spot
+          setNearbyCookieSpots(nearbyResponse.data.filter(spot => spot._id !== id));
+        }
+        
+        // Check if user has favorited this cookie spot
+        if (isAuthenticated) {
+          try {
+            const favoriteRes = await favoriteApi.checkFavorite(id);
+            setIsFavorite(favoriteRes.data.isFavorite);
+          } catch (err) {
+            console.error('Error checking favorite status:', err);
           }
         }
       } catch (err) {
         console.error('Error loading cookie spot data:', err);
+        setError(err.response?.data?.message || 'Failed to load cookie spot data');
       }
       setLoadingData(false);
     };
@@ -124,7 +124,7 @@ const CookieSpotDetailPage = () => {
       setReviewError('');
       
       // Reload reviews
-      const data = await getCookieSpotById(id);
+      const data = await cookieSpotApi.getCookieSpotById(id);
       if (data) {
         setReviews(data.reviews);
         setCookieSpot(data.cookieSpot); // Update rating
@@ -140,7 +140,7 @@ const CookieSpotDetailPage = () => {
     }
   };
 
-  if (loadingData || loading) {
+  if (loadingData || !cookieSpot) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-center items-center h-64">
@@ -150,7 +150,7 @@ const CookieSpotDetailPage = () => {
     );
   }
 
-  if (error || !cookieSpot) {
+  if (error) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4">
@@ -162,7 +162,7 @@ const CookieSpotDetailPage = () => {
             </div>
             <div className="ml-3">
               <p className="text-sm text-red-700">
-                {error || 'Cookie spot not found. It may have been removed or is no longer available.'}
+                {error}
               </p>
             </div>
           </div>

@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useCookieSpots } from '../utils/CookieSpotContext';
 import CookieSpotCard from '../components/CookieSpotCard';
 import FilterButtons from '../components/FilterButtons';
 import { loadGoogleMaps } from '../utils/googleMapsLoader';
-import { fetchAllSourceCookieSpots } from '../utils/cookieSpotService';
 import MapComponent from '../components/Map';
 import useScrollRestoration from '../hooks/useScrollRestoration';
 import SearchBar from '../components/SearchBar';
+import { cookieSpotApi } from '../utils/api';
 
 // Helper function to get filter keyword (name) from its ID
 const getFilterKeyword = (filterId, items) => {
@@ -113,17 +112,24 @@ const SearchResultsPage = () => {
 
   const location = useLocation();
   const navigate = useNavigate();
-  const { 
-    cookieSpots, 
-    cookieTypes, 
-    dietaryOptions, 
-    loading, 
-    error, 
-    pagination, 
-    filters, 
-    loadCookieSpots, 
-    updateFilters 
-  } = useCookieSpots();
+  
+  const [cookieSpots, setCookieSpots] = useState([]);
+  const [cookieTypes, setCookieTypes] = useState([]);
+  const [dietaryOptions, setDietaryOptions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0
+  });
+  const [filters, setFilters] = useState({
+    search: '',
+    cookieType: '',
+    dietaryOption: '',
+    sort: 'rating',
+    order: 'desc'
+  });
   
   const [hoveredSpot, setHoveredSpot] = useState(null);
   const [clickedSpot, setClickedSpot] = useState(null);
@@ -149,28 +155,45 @@ const SearchResultsPage = () => {
 
   // Add keyword state for cookie-specific filtering
   const [cookieKeyword, setCookieKeyword] = useState('');
-  
-  // Force white background
-  useEffect(() => {
-    document.body.classList.add('search-page');
-    
-    const style = document.createElement('style');
-    style.textContent = `
-      body.search-page, 
-      body.search-page #root, 
-      body.search-page main, 
-      body.search-page main [class*="bg-primary"]:not(button) {
-        background-color: white !important;
-      }
-    `;
-    document.head.appendChild(style);
-    
-    return () => {
-      document.body.classList.remove('search-page');
-      document.head.removeChild(style);
-    };
-  }, []);
-  
+
+  // Load cookie spots with filters
+  const loadCookieSpots = async (page = 1) => {
+    setLoading(true);
+    try {
+      const response = await cookieSpotApi.getAllCookieSpots({
+        page,
+        ...filters
+      });
+      
+      setCookieSpots(response.data.cookieSpots);
+      setPagination(response.data.pagination);
+      setCookieTypes(response.data.cookieTypes);
+      setDietaryOptions(response.data.dietaryOptions);
+      
+      // Update URL with current filters
+      const searchParams = new URLSearchParams();
+      if (filters.search) searchParams.set('search', filters.search);
+      if (filters.cookieType) searchParams.set('cookieType', filters.cookieType);
+      if (filters.dietaryOption) searchParams.set('dietaryOption', filters.dietaryOption);
+      if (filters.sort) searchParams.set('sort', filters.sort);
+      if (filters.order) searchParams.set('order', filters.order);
+      if (page > 1) searchParams.set('page', page);
+      
+      navigate(`/search?${searchParams.toString()}`, { replace: true });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to load cookie spots');
+    }
+    setLoading(false);
+  };
+
+  // Update filters
+  const updateFilters = (newFilters) => {
+    setFilters(prev => ({
+      ...prev,
+      ...newFilters
+    }));
+  };
+
   // Parse query params on initial load
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
@@ -248,106 +271,24 @@ const SearchResultsPage = () => {
         setShowNoResults(false);
         
         try {
-          // Fetch external API results
-          const result = await fetchAllSourceCookieSpots(searchLocation);
-          const externalSpots = result.spots || [];
+          const response = await cookieSpotApi.searchExternalSources(searchLocation);
+          setExternalResults(response.data.results);
+          setSearchMetadata(response.data.metadata);
           
-          // Log the exact number of spots received
-          console.log(`RECEIVED ${externalSpots.length} spots from external API`);
-          
-          // Log additional information about multi-zipcode searches
-          if (result.search_metadata?.search_type === 'multi_zipcode') {
-            console.log(`Multi-zipcode search from ${result.search_metadata.zipcode_count} zip codes for ${searchLocation}`);
-          }
-          
-          // If we got results, store them
-          if (externalSpots && externalSpots.length > 0) {
-            setExternalResults(externalSpots);
-            
-            // Store metadata if available
-            if (result.search_metadata) {
-              console.log('Search metadata:', result.search_metadata);
-              setSearchMetadata(result.search_metadata);
-            }
-            
-            // Store viewport information
-            if (result.viewport) {
-              setSearchViewport(result.viewport);
-            }
-            
-            // Track if results came from cache
-            setIsFromCache(result.fromCache || false);
-            
-            // Combine with database results
-            const combined = [...cookieSpots];
-            const seenIds = new Set(cookieSpots.map(spot => spot._id));
-            const seenNames = new Map();
-            
-            // Create lookup for existing spots
-            cookieSpots.forEach(spot => {
-              if (spot && spot.name && spot.address) {
-                const key = `${spot.name.toLowerCase()}|${spot.address.toLowerCase()}`;
-                seenNames.set(key, true);
-              }
-            });
-            
-            // Add external results that aren't duplicates
-            externalSpots.forEach(spot => {
-              if (spot._id && seenIds.has(spot._id)) return;
-              
-              if (spot && spot.name && spot.address) {
-                const key = `${spot.name.toLowerCase()}|${spot.address.toLowerCase()}`;
-                if (seenNames.has(key)) return;
-                
-                combined.push(spot);
-                seenNames.set(key, true);
-              }
-            });
-            
-            // Log the final combined count
-            console.log(`COMBINED: Setting ${combined.length} spots in state (${cookieSpots.length} from DB + ${externalSpots.length - (combined.length - cookieSpots.length)} filtered out as duplicates)`);
-            
-            // Update state with combined results and ensure we don't show "no results"
-            setCombinedResults(combined);
-            setShowNoResults(false);
-          } else {
-            // If no external results, just use the MongoDB results
-            setCombinedResults(cookieSpots);
-            
-            // Only show "no results" if both sources returned nothing
-            if (cookieSpots.length === 0) {
-              // Wait a bit to be sure rendering is complete
-              setTimeout(() => {
-                setShowNoResults(true);
-              }, 1000);
-            }
-          }
-        } catch (error) {
-          console.error('Error fetching from external sources:', error);
-          // On error, use whatever MongoDB results we have
+          // Combine internal and external results
+          setCombinedResults([...cookieSpots, ...response.data.results]);
+        } catch (err) {
+          console.error('Error fetching external results:', err);
+          setExternalResults([]);
           setCombinedResults(cookieSpots);
-          
-          // Only show "no results" if MongoDB returned nothing
-          if (cookieSpots.length === 0) {
-            setTimeout(() => {
-              setShowNoResults(true);
-            }, 1000);
-          }
         }
-      } catch (error) {
-        console.error('Error in loadExternalResults:', error);
-        setCombinedResults(cookieSpots);
       } finally {
-        // Always ensure loading state is cleared
         setIsLoadingExternal(false);
       }
     };
-    
-    // Only run this effect after internal database results are loaded
-    if (!loading && !isInitialLoad) {
-      loadExternalResults();
-    }
-  }, [location.search, isInitialLoad, cookieSpots]);
+
+    loadExternalResults();
+  }, [location.search, cookieSpots]);
 
   // Calculate map bounds based on all spots
   useEffect(() => {

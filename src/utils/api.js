@@ -32,7 +32,7 @@ export const cookieSpotApi = {
   
   // Get nearby cookie spots
   getNearbyCookieSpots: (lat, lng, distance = 5000, limit = 10) => 
-    api.get(`/cookie-spots/nearby`, { params: { lat, lng, distance, limit } }),
+    api.get(`/cookie-spots-nearby`, { params: { lat, lng, distance, limit } }),
   
   // Create a new cookie spot
   createCookieSpot: (cookieSpotData) => api.post('/cookie-spots', cookieSpotData),
@@ -41,7 +41,10 @@ export const cookieSpotApi = {
   updateCookieSpot: (id, cookieSpotData) => api.put(`/cookie-spots/${id}`, cookieSpotData),
   
   // Delete a cookie spot
-  deleteCookieSpot: (id) => api.delete(`/cookie-spots/${id}`)
+  deleteCookieSpot: (id) => api.delete(`/cookie-spots/${id}`),
+
+  // Search external sources
+  searchExternalSources: (location) => api.post('/external-api', { location })
 };
 
 // Authentication API

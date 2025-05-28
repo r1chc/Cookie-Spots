@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { cookieSpotApi } from '../utils/api'
 
 const AddCookieSpotPage = () => {
   const navigate = useNavigate()
@@ -122,8 +123,9 @@ const AddCookieSpotPage = () => {
     setImagePreviewUrls(newImagePreviewUrls)
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
+    setError('')
     
     // Basic validation
     if (!formData.name || !formData.address || !formData.city || !formData.state) {
@@ -135,12 +137,33 @@ const AddCookieSpotPage = () => {
       setError('Please select at least one cookie type')
       return
     }
-    
-    // In a real implementation, this would submit to the backend
-    // For now, we'll just simulate a successful submission
-    setTimeout(() => {
-      navigate('/cookie-spot/1')
-    }, 1000)
+
+    try {
+      // Create FormData object for multipart/form-data
+      const formDataToSend = new FormData()
+      
+      // Append all form fields
+      Object.keys(formData).forEach(key => {
+        if (key === 'hours' || key === 'cookieTypes' || key === 'dietaryOptions' || key === 'features') {
+          formDataToSend.append(key, JSON.stringify(formData[key]))
+        } else {
+          formDataToSend.append(key, formData[key])
+        }
+      })
+
+      // Append images
+      images.forEach((image, index) => {
+        formDataToSend.append('images', image)
+      })
+
+      // Send the request
+      const response = await cookieSpotApi.createCookieSpot(formDataToSend)
+      
+      // Navigate to the new cookie spot's page
+      navigate(`/cookie-spot/${response.data._id}`)
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to create cookie spot. Please try again.')
+    }
   }
 
   return (
