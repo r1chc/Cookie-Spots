@@ -241,15 +241,22 @@ const SearchResultsPage = () => {
   // Effect to load external results after internal database results
   useEffect(() => {
     const loadExternalResults = async () => {
-      if (!location.search) return;
+      if (!location.search) {
+        console.log('No location.search, skipping external results');
+        return;
+      }
       
       // Get the search term from the URL - either 'location' or 'search' parameter
       const searchParams = new URLSearchParams(location.search);
       const searchLocation = searchParams.get('location') || searchParams.get('search');
       
+      console.log('URL search params:', location.search);
+      console.log('Parsed search location:', searchLocation);
+      console.log('All URL params:', Object.fromEntries(searchParams.entries()));
+      
       // Skip external fetching if no search term
       if (!searchLocation) {
-        console.log('No search term, skipping external results load');
+        console.log('No search term found in URL parameters, skipping external results load');
         return;
       }
       
@@ -273,11 +280,13 @@ const SearchResultsPage = () => {
         try {
           const response = await cookieSpotApi.searchExternalSources(searchLocation);
           const results = response.data?.results || [];
+          console.log('External API returned:', results.length, 'results');
           setExternalResults(results);
           setSearchMetadata(response.data?.metadata);
           
           // Combine internal and external results
           setCombinedResults([...cookieSpots, ...results]);
+          console.log('Combined results:', cookieSpots.length, 'internal +', results.length, 'external =', cookieSpots.length + results.length, 'total');
         } catch (err) {
           console.error('Error fetching external results:', err);
           setExternalResults([]);
@@ -288,7 +297,9 @@ const SearchResultsPage = () => {
       }
     };
 
-    loadExternalResults();
+    // Add a small delay to ensure the filters have been set first
+    const timeoutId = setTimeout(loadExternalResults, 100);
+    return () => clearTimeout(timeoutId);
   }, [location.search, cookieSpots]);
 
   // Calculate map bounds based on all spots
@@ -359,27 +370,52 @@ const SearchResultsPage = () => {
   
   // Memoize the URL update function
   const updateURL = useCallback((currentFilters) => {
-    const searchParams = new URLSearchParams();
+    const searchParams = new URLSearchParams(location.search);
+    
+    // Preserve existing location parameter if it exists, otherwise use search
+    const existingLocation = searchParams.get('location');
+    const existingSearch = searchParams.get('search');
     
     if (currentFilters.search) {
-      searchParams.set('search', currentFilters.search);
+      if (existingLocation) {
+        // Keep as location parameter if it was originally a location
+        searchParams.set('location', currentFilters.search);
+      } else {
+        // Use search parameter
+        searchParams.set('search', currentFilters.search);
+      }
+    } else {
+      // Remove both if no search term
+      searchParams.delete('location');
+      searchParams.delete('search');
     }
     
     if (currentFilters.cookieType) {
       searchParams.set('cookieType', currentFilters.cookieType);
+    } else {
+      searchParams.delete('cookieType');
     }
     
     if (currentFilters.dietaryOption) {
       searchParams.set('dietaryOption', currentFilters.dietaryOption);
+    } else {
+      searchParams.delete('dietaryOption');
     }
     
-    if (currentFilters.sort !== 'average_rating' || currentFilters.order !== 'desc') {
+    if (currentFilters.sort !== 'rating' || currentFilters.order !== 'desc') {
       searchParams.set('sort', currentFilters.sort);
       searchParams.set('order', currentFilters.order);
+    } else {
+      searchParams.delete('sort');
+      searchParams.delete('order');
     }
     
+    // Preserve lat/lng coordinates if they exist
+    const lat = searchParams.get('lat');
+    const lng = searchParams.get('lng');
+    
     navigate(`/search?${searchParams.toString()}`, { replace: true });
-  }, [navigate]);
+  }, [navigate, location.search]);
   
   // Update URL when filters change, but only after initial load
   useEffect(() => {
