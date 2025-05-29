@@ -284,7 +284,13 @@ const HomePage = ({ onSearch }) => {
               {userLocation ? `Top 5 Cookie Spots Near ${userLocation.city}` : 'Top 5 Cookie Spots Near Me'}
               {locationError && <span className="text-sm text-gray-500 ml-2">(Using default locations)</span>}
             </h2>
-            <Link to="/search" className="text-primary-600 hover:text-primary-700">
+            <Link 
+              to={userLocation ? 
+                `/search?location=${encodeURIComponent(userLocation.formattedLocation)}&lat=${userLocation.latitude}&lng=${userLocation.longitude}` : 
+                '/search'
+              } 
+              className="text-primary-600 hover:text-primary-700"
+            >
               View all
             </Link>
           </div>
