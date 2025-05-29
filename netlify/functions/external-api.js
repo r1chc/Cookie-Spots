@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { connectToDatabase } = require('./utils/mongodb');
 
 const handler = async (event, context) => {
   const headers = {
@@ -23,6 +24,47 @@ const handler = async (event, context) => {
         statusCode: 400,
         headers,
         body: JSON.stringify({ error: 'Location is required' })
+      };
+    }
+
+    // Connect to database for caching
+    const db = await connectToDatabase();
+    const cacheCollection = db.collection('externalSearchCache');
+    
+    // Ensure indexes exist for efficient querying
+    try {
+      await cacheCollection.createIndex({ location: 1, createdAt: 1 });
+      await cacheCollection.createIndex({ createdAt: 1 }, { expireAfterSeconds: 1209600 }); // Auto-delete after 2 weeks (14 days * 24 hours * 60 minutes * 60 seconds)
+    } catch (indexError) {
+      console.log('Index creation skipped (may already exist):', indexError.message);
+    }
+    
+    // Create a cache key based on the location
+    const cacheKey = location.toLowerCase().trim();
+    const cacheExpiry = 14 * 24 * 60 * 60 * 1000; // 2 weeks in milliseconds
+    
+    // Check if we have cached results
+    const cachedResult = await cacheCollection.findOne({
+      location: cacheKey,
+      createdAt: { $gt: new Date(Date.now() - cacheExpiry) }
+    });
+    
+    if (cachedResult) {
+      console.log(`Returning cached results for location: ${location}`);
+      return {
+        statusCode: 200,
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          results: cachedResult.results,
+          metadata: {
+            ...cachedResult.metadata,
+            cached: true,
+            cache_timestamp: cachedResult.createdAt
+          }
+        })
       };
     }
 
@@ -136,6 +178,24 @@ const handler = async (event, context) => {
       index === self.findIndex(r => r.place_id === result.place_id)
     );
 
+    // Cache the results for future requests
+    try {
+      await cacheCollection.insertOne({
+        location: cacheKey,
+        results: uniqueResults,
+        metadata: {
+          search_location: location,
+          total_results: uniqueResults.length,
+          source: 'google_places_api'
+        },
+        createdAt: new Date()
+      });
+      console.log(`Cached results for location: ${location}`);
+    } catch (cacheError) {
+      console.error('Failed to cache results:', cacheError);
+      // Continue without caching - don't fail the request
+    }
+
     return {
       statusCode: 200,
       headers: {
@@ -147,7 +207,8 @@ const handler = async (event, context) => {
         metadata: {
           search_location: location,
           total_results: uniqueResults.length,
-          source: 'google_places_api'
+          source: 'google_places_api',
+          cached: false
         }
       })
     };
