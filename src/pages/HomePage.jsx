@@ -86,7 +86,7 @@ const HomePage = ({ onSearch }) => {
           const response = await cookieSpotApi.getNearbyCookieSpots(
             userLocationData.latitude,
             userLocationData.longitude,
-            5000, // 5km radius
+            5, // 5km radius (function expects kilometers)
             5 // Limit to 5 spots
           );
           
@@ -105,13 +105,57 @@ const HomePage = ({ onSearch }) => {
             homePageCache.userLocation = userLocationData;
             homePageCache.timestamp = Date.now();
           } else {
-            setFeaturedSpots([]);
+            // If no local spots found, try external API as fallback
+            console.log('No local spots found, trying external API...');
+            try {
+              const externalResponse = await cookieSpotApi.searchExternalSources(userLocationData.formattedLocation);
+              const externalSpots = externalResponse.data?.results || [];
+              
+              if (externalSpots.length > 0) {
+                // Take only the first 5 and sort by rating
+                const limitedSpots = externalSpots.slice(0, 5).sort((a, b) => 
+                  (b.average_rating || 0) - (a.average_rating || 0)
+                );
+                
+                setFeaturedSpots(limitedSpots);
+                
+                // Update the cache with external results
+                homePageCache.featuredSpots = limitedSpots;
+                homePageCache.userLocation = userLocationData;
+                homePageCache.timestamp = Date.now();
+              } else {
+                setFeaturedSpots([]);
+              }
+            } catch (externalError) {
+              console.error('Error fetching external spots:', externalError);
+              setFeaturedSpots([]);
+            }
           }
         } catch (spotError) {
           console.error('Error fetching spots:', spotError);
-          setFeaturedSpots([]);
+          // Try external API as fallback
+          try {
+            const externalResponse = await cookieSpotApi.searchExternalSources(userLocationData.formattedLocation);
+            const externalSpots = externalResponse.data?.results || [];
+            
+            if (externalSpots.length > 0) {
+              const limitedSpots = externalSpots.slice(0, 5).sort((a, b) => 
+                (b.average_rating || 0) - (a.average_rating || 0)
+              );
+              
+              setFeaturedSpots(limitedSpots);
+              
+              homePageCache.featuredSpots = limitedSpots;
+              homePageCache.userLocation = userLocationData;
+              homePageCache.timestamp = Date.now();
+            } else {
+              setFeaturedSpots([]);
+            }
+          } catch (externalError) {
+            console.error('Error fetching external spots as fallback:', externalError);
+            setFeaturedSpots([]);
+          }
         }
-        
       } catch (error) {
         console.error('Error getting location or spots:', error);
         setLocationError(error.message);
@@ -125,7 +169,7 @@ const HomePage = ({ onSearch }) => {
           const response = await cookieSpotApi.getNearbyCookieSpots(
             defaultLocation.latitude,
             defaultLocation.longitude,
-            5000, // 5km radius
+            5, // 5km radius (function expects kilometers)
             5 // Limit to 5 spots
           );
           
@@ -144,11 +188,54 @@ const HomePage = ({ onSearch }) => {
             homePageCache.userLocation = defaultLocation;
             homePageCache.timestamp = Date.now();
           } else {
-            setFeaturedSpots([]);
+            // If no local spots found, try external API as fallback
+            console.log('No local spots found for default location, trying external API...');
+            try {
+              const externalResponse = await cookieSpotApi.searchExternalSources(defaultLocation.formattedLocation);
+              const externalSpots = externalResponse.data?.results || [];
+              
+              if (externalSpots.length > 0) {
+                const limitedSpots = externalSpots.slice(0, 5).sort((a, b) => 
+                  (b.average_rating || 0) - (a.average_rating || 0)
+                );
+                
+                setFeaturedSpots(limitedSpots);
+                
+                homePageCache.featuredSpots = limitedSpots;
+                homePageCache.userLocation = defaultLocation;
+                homePageCache.timestamp = Date.now();
+              } else {
+                setFeaturedSpots([]);
+              }
+            } catch (externalError) {
+              console.error('Error fetching external spots for default location:', externalError);
+              setFeaturedSpots([]);
+            }
           }
         } catch (spotError) {
           console.error('Error fetching default spots:', spotError);
-          setFeaturedSpots([]);
+          // Try external API as fallback
+          try {
+            const externalResponse = await cookieSpotApi.searchExternalSources(defaultLocation.formattedLocation);
+            const externalSpots = externalResponse.data?.results || [];
+            
+            if (externalSpots.length > 0) {
+              const limitedSpots = externalSpots.slice(0, 5).sort((a, b) => 
+                (b.average_rating || 0) - (a.average_rating || 0)
+              );
+              
+              setFeaturedSpots(limitedSpots);
+              
+              homePageCache.featuredSpots = limitedSpots;
+              homePageCache.userLocation = defaultLocation;
+              homePageCache.timestamp = Date.now();
+            } else {
+              setFeaturedSpots([]);
+            }
+          } catch (externalError) {
+            console.error('Error fetching external spots as fallback for default location:', externalError);
+            setFeaturedSpots([]);
+          }
         }
       } finally {
         setIsLoading(false);

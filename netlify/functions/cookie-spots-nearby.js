@@ -20,7 +20,7 @@ exports.handler = async (event, context) => {
     const cookieSpots = db.collection('cookieSpots');
 
     // Get query parameters
-    const { lat, lng, distance = 5000, limit = 10 } = event.queryStringParameters || {};
+    const { lat, lng, distance = 5, limit = 10 } = event.queryStringParameters || {};
 
     if (!lat || !lng) {
       return {
@@ -30,27 +30,45 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Convert distance to meters if it's in kilometers
-    const distanceInMeters = distance * 1000;
+    const latitude = parseFloat(lat);
+    const longitude = parseFloat(lng);
+    const distanceKm = parseFloat(distance);
+    const limitNum = parseInt(limit);
 
-    // Create a geospatial query
+    // Convert distance from kilometers to meters for MongoDB geospatial query
+    const distanceInMeters = distanceKm * 1000;
+
+    console.log(`Searching for cookie spots near ${latitude}, ${longitude} within ${distanceKm}km (${distanceInMeters}m)`);
+
+    try {
+      // First, try to ensure the geospatial index exists
+      await cookieSpots.createIndex({ "location": "2dsphere" });
+    } catch (indexError) {
+      console.log('Geospatial index may already exist:', indexError.message);
+    }
+
+    // Create a geospatial query using $near
     const query = {
       location: {
         $near: {
           $geometry: {
             type: 'Point',
-            coordinates: [parseFloat(lng), parseFloat(lat)]
+            coordinates: [longitude, latitude]
           },
           $maxDistance: distanceInMeters
         }
       }
     };
 
+    console.log('Executing geospatial query:', JSON.stringify(query, null, 2));
+
     // Execute the query
     const spots = await cookieSpots
       .find(query)
-      .limit(parseInt(limit))
+      .limit(limitNum)
       .toArray();
+
+    console.log(`Found ${spots.length} cookie spots`);
 
     return {
       statusCode: 200,
@@ -62,7 +80,10 @@ exports.handler = async (event, context) => {
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: 'Failed to fetch nearby cookie spots' })
+      body: JSON.stringify({ 
+        error: 'Failed to fetch nearby cookie spots',
+        details: error.message 
+      })
     };
   }
 }; 
