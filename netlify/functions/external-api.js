@@ -73,17 +73,10 @@ const handler = async (event, context) => {
         review_count: place.userRatingCount || 0,
         source: 'google',
         place_id: place.id,
-        // Fix photo URLs - use proper Google Places API photo reference
-        photos: place.photos ? place.photos.slice(0, 5).map(photo => {
-          // Extract the photo reference from the name field
-          const photoReference = photo.name.split('/').pop();
-          return {
-            url: `https://places.googleapis.com/v1/${photo.name}/media?maxHeightPx=400&maxWidthPx=400&key=${apiKey}`,
-            reference: photoReference,
-            width: photo.widthPx || 400,
-            height: photo.heightPx || 400
-          };
-        }) : [],
+        // Fix photo URLs - return URLs directly as strings for compatibility
+        photos: place.photos ? place.photos.slice(0, 5).map(photo => 
+          `https://places.googleapis.com/v1/${photo.name}/media?maxHeightPx=400&maxWidthPx=400&key=${apiKey}`
+        ) : [],
         // Fix contact information - ensure phone is properly extracted
         phone: place.internationalPhoneNumber || place.nationalPhoneNumber || null,
         website: place.websiteUri || null,
