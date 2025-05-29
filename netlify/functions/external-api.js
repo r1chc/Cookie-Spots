@@ -41,14 +41,44 @@ const handler = async (event, context) => {
       `dessert shop ${location}`
     ];
     
+    // First, try to geocode the location to get coordinates for location bias
+    let locationBias = null;
+    try {
+      const geocodeResponse = await axios.get(
+        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(location)}&key=${apiKey}`
+      );
+      
+      if (geocodeResponse.data.results && geocodeResponse.data.results.length > 0) {
+        const coords = geocodeResponse.data.results[0].geometry.location;
+        locationBias = {
+          circle: {
+            center: {
+              latitude: coords.lat,
+              longitude: coords.lng
+            },
+            radius: 25000 // 25km radius bias
+          }
+        };
+      }
+    } catch (geocodeError) {
+      console.log('Geocoding failed, proceeding without location bias:', geocodeError.message);
+    }
+    
     for (const searchTerm of searchTerms) {
       try {
+        const requestBody = {
+          textQuery: searchTerm,
+          maxResultCount: 20
+        };
+        
+        // Add location bias if we have coordinates
+        if (locationBias) {
+          requestBody.locationBias = locationBias;
+        }
+        
         const response = await axios.post(
           'https://places.googleapis.com/v1/places:searchText',
-          {
-            textQuery: searchTerm,
-            maxResultCount: 20
-          },
+          requestBody,
           {
             headers: {
               'X-Goog-Api-Key': apiKey,
