@@ -381,18 +381,16 @@ const Map = ({
     // Close all info windows first
     Object.values(infoWindowsRef.current).forEach(iw => iw.close());
 
-    // Highlight hovered spot and open its info window
-    if (hoveredSpot && markersRef.current[hoveredSpot._id]) {
-      const marker = markersRef.current[hoveredSpot._id];
-      const infoWindow = infoWindowsRef.current[hoveredSpot._id];
-      marker.setAnimation(window.google.maps.Animation.BOUNCE);
-      infoWindow.open(map, marker);
-    }
-
-    // Handle clicked spot (this will override hover if both exist)
+    // Prioritize clicked spot over hovered spot
     if (clickedSpot && markersRef.current[clickedSpot._id]) {
       const marker = markersRef.current[clickedSpot._id];
       const infoWindow = infoWindowsRef.current[clickedSpot._id];
+      infoWindow.open(map, marker);
+    } else if (hoveredSpot && markersRef.current[hoveredSpot._id]) {
+      // Only show hover info window if no spot is clicked
+      const marker = markersRef.current[hoveredSpot._id];
+      const infoWindow = infoWindowsRef.current[hoveredSpot._id];
+      marker.setAnimation(window.google.maps.Animation.BOUNCE);
       infoWindow.open(map, marker);
     }
   }, [map, hoveredSpot, clickedSpot, googleMapsLoaded]);
