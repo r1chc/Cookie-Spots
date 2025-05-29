@@ -32,76 +32,79 @@ const handler = async (event, context) => {
       throw new Error('Google Places API key is not configured');
     }
 
-    // Make multiple requests to get more results (Google Places API limits to 20 per request)
+    // Make multiple requests with different search terms to get more results
     const allResults = [];
-    let nextPageToken = null;
-    let requestCount = 0;
-    const maxRequests = 3; // This will give us up to 60 results
-
-    do {
-      const requestBody = {
-        textQuery: `cookie shop ${location}`,
-        maxResultCount: 20
-      };
-
-      if (nextPageToken) {
-        requestBody.pageToken = nextPageToken;
-      }
-
-      const response = await axios.post(
-        'https://places.googleapis.com/v1/places:searchText',
-        requestBody,
-        {
-          headers: {
-            'X-Goog-Api-Key': apiKey,
-            'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.photos,places.regularOpeningHours,places.internationalPhoneNumber,places.nationalPhoneNumber,places.websiteUri,places.googleMapsUri,places.priceLevel,places.businessStatus,nextPageToken'
+    const searchTerms = [
+      `cookie shop ${location}`,
+      `bakery ${location}`,
+      `cookies ${location}`,
+      `dessert shop ${location}`
+    ];
+    
+    for (const searchTerm of searchTerms) {
+      try {
+        const response = await axios.post(
+          'https://places.googleapis.com/v1/places:searchText',
+          {
+            textQuery: searchTerm,
+            maxResultCount: 20
+          },
+          {
+            headers: {
+              'X-Goog-Api-Key': apiKey,
+              'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.photos,places.regularOpeningHours,places.internationalPhoneNumber,places.nationalPhoneNumber,places.websiteUri,places.googleMapsUri,places.priceLevel,places.businessStatus'
+            }
           }
-        }
-      );
+        );
 
-      const places = response.data.places || [];
-      
-      // Transform Google Places API response to match expected format
-      const transformedResults = places.map(place => ({
-        _id: place.id,
-        name: place.displayName?.text || 'Unknown',
-        address: place.formattedAddress || '',
-        location: {
-          coordinates: place.location ? [place.location.longitude, place.location.latitude] : [0, 0]
-        },
-        average_rating: place.rating || 0,
-        review_count: place.userRatingCount || 0,
-        source: 'google',
-        place_id: place.id,
-        // Fix photo URLs - return URLs directly as strings for compatibility
-        photos: place.photos ? place.photos.slice(0, 5).map(photo => 
-          `https://places.googleapis.com/v1/${photo.name}/media?maxHeightPx=400&maxWidthPx=400&key=${apiKey}`
-        ) : [],
-        // Fix contact information - ensure phone is properly extracted
-        phone: place.internationalPhoneNumber || place.nationalPhoneNumber || null,
-        website: place.websiteUri || null,
-        google_maps_url: place.googleMapsUri || null,
-        // Add hours with better formatting
-        hours: place.regularOpeningHours ? {
-          weekday_text: place.regularOpeningHours.weekdayDescriptions || [],
-          periods: place.regularOpeningHours.periods || [],
-          open_now: place.regularOpeningHours.openNow || null
-        } : null,
-        // Add business status and price level
-        business_status: place.businessStatus || 'OPERATIONAL',
-        price_level: place.priceLevel || null
-      }));
+        const places = response.data.places || [];
+        
+        // Transform Google Places API response to match expected format
+        const transformedResults = places.map(place => ({
+          _id: place.id,
+          name: place.displayName?.text || 'Unknown',
+          address: place.formattedAddress || '',
+          location: {
+            coordinates: place.location ? [place.location.longitude, place.location.latitude] : [0, 0]
+          },
+          average_rating: place.rating || 0,
+          review_count: place.userRatingCount || 0,
+          source: 'google',
+          place_id: place.id,
+          // Fix photo URLs - return URLs directly as strings for compatibility
+          photos: place.photos ? place.photos.slice(0, 5).map(photo => 
+            `https://places.googleapis.com/v1/${photo.name}/media?maxHeightPx=400&maxWidthPx=400&key=${apiKey}`
+          ) : [],
+          // Fix contact information - ensure phone is properly extracted
+          phone: place.internationalPhoneNumber || place.nationalPhoneNumber || null,
+          website: place.websiteUri || null,
+          google_maps_url: place.googleMapsUri || null,
+          // Add hours with better formatting
+          hours: place.regularOpeningHours ? {
+            weekday_text: place.regularOpeningHours.weekdayDescriptions || [],
+            periods: place.regularOpeningHours.periods || [],
+            open_now: place.regularOpeningHours.openNow || null
+          } : null,
+          // Add business status and price level
+          business_status: place.businessStatus || 'OPERATIONAL',
+          price_level: place.priceLevel || null
+        }));
 
-      allResults.push(...transformedResults);
-      nextPageToken = response.data.nextPageToken;
-      requestCount++;
-
-      // Add a small delay between requests to avoid rate limiting
-      if (nextPageToken && requestCount < maxRequests) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        allResults.push(...transformedResults);
+        
+        // Add a small delay between requests to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+      } catch (searchError) {
+        console.error(`Error searching for "${searchTerm}":`, searchError);
+        // Continue with other search terms even if one fails
       }
-
-    } while (nextPageToken && requestCount < maxRequests);
+    }
+    
+    // Remove duplicates based on place_id
+    const uniqueResults = allResults.filter((result, index, self) => 
+      index === self.findIndex(r => r.place_id === result.place_id)
+    );
 
     return {
       statusCode: 200,
@@ -110,12 +113,11 @@ const handler = async (event, context) => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        results: allResults,
+        results: uniqueResults,
         metadata: {
           search_location: location,
-          total_results: allResults.length,
-          source: 'google_places_api',
-          requests_made: requestCount
+          total_results: uniqueResults.length,
+          source: 'google_places_api'
         }
       })
     };

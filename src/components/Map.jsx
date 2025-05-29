@@ -4,7 +4,37 @@ import { validateSpotCoordinates } from '../utils/spotUtils';
 
 // Helper function to format business hours
 const formatHours = (hours) => {
-  if (!hours || Object.keys(hours).length === 0) return '';
+  if (!hours) return '';
+  
+  // Handle Google Places API format (weekday_text array)
+  if (hours.weekday_text && Array.isArray(hours.weekday_text)) {
+    const today = new Date().getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const todayText = hours.weekday_text[today] || '';
+    
+    let hoursHtml = `<div style="margin: 8px 0; font-size: 0.9em;">`;
+    if (todayText) {
+      hoursHtml += `<p style="margin: 0 0 4px; font-weight: bold;">Today: ${todayText.split(': ')[1] || todayText}</p>`;
+    }
+    
+    hoursHtml += `<details>
+                    <summary style="cursor: pointer; color: #1F75CB;">View all hours</summary>
+                    <div style="margin-top: 6px;">`;
+    
+    hours.weekday_text.forEach(dayText => {
+      const [day, time] = dayText.split(': ');
+      const isToday = hours.weekday_text.indexOf(dayText) === today;
+      hoursHtml += `<div style="display: flex; justify-content: space-between; margin-bottom: 2px; ${isToday ? 'font-weight: bold;' : ''}">
+                      <span>${day}:</span>
+                      <span>${time || 'Closed'}</span>
+                    </div>`;
+    });
+    
+    hoursHtml += `</div></details></div>`;
+    return hoursHtml;
+  }
+  
+  // Handle legacy format (object with day keys)
+  if (typeof hours === 'object' && Object.keys(hours).length === 0) return '';
   
   const daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
   const today = daysOfWeek[new Date().getDay() - 1 >= 0 ? new Date().getDay() - 1 : 6]; // Adjust: 0 = Sunday in JS but we use monday as first day
@@ -284,7 +314,7 @@ const Map = ({
               </a>
             </p>` : ''
           }
-          ${spot.hours_of_operation ? formatHours(spot.hours_of_operation) : ''}
+          ${spot.hours ? formatHours(spot.hours) : ''}
           <div style="margin-top: 8px; text-align: center;">
             <a 
               href="https://www.google.com/maps/search/?api=1&query=${position.lat},${position.lng}" 
