@@ -307,6 +307,7 @@ const Map = ({
               ${spot.state_province ? (spot.city ? ', ' : '') + spot.state_province : ''}
             </p>`
           }
+          ${spot.hours ? formatHours(spot.hours) : ''}
           ${spot.phone ? 
             `<p style="margin-bottom: 8px;">
               <a href="tel:${spot.phone.replace(/\D/g, '')}" style="color: #1F75CB; text-decoration: none;">
@@ -314,10 +315,9 @@ const Map = ({
               </a>
             </p>` : ''
           }
-          ${spot.hours ? formatHours(spot.hours) : ''}
           <div style="margin-top: 8px; text-align: center;">
             <a 
-              href="https://www.google.com/maps/search/?api=1&query=${position.lat},${position.lng}" 
+              href="${spot.google_maps_url || `https://www.google.com/maps/search/?api=1&query=${position.lat},${position.lng}`}" 
               target="_blank" 
               rel="noopener noreferrer"
               style="color: #1F75CB; text-decoration: none; font-weight: 500;"
