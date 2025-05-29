@@ -3,6 +3,24 @@
  */
 
 /**
+ * Check if geolocation permission is granted
+ * @returns {Promise} A promise that resolves with permission status
+ */
+export const checkLocationPermission = async () => {
+  if (!navigator.permissions) {
+    return 'unsupported';
+  }
+  
+  try {
+    const permission = await navigator.permissions.query({ name: 'geolocation' });
+    return permission.state; // 'granted', 'denied', or 'prompt'
+  } catch (error) {
+    console.log('Permission API not supported:', error);
+    return 'unsupported';
+  }
+};
+
+/**
  * Get the user's current location using the browser's Geolocation API
  * @returns {Promise} A promise that resolves with the user's coordinates or rejects with an error
  */
@@ -21,12 +39,27 @@ export const getCurrentLocation = () => {
           });
         },
         (error) => {
-          reject(error);
+          let errorMessage;
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = 'Location access denied. Please enable location services in your browser settings and try again.';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = 'Location information is unavailable. Please check your internet connection and try again.';
+              break;
+            case error.TIMEOUT:
+              errorMessage = 'Location request timed out. Please try again.';
+              break;
+            default:
+              errorMessage = 'An unknown error occurred while retrieving your location.';
+              break;
+          }
+          reject(new Error(errorMessage));
         },
         {
           enableHighAccuracy: true,
           timeout: 15000, // Increase timeout to 15 seconds (from default 3 seconds)
-          maximumAge: 0
+          maximumAge: 300000 // Cache location for 5 minutes
         }
       );
     });

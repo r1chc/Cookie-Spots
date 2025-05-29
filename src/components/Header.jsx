@@ -86,7 +86,17 @@ const Header = () => {
       
     } catch (error) {
       console.error("Error getting location for 'Cookies Near You':", error);
-      alert("Could not get your location. Please ensure location services are enabled in your browser and try again.");
+      
+      // Provide specific error messages based on the error type
+      let userMessage = error.message;
+      
+      // If it's a generic error, provide a more helpful message
+      if (!userMessage || userMessage.includes('Unknown error')) {
+        userMessage = "Could not get your location. Please ensure location services are enabled in your browser and try again.";
+      }
+      
+      // Show a more user-friendly alert
+      alert(userMessage);
     } finally {
       setIsLocating(false);
       setIsMenuOpen(false);
